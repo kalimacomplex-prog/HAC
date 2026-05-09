@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HAC Platform</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --blue-950: #0a1628;
+      --blue-900: #0f2044;
+      --blue-800: #1e3a8a;
+      --blue-700: #1d4ed8;
+      --blue-600: #2563eb;
+      --blue-500: #3b82f6;
+      --blue-400: #60a5fa;
+      --blue-300: #93c5fd;
+      --blue-200: #bfdbfe;
+      --blue-100: #dbeafe;
+      --blue-50:  #eff6ff;
+      --white: #ffffff;
+      --gray-100: #f1f5f9;
+      --gray-200: #e2e8f0;
+      --gray-400: #94a3b8;
+      --gray-600: #475569;
+      --gray-800: #1e293b;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--blue-50);
+      color: var(--gray-800);
+      min-height: 100vh;
+    }
+
+    /* ── AUTH ── */
+    #auth-screen {
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--blue-950) 0%, var(--blue-800) 50%, var(--blue-600) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .auth-card {
+      background: rgba(255,255,255,0.07);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 20px;
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+    }
+
+    .auth-logo {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .auth-logo .logo-icon {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, var(--blue-400), var(--blue-600));
+      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      margin-bottom: 0.75rem;
+      box-shadow: 0 8px 24px rgba(59,130,246,0.4);
+    }
+
+    .auth-logo h1 {
+      color: var(--white);
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .auth-logo p {
+      color: var(--blue-300);
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
+    }
+
+    .auth-tabs {
+      display: flex;
+      background: rgba(0,0,0,0.2);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 1.5rem;
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 0.6rem;
+      border: none;
+      background: transparent;
+      color: var(--blue-300);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .auth-tab.active {
+      background: var(--blue-600);
+      color: var(--white);
+      box-shadow: 0 2px 8px rgba(37,99,235,0.5);
+    }
+
+    .form-group { margin-bottom: 1rem; }
+
+    .form-group label {
+      display: block;
+      color: var(--blue-200);
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-bottom: 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px;
+      color: var(--white);
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      outline: none;
+    }
+
+    .form-group input::placeholder { color: rgba(255,255,255,0.3); }
+
+    .form-group input:focus, .form-group textarea:focus {
+      border-color: var(--blue-400);
+      background: rgba(255,255,255,0.12);
+      box-shadow: 0 0 0 3px rgba(96,165,250,0.2);
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 0.85rem;
+      background: linear-gradient(135deg, var(--blue-600), var(--blue-500));
+      border: none;
+      border-radius: 10px;
+      color: var(--white);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 16px rgba(37,99,235,0.4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(37,99,235,0.5);
+    }
+
+    .btn-primary:active { transform: translateY(0); }
+
+    .auth-error {
+      background: rgba(239,68,68,0.15);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: #fca5a5;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    /* ── APP ── */
+    #app-screen { display: none; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 240px;
+      background: linear-gradient(180deg, var(--blue-950) 0%, var(--blue-900) 100%);
+      height: 100vh;
+      position: fixed;
+      left: 0; top: 0;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid rgba(255,255,255,0.06);
+      z-index: 100;
+    }
+
+    .sidebar-logo {
+      padding: 1.5rem 1.25rem;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .sidebar-logo .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--blue-500), var(--blue-600));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .sidebar-logo span {
+      color: var(--white);
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 1rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .nav-label {
+      color: var(--blue-400);
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0.5rem 0.5rem 0.25rem;
+      margin-top: 0.5rem;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.65rem 0.75rem;
+      border-radius: 10px;
+      color: var(--blue-300);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border: none;
+      background: transparent;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-item:hover {
+      background: rgba(255,255,255,0.06);
+      color: var(--white);
+    }
+
+    .nav-item.active {
+      background: rgba(59,130,246,0.2);
+      color: var(--blue-300);
+      border: 1px solid rgba(59,130,246,0.25);
+    }
+
+    .nav-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+
+    .sidebar-footer {
+      padding: 1rem 0.75rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .user-info:hover { background: rgba(255,255,255,0.06); }
+
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--blue-500), var(--blue-700));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .user-details { flex: 1; min-width: 0; }
+    .user-name { color: var(--white); font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-email { color: var(--blue-400); font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .btn-logout {
+      background: none;
+      border: none;
+      color: var(--blue-400);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 0.25rem;
+      transition: color 0.15s;
+    }
+
+    .btn-logout:hover { color: var(--red); }
+
+    /* Main content */
+    .main {
+      margin-left: 240px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      background: var(--white);
+      border-bottom: 1px solid var(--gray-200);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .topbar h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--gray-800);
+    }
+
+    .topbar-actions { display: flex; gap: 0.75rem; align-items: center; }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .btn-blue {
+      background: var(--blue-600);
+      color: white;
+      box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+    }
+
+    .btn-blue:hover { background: var(--blue-700); transform: translateY(-1px); }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--blue-600);
+      border: 1.5px solid var(--blue-200);
+    }
+
+    .btn-outline:hover { background: var(--blue-50); border-color: var(--blue-400); }
+
+    .btn-danger {
+      background: transparent;
+      color: var(--red);
+      border: 1.5px solid #fecaca;
+    }
+
+    .btn-danger:hover { background: #fef2f2; }
+
+    .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+
+    .content { padding: 2rem; flex: 1; }
+
+    /* Views */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--white);
+      border-radius: 14px;
+      padding: 1.25rem;
+      border: 1px solid var(--gray-200);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+
+    .stat-card .stat-label {
+      font-size: 0.75rem;
+      color: var(--gray-400);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-card .stat-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--blue-700);
+      line-height: 1;
+    }
+
+    .stat-card .stat-sub {
+      font-size: 0.75rem;
+      color: var(--gray-400);
+      margin-top: 0.35rem;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--white);
+      border-radius: 14px;
+      border: 1px solid var(--gray-200);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--gray-200);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-header h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--gray-800);
+    }
+
+    .card-body { padding: 0; }
+
+    /* Table */
+    .table { width: 100%; border-collapse: collapse; }
+
+    .table th {
+      padding: 0.75rem 1.5rem;
+      text-align: left;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--gray-100);
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .table td {
+      padding: 1rem 1.5rem;
+      font-size: 0.875rem;
+      color: var(--gray-800);
+      border-bottom: 1px solid var(--gray-200);
+      vertical-align: middle;
+    }
+
+    .table tr:last-child td { border-bottom: none; }
+
+    .table tr:hover td { background: var(--blue-50); }
+
+    /* Badge */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-pending { background: #fef3c7; color: #92400e; }
+    .badge-running { background: var(--blue-100); color: var(--blue-800); }
+    .badge-done { background: #dcfce7; color: #166534; }
+    .badge-failed { background: #fee2e2; color: #991b1b; }
+    .badge-cancelled { background: var(--gray-100); color: var(--gray-600); }
+    .badge-blue { background: var(--blue-100); color: var(--blue-800); }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .dot-running { animation: pulse 1.5s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--gray-400);
+    }
+
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+    .empty-state h3 { font-size: 1rem; color: var(--gray-600); margin-bottom: 0.5rem; }
+    .empty-state p { font-size: 0.875rem; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      display: none;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--white);
+      border-radius: 18px;
+      width: 100%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.25);
+    }
+
+    .modal-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--gray-200);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: var(--white);
+      z-index: 1;
+    }
+
+    .modal-header h3 { font-size: 1rem; font-weight: 700; }
+
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: none;
+      background: var(--gray-100);
+      color: var(--gray-600);
+      cursor: pointer;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+
+    .modal-close:hover { background: var(--gray-200); }
+
+    .modal-body { padding: 1.5rem; }
+
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--gray-200);
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+    }
+
+    /* Form inside modal */
+    .modal .form-group label {
+      color: var(--gray-600);
+      text-transform: none;
+      letter-spacing: 0;
+      font-size: 0.85rem;
+    }
+
+    .modal .form-group input,
+    .modal .form-group textarea,
+    .modal .form-group select {
+      background: var(--white);
+      border: 1.5px solid var(--gray-200);
+      color: var(--gray-800);
+      border-radius: 8px;
+    }
+
+    .modal .form-group input::placeholder,
+    .modal .form-group textarea::placeholder { color: var(--gray-400); }
+
+    .modal .form-group input:focus,
+    .modal .form-group textarea:focus,
+    .modal .form-group select:focus {
+      border-color: var(--blue-400);
+      background: var(--white);
+      box-shadow: 0 0 0 3px rgba(96,165,250,0.15);
+      color: var(--gray-800);
+    }
+
+    .code-editor {
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.82rem;
+      line-height: 1.6;
+      min-height: 200px;
+      resize: vertical;
+      background: #0f1e3a !important;
+      color: #93c5fd !important;
+      border-color: var(--blue-800) !important;
+    }
+
+    .code-editor:focus {
+      border-color: var(--blue-500) !important;
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.2) !important;
+    }
+
+    /* Job output */
+    .output-box {
+      background: var(--blue-950);
+      border-radius: 10px;
+      padding: 1rem;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 0.8rem;
+      color: var(--blue-200);
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .output-error {
+      background: #1a0a0a;
+      color: #fca5a5;
+    }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .toast {
+      background: var(--gray-800);
+      color: var(--white);
+      padding: 0.75rem 1.25rem;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      animation: slideIn 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      max-width: 320px;
+    }
+
+    .toast-success { background: #166534; }
+    .toast-error { background: #991b1b; }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Loading */
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-row td {
+      text-align: center;
+      padding: 3rem;
+      color: var(--gray-400);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; }
+      .content { padding: 1rem; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .hint { font-size: 0.75rem; color: var(--gray-400); margin-top: 0.3rem; }
+
+    .agent-name-cell { font-weight: 600; color: var(--blue-700); }
+    .script-preview {
+      font-family: monospace;
+      font-size: 0.75rem;
+      color: var(--gray-400);
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .actions-cell { display: flex; gap: 0.5rem; align-items: center; }
+  </style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-icon">⚡</div>
+      <h1>HAC Platform</h1>
+      <p>Execução de agentes Python</p>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">Entrar</button>
+      <button class="auth-tab" onclick="switchTab('register')">Criar conta</button>
+    </div>
+
+    <div id="auth-error" class="auth-error"></div>
+
+    <!-- Login -->
+    <div id="tab-login">
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" id="login-email" placeholder="seu@email.com" />
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="login-password" placeholder="••••••••" />
+      </div>
+      <button class="btn-primary" onclick="login()">Entrar</button>
+    </div>
+
+    <!-- Register -->
+    <div id="tab-register" style="display:none">
+      <div class="form-group">
+        <label>Nome</label>
+        <input type="text" id="reg-name" placeholder="Seu nome" />
+      </div>
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" id="reg-email" placeholder="seu@email.com" />
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres" />
+      </div>
+      <button class="btn-primary" onclick="register()">Criar conta</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen">
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">⚡</div>
+      <span>HAC Platform</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <span class="nav-label">Menu</span>
+      <button class="nav-item active" onclick="navigate('dashboard')" id="nav-dashboard">
+        <span class="icon">🏠</span> Dashboard
+      </button>
+      <button class="nav-item" onclick="navigate('agents')" id="nav-agents">
+        <span class="icon">🤖</span> Agentes
+      </button>
+      <button class="nav-item" onclick="navigate('jobs')" id="nav-jobs">
+        <span class="icon">⚙️</span> Jobs
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="user-avatar">U</div>
+        <div class="user-details">
+          <div class="user-name" id="user-name">Usuário</div>
+          <div class="user-email" id="user-email">email</div>
+        </div>
+        <button class="btn-logout" onclick="logout()" title="Sair">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <h2 id="topbar-title">Dashboard</h2>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div class="view active" id="view-dashboard">
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Agentes</div>
+            <div class="stat-value" id="stat-agents">–</div>
+            <div class="stat-sub">cadastrados</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Jobs hoje</div>
+            <div class="stat-value" id="stat-jobs-today">–</div>
+            <div class="stat-sub">executados</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Concluídos</div>
+            <div class="stat-value" id="stat-done">–</div>
+            <div class="stat-sub">com sucesso</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Falhas</div>
+            <div class="stat-value" id="stat-failed">–</div>
+            <div class="stat-sub">com erro</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>Jobs recentes</h3>
+            <button class="btn btn-outline btn-sm" onclick="navigate('jobs')">Ver todos</button>
+          </div>
+          <div class="card-body">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Agente</th>
+                  <th>Status</th>
+                  <th>Criado em</th>
+                  <th>Finalizado em</th>
+                </tr>
+              </thead>
+              <tbody id="recent-jobs-body">
+                <tr class="loading-row"><td colspan="4"><div class="spinner"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- AGENTS -->
+      <div class="view" id="view-agents">
+        <div class="card">
+          <div class="card-header">
+            <h3>Meus agentes</h3>
+          </div>
+          <div class="card-body">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Script</th>
+                  <th>Timeout</th>
+                  <th>Agendamento</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="agents-body">
+                <tr class="loading-row"><td colspan="5"><div class="spinner"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- JOBS -->
+      <div class="view" id="view-jobs">
+        <div class="card">
+          <div class="card-header">
+            <h3>Todos os jobs</h3>
+            <div style="display:flex;gap:.5rem">
+              <select id="filter-status" onchange="loadJobs()" style="padding:.4rem .75rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.82rem;color:var(--gray-800);background:white;cursor:pointer">
+                <option value="">Todos os status</option>
+                <option value="pending">Pendente</option>
+                <option value="running">Executando</option>
+                <option value="done">Concluído</option>
+                <option value="failed">Falhou</option>
+                <option value="cancelled">Cancelado</option>
+              </select>
+            </div>
+          </div>
+          <div class="card-body">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Agente</th>
+                  <th>Status</th>
+                  <th>Parâmetros</th>
+                  <th>Criado em</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="jobs-body">
+                <tr class="loading-row"><td colspan="5"><div class="spinner"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Agente -->
+<div class="modal-overlay" id="modal-agent">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-agent-title">Novo agente</h3>
+      <button class="modal-close" onclick="closeModal('modal-agent')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="agent-edit-id" />
+      <div class="form-group">
+        <label>Nome do agente</label>
+        <input type="text" id="agent-name" placeholder="Ex: Scraper de preços" />
+      </div>
+      <div class="form-group">
+        <label>Descrição</label>
+        <input type="text" id="agent-description" placeholder="O que esse agente faz?" />
+      </div>
+      <div class="form-group">
+        <label>Script Python</label>
+        <textarea class="code-editor" id="agent-script" rows="10" placeholder="import os
+
+# Leia parâmetros com os.environ.get('HAC_PARAM_NOME')
+url = os.environ.get('HAC_PARAM_URL', '')
+
+print('Executando...')
+# sua lógica aqui
+print('Concluído!')"></textarea>
+        <p class="hint">Parâmetros do job ficam disponíveis como <code>os.environ.get('HAC_PARAM_NOME')</code></p>
+      </div>
+      <div class="two-col">
+        <div class="form-group">
+          <label>Timeout (segundos)</label>
+          <input type="number" id="agent-timeout" value="300" min="10" max="3600" />
+        </div>
+        <div class="form-group">
+          <label>Agendamento (cron)</label>
+          <input type="text" id="agent-schedule" placeholder="0 9 * * 1-5" />
+          <p class="hint">Opcional. Ex: <code>0 9 * * 1-5</code> = seg–sex às 9h</p>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-agent')">Cancelar</button>
+      <button class="btn btn-blue" onclick="saveAgent()">Salvar agente</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Disparar Job -->
+<div class="modal-overlay" id="modal-job">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Disparar job</h3>
+      <button class="modal-close" onclick="closeModal('modal-job')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="job-agent-id" />
+      <p style="font-size:.875rem;color:var(--gray-600);margin-bottom:1rem">
+        Agente: <strong id="job-agent-name"></strong>
+      </p>
+      <div class="form-group">
+        <label>Parâmetros (JSON)</label>
+        <textarea id="job-params" rows="5" placeholder='{"url": "https://exemplo.com", "limite": 10}'
+          style="font-family:monospace;font-size:.85rem;border:1.5px solid var(--gray-200);border-radius:8px;padding:.75rem;width:100%;resize:vertical;outline:none;color:var(--gray-800)"></textarea>
+        <p class="hint">Deixe <code>{}</code> se o agente não precisar de parâmetros</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-job')">Cancelar</button>
+      <button class="btn btn-blue" onclick="dispatchJob()">Disparar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Resultado do Job -->
+<div class="modal-overlay" id="modal-job-result">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-header">
+      <h3>Resultado do job</h3>
+      <button class="modal-close" onclick="closeModal('modal-job-result')">✕</button>
+    </div>
+    <div class="modal-body" id="job-result-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-job-result')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+  // ── CONFIG ──
+  const API = (localStorage.getItem('hac_api_url') || 'http://localhost:8000').replace(/\/$/, '');
+
+  // ── STATE ──
+  let token = localStorage.getItem('hac_token');
+  let currentUser = null;
+
+  // ── INIT ──
+  window.addEventListener('load', () => {
+    const savedUrl = localStorage.getItem('hac_api_url');
+    if (!savedUrl) {
+      const url = prompt('URL da API (ex: https://minha-api.koyeb.app):', 'http://localhost:8000');
+      if (url) localStorage.setItem('hac_api_url', url.replace(/\/$/, ''));
+    }
+    if (token) initApp();
+    else showAuth();
+  });
+
+  // ── HTTP ──
+  async function api(method, path, body) {
+    const opts = {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+    };
+    if (token) opts.headers['Authorization'] = `Bearer ${token}`;
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(`${localStorage.getItem('hac_api_url') || API}${path}`, opts);
+    if (res.status === 401) { logout(); return null; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Erro desconhecido' }));
+      throw new Error(err.detail || 'Erro na requisição');
+    }
+    if (res.status === 204) return null;
+    return res.json();
+  }
+
+  // ── AUTH ──
+  function showAuth() {
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('app-screen').style.display = 'none';
+  }
+
+  function switchTab(tab) {
+    document.getElementById('tab-login').style.display = tab === 'login' ? 'block' : 'none';
+    document.getElementById('tab-register').style.display = tab === 'register' ? 'block' : 'none';
+    document.querySelectorAll('.auth-tab').forEach((el, i) => {
+      el.classList.toggle('active', (tab === 'login' && i === 0) || (tab === 'register' && i === 1));
+    });
+    document.getElementById('auth-error').style.display = 'none';
+  }
+
+  function showAuthError(msg) {
+    const el = document.getElementById('auth-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  async function login() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    if (!email || !password) return showAuthError('Preencha e-mail e senha');
+    try {
+      const data = await api('POST', '/auth/login', { email, password });
+      token = data.access_token;
+      localStorage.setItem('hac_token', token);
+      initApp();
+    } catch(e) { showAuthError(e.message); }
+  }
+
+  async function register() {
+    const name = document.getElementById('reg-name').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+    if (!name || !email || !password) return showAuthError('Preencha todos os campos');
+    try {
+      await api('POST', '/auth/register', { name, email, password });
+      toast('Conta criada! Faça login.', 'success');
+      switchTab('login');
+    } catch(e) { showAuthError(e.message); }
+  }
+
+  function logout() {
+    token = null;
+    localStorage.removeItem('hac_token');
+    showAuth();
+  }
+
+  // ── APP ──
+  async function initApp() {
+    try {
+      currentUser = await api('GET', '/auth/me');
+      if (!currentUser) return;
+      document.getElementById('user-name').textContent = currentUser.name;
+      document.getElementById('user-email').textContent = currentUser.email;
+      document.getElementById('user-avatar').textContent = currentUser.name.charAt(0).toUpperCase();
+      document.getElementById('auth-screen').style.display = 'none';
+      document.getElementById('app-screen').style.display = 'block';
+      navigate('dashboard');
+    } catch(e) { logout(); }
+  }
+
+  function navigate(view) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById(`view-${view}`).classList.add('active');
+    document.getElementById(`nav-${view}`).classList.add('active');
+
+    const titles = { dashboard: 'Dashboard', agents: 'Agentes', jobs: 'Jobs' };
+    document.getElementById('topbar-title').textContent = titles[view];
+
+    const actions = document.getElementById('topbar-actions');
+    actions.innerHTML = '';
+
+    if (view === 'agents') {
+      actions.innerHTML = `<button class="btn btn-blue" onclick="openAgentModal()">+ Novo agente</button>`;
+      loadAgents();
+    } else if (view === 'jobs') {
+      loadJobs();
+    } else if (view === 'dashboard') {
+      loadDashboard();
+    }
+  }
+
+  // ── DASHBOARD ──
+  async function loadDashboard() {
+    const [agents, jobs] = await Promise.all([
+      api('GET', '/agents'),
+      api('GET', '/jobs?limit=50'),
+    ]);
+    if (!agents || !jobs) return;
+
+    const today = new Date().toDateString();
+    const jobsToday = jobs.filter(j => new Date(j.created_at).toDateString() === today);
+
+    document.getElementById('stat-agents').textContent = agents.length;
+    document.getElementById('stat-jobs-today').textContent = jobsToday.length;
+    document.getElementById('stat-done').textContent = jobs.filter(j => j.status === 'done').length;
+    document.getElementById('stat-failed').textContent = jobs.filter(j => j.status === 'failed').length;
+
+    const tbody = document.getElementById('recent-jobs-body');
+    const recent = jobs.slice(0, 10);
+    if (!recent.length) {
+      tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">📭</div><h3>Nenhum job ainda</h3><p>Crie um agente e dispare seu primeiro job</p></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = recent.map(j => `
+      <tr>
+        <td class="agent-name-cell">${j.agent_name}</td>
+        <td>${statusBadge(j.status)}</td>
+        <td>${formatDate(j.created_at)}</td>
+        <td>${j.finished_at ? formatDate(j.finished_at) : '–'}</td>
+      </tr>
+    `).join('');
+  }
+
+  // ── AGENTS ──
+  async function loadAgents() {
+    const tbody = document.getElementById('agents-body');
+    tbody.innerHTML = `<tr class="loading-row"><td colspan="5"><div class="spinner"></div></td></tr>`;
+    const agents = await api('GET', '/agents');
+    if (!agents) return;
+    if (!agents.length) {
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🤖</div><h3>Nenhum agente ainda</h3><p>Crie seu primeiro agente Python</p></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = agents.map(a => `
+      <tr>
+        <td class="agent-name-cell">${a.name}</td>
+        <td><div class="script-preview">${a.description || '–'}</div></td>
+        <td>${a.timeout_seconds}s</td>
+        <td>${a.schedule ? `<span class="badge badge-blue">${a.schedule}</span>` : '–'}</td>
+        <td class="actions-cell">
+          <button class="btn btn-blue btn-sm" onclick="openJobModal('${a.id}','${a.name.replace(/'/g,"\\'")}')">▶ Disparar</button>
+          <button class="btn btn-outline btn-sm" onclick="editAgent('${a.id}')">Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteAgent('${a.id}')">Remover</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function openAgentModal(agentId) {
+    document.getElementById('agent-edit-id').value = '';
+    document.getElementById('agent-name').value = '';
+    document.getElementById('agent-description').value = '';
+    document.getElementById('agent-script').value = '';
+    document.getElementById('agent-timeout').value = '300';
+    document.getElementById('agent-schedule').value = '';
+    document.getElementById('modal-agent-title').textContent = 'Novo agente';
+    openModal('modal-agent');
+  }
+
+  async function editAgent(id) {
+    const agent = await api('GET', `/agents/${id}`);
+    if (!agent) return;
+    document.getElementById('agent-edit-id').value = agent.id;
+    document.getElementById('agent-name').value = agent.name;
+    document.getElementById('agent-description').value = agent.description || '';
+    document.getElementById('agent-script').value = '';
+    document.getElementById('agent-timeout').value = agent.timeout_seconds;
+    document.getElementById('agent-schedule').value = agent.schedule || '';
+    document.getElementById('modal-agent-title').textContent = 'Editar agente';
+    openModal('modal-agent');
+  }
+
+  async function saveAgent() {
+    const id = document.getElementById('agent-edit-id').value;
+    const body = {
+      name: document.getElementById('agent-name').value.trim(),
+      description: document.getElementById('agent-description').value.trim(),
+      timeout_seconds: parseInt(document.getElementById('agent-timeout').value),
+      schedule: document.getElementById('agent-schedule').value.trim() || null,
+    };
+    const script = document.getElementById('agent-script').value.trim();
+    if (!id) body.script = script;
+    if (!body.name) return toast('Informe o nome do agente', 'error');
+    if (!id && !body.script) return toast('Informe o script do agente', 'error');
+
+    try {
+      if (id) {
+        if (script) body.script = script;
+        await api('PATCH', `/agents/${id}`, body);
+        toast('Agente atualizado!', 'success');
+      } else {
+        await api('POST', '/agents', body);
+        toast('Agente criado!', 'success');
+      }
+      closeModal('modal-agent');
+      loadAgents();
+    } catch(e) { toast(e.message, 'error'); }
+  }
+
+  async function deleteAgent(id) {
+    if (!confirm('Remover este agente?')) return;
+    try {
+      await api('DELETE', `/agents/${id}`);
+      toast('Agente removido', 'success');
+      loadAgents();
+    } catch(e) { toast(e.message, 'error'); }
+  }
+
+  // ── JOBS ──
+  function openJobModal(agentId, agentName) {
+    document.getElementById('job-agent-id').value = agentId;
+    document.getElementById('job-agent-name').textContent = agentName;
+    document.getElementById('job-params').value = '{}';
+    openModal('modal-job');
+  }
+
+  async function dispatchJob() {
+    const agentId = document.getElementById('job-agent-id').value;
+    let params = {};
+    try {
+      params = JSON.parse(document.getElementById('job-params').value || '{}');
+    } catch { return toast('JSON de parâmetros inválido', 'error'); }
+
+    try {
+      await api('POST', '/jobs', { agent_id: agentId, params });
+      toast('Job disparado!', 'success');
+      closeModal('modal-job');
+      navigate('jobs');
+    } catch(e) { toast(e.message, 'error'); }
+  }
+
+  async function loadJobs() {
+    const tbody = document.getElementById('jobs-body');
+    tbody.innerHTML = `<tr class="loading-row"><td colspan="5"><div class="spinner"></div></td></tr>`;
+    const status = document.getElementById('filter-status')?.value || '';
+    const qs = status ? `?status=${status}&limit=100` : '?limit=100';
+    const jobs = await api('GET', `/jobs${qs}`);
+    if (!jobs) return;
+    if (!jobs.length) {
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">⚙️</div><h3>Nenhum job encontrado</h3><p>Dispare um job a partir de um agente</p></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = jobs.map(j => `
+      <tr>
+        <td class="agent-name-cell">${j.agent_name}</td>
+        <td>${statusBadge(j.status)}</td>
+        <td><code style="font-size:.75rem;color:var(--gray-600)">${JSON.stringify(j.params).slice(0,50)}${JSON.stringify(j.params).length>50?'…':''}</code></td>
+        <td>${formatDate(j.created_at)}</td>
+        <td class="actions-cell">
+          <button class="btn btn-outline btn-sm" onclick="viewJob('${j.id}')">Ver resultado</button>
+          ${j.status === 'pending' ? `<button class="btn btn-danger btn-sm" onclick="cancelJob('${j.id}')">Cancelar</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function viewJob(id) {
+    const job = await api('GET', `/jobs/${id}`);
+    if (!job) return;
+    const body = document.getElementById('job-result-body');
+    body.innerHTML = `
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem">
+        <div><span style="font-size:.75rem;color:var(--gray-400);text-transform:uppercase;font-weight:600">Agente</span><br><strong>${job.agent_name}</strong></div>
+        <div><span style="font-size:.75rem;color:var(--gray-400);text-transform:uppercase;font-weight:600">Status</span><br>${statusBadge(job.status)}</div>
+        <div><span style="font-size:.75rem;color:var(--gray-400);text-transform:uppercase;font-weight:600">Criado</span><br><span style="font-size:.85rem">${formatDate(job.created_at)}</span></div>
+        ${job.finished_at ? `<div><span style="font-size:.75rem;color:var(--gray-400);text-transform:uppercase;font-weight:600">Finalizado</span><br><span style="font-size:.85rem">${formatDate(job.finished_at)}</span></div>` : ''}
+      </div>
+      ${Object.keys(job.params).length ? `
+        <div style="margin-bottom:1.25rem">
+          <div style="font-size:.8rem;font-weight:600;color:var(--gray-600);margin-bottom:.5rem">Parâmetros</div>
+          <pre style="background:var(--gray-100);border-radius:8px;padding:.75rem;font-size:.8rem;overflow-x:auto">${JSON.stringify(job.params, null, 2)}</pre>
+        </div>
+      ` : ''}
+      ${job.output ? `
+        <div style="margin-bottom:1rem">
+          <div style="font-size:.8rem;font-weight:600;color:var(--gray-600);margin-bottom:.5rem">Output</div>
+          <div class="output-box">${escapeHtml(job.output)}</div>
+        </div>
+      ` : ''}
+      ${job.error ? `
+        <div>
+          <div style="font-size:.8rem;font-weight:600;color:#991b1b;margin-bottom:.5rem">Erro</div>
+          <div class="output-box output-error">${escapeHtml(job.error)}</div>
+        </div>
+      ` : ''}
+      ${!job.output && !job.error ? `<p style="color:var(--gray-400);font-size:.875rem;text-align:center;padding:2rem">Nenhuma saída registrada ainda.</p>` : ''}
+    `;
+    openModal('modal-job-result');
+  }
+
+  async function cancelJob(id) {
+    if (!confirm('Cancelar este job?')) return;
+    try {
+      await api('DELETE', `/jobs/${id}`);
+      toast('Job cancelado', 'success');
+      loadJobs();
+    } catch(e) { toast(e.message, 'error'); }
+  }
+
+  // ── MODAL ──
+  function openModal(id) { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) overlay.classList.remove('open');
+    });
+  });
+
+  // ── HELPERS ──
+  function statusBadge(status) {
+    const map = {
+      pending:   ['badge-pending', '🕐 Pendente'],
+      running:   ['badge-running', '<span class="dot dot-running"></span> Executando'],
+      done:      ['badge-done', '✓ Concluído'],
+      failed:    ['badge-failed', '✕ Falhou'],
+      cancelled: ['badge-cancelled', '– Cancelado'],
+    };
+    const [cls, label] = map[status] || ['badge-blue', status];
+    return `<span class="badge ${cls}">${label}</span>`;
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '–';
+    return new Date(iso).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function toast(msg, type = '') {
+    const el = document.createElement('div');
+    el.className = `toast ${type === 'success' ? 'toast-success' : type === 'error' ? 'toast-error' : ''}`;
+    el.innerHTML = `<span>${type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}</span> ${msg}`;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+  }
+
+  // Tecla Enter no login
+  document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import ASCENDING, IndexModel
+from .config import settings
+
+client = AsyncIOMotorClient(settings.mongo_url)
+db = client.hac
+
+users_col = db.users
+agents_col = db.agents
+jobs_col = db.jobs
+
+
+async def create_indexes():
+    await users_col.create_index("email", unique=True)
+    await agents_col.create_indexes([
+        IndexModel([("user_id", ASCENDING)]),
+    ])
+    await jobs_col.create_indexes([
+        IndexModel([("user_id", ASCENDING)]),
+        IndexModel([("status", ASCENDING)]),
+        IndexModel([("agent_id", ASCENDING)]),
+    ])

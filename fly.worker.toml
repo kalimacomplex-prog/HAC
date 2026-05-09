@@ -1,0 +1,16 @@
+app = "hac-worker"
+primary_region = "gru"
+
+[build]
+  dockerfile = "Dockerfile.worker"
+
+[http_service]
+  internal_port = 8080
+  force_https = false
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

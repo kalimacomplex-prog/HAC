@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: hac-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: MONGO_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        value: HAC Platform
+
+  - type: worker
+    name: hac-worker
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m worker.main
+    envVars:
+      - key: MONGO_URL
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        value: HAC Platform
+      - key: WORKER_POLL_SECONDS
+        value: "5"
