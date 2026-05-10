@@ -377,6 +377,7 @@ body {
 .btn-danger:hover { background: #fef2f2; }
 
 .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+.btn-xs { padding: 0.2rem 0.55rem; font-size: 0.75rem; }
 
 .content { padding: 2rem; flex: 1; }
 
