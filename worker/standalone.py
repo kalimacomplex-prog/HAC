@@ -236,7 +236,7 @@ def _check_installs(api_url: str, token: str, agent_id: str):
     for pkg in packages:
         log.info(f"Instalando biblioteca: {pkg}")
         result = subprocess.run(
-            [VENV_PIP, "install", pkg],
+            [VENV_PYTHON, "-m", "pip", "install", pkg],
             capture_output=True, text=True,
         )
         if result.returncode == 0:
