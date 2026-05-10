@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 import os
 
 from .database import create_indexes
-from .routes import auth, agents, jobs, worker
+from .routes import auth, agents, processes, jobs, worker
 
 app = FastAPI(title="HAC Platform", version="1.0.0")
 
@@ -19,6 +19,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(agents.router)
+app.include_router(processes.router)
 app.include_router(jobs.router)
 app.include_router(worker.router)
 

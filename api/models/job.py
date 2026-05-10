@@ -4,16 +4,16 @@ from datetime import datetime
 
 
 class JobCreate(BaseModel):
-    agent_id: str
+    process_id: str
     params: Dict[str, Any] = {}
 
 
 class JobOut(BaseModel):
     id: str
     user_id: str
-    agent_id: str
-    agent_name: str
-    status: str  # pending | running | done | failed
+    process_id: str
+    process_name: str
+    status: str  # pending | running | done | failed | cancelled
     params: Dict[str, Any]
     output: Optional[str] = None
     error: Optional[str] = None
@@ -26,8 +26,8 @@ def job_doc_to_out(doc: dict) -> JobOut:
     return JobOut(
         id=str(doc["_id"]),
         user_id=str(doc["user_id"]),
-        agent_id=str(doc["agent_id"]),
-        agent_name=doc.get("agent_name", ""),
+        process_id=str(doc["process_id"]),
+        process_name=doc.get("process_name", ""),
         status=doc["status"],
         params=doc.get("params", {}),
         output=doc.get("output"),

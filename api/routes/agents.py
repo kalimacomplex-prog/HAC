@@ -19,9 +19,6 @@ async def create_agent(body: AgentCreate, user: dict = Depends(get_current_user)
         "user_id": user["_id"],
         "name": body.name,
         "description": body.description,
-        "script": body.script,
-        "timeout_seconds": body.timeout_seconds,
-        "schedule": body.schedule,
         "created_at": now,
         "updated_at": now,
     }

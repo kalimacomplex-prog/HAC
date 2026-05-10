@@ -58,7 +58,7 @@ def main():
         try:
             job = claim_job(token)
             if job:
-                log.info(f"Executando job {job['job_id']} | agente: {job['agent_name']}")
+                log.info(f"Executando job {job['job_id']} | processo: {job['process_name']}")
                 output, error = run_script(job["script"], job.get("params", {}), job.get("timeout_seconds", 300))
                 status = "failed" if error else "done"
                 finish_job(token, job["job_id"], status, output, error)

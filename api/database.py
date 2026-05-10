@@ -7,6 +7,7 @@ db = client.hac
 
 users_col = db.users
 agents_col = db.agents
+processes_col = db.processes
 jobs_col = db.jobs
 
 
@@ -15,8 +16,11 @@ async def create_indexes():
     await agents_col.create_indexes([
         IndexModel([("user_id", ASCENDING)]),
     ])
+    await processes_col.create_indexes([
+        IndexModel([("user_id", ASCENDING)]),
+    ])
     await jobs_col.create_indexes([
         IndexModel([("user_id", ASCENDING)]),
         IndexModel([("status", ASCENDING)]),
-        IndexModel([("agent_id", ASCENDING)]),
+        IndexModel([("process_id", ASCENDING)]),
     ])

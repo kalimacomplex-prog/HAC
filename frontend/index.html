@@ -801,6 +801,9 @@
       <button class="nav-item" onclick="navigate('agents')" id="nav-agents">
         <span class="icon">🤖</span> Agentes
       </button>
+      <button class="nav-item" onclick="navigate('processes')" id="nav-processes">
+        <span class="icon">📋</span> Processos
+      </button>
       <button class="nav-item" onclick="navigate('jobs')" id="nav-jobs">
         <span class="icon">⚙️</span> Jobs
       </button>
@@ -860,7 +863,7 @@
             <table class="table">
               <thead>
                 <tr>
-                  <th>Agente</th>
+                  <th>Processo</th>
                   <th>Status</th>
                   <th>Criado em</th>
                   <th>Finalizado em</th>
@@ -885,14 +888,36 @@
               <thead>
                 <tr>
                   <th>Nome</th>
-                  <th>Script</th>
-                  <th>Timeout</th>
-                  <th>Agendamento</th>
+                  <th>Descrição</th>
                   <th>Ações</th>
                 </tr>
               </thead>
               <tbody id="agents-body">
-                <tr class="loading-row"><td colspan="5"><div class="spinner"></div></td></tr>
+                <tr class="loading-row"><td colspan="3"><div class="spinner"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROCESSES -->
+      <div class="view" id="view-processes">
+        <div class="card">
+          <div class="card-header">
+            <h3>Meus processos</h3>
+          </div>
+          <div class="card-body">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Descrição</th>
+                  <th>Timeout</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="processes-body">
+                <tr class="loading-row"><td colspan="4"><div class="spinner"></div></td></tr>
               </tbody>
             </table>
           </div>
@@ -919,7 +944,7 @@
             <table class="table">
               <thead>
                 <tr>
-                  <th>Agente</th>
+                  <th>Processo</th>
                   <th>Status</th>
                   <th>Parâmetros</th>
                   <th>Criado em</th>
@@ -949,34 +974,11 @@
       <input type="hidden" id="agent-edit-id" />
       <div class="form-group">
         <label>Nome do agente</label>
-        <input type="text" id="agent-name" placeholder="Ex: Scraper de preços" />
+        <input type="text" id="agent-name" placeholder="Ex: Máquina principal" />
       </div>
       <div class="form-group">
         <label>Descrição</label>
-        <input type="text" id="agent-description" placeholder="O que esse agente faz?" />
-      </div>
-      <div class="form-group">
-        <label>Script Python</label>
-        <textarea class="code-editor" id="agent-script" rows="10" placeholder="import os
-
-# Leia parâmetros com os.environ.get('HAC_PARAM_NOME')
-url = os.environ.get('HAC_PARAM_URL', '')
-
-print('Executando...')
-# sua lógica aqui
-print('Concluído!')"></textarea>
-        <p class="hint">Parâmetros do job ficam disponíveis como <code>os.environ.get('HAC_PARAM_NOME')</code></p>
-      </div>
-      <div class="two-col">
-        <div class="form-group">
-          <label>Timeout (segundos)</label>
-          <input type="number" id="agent-timeout" value="300" min="10" max="3600" />
-        </div>
-        <div class="form-group">
-          <label>Agendamento (cron)</label>
-          <input type="text" id="agent-schedule" placeholder="0 9 * * 1-5" />
-          <p class="hint">Opcional. Ex: <code>0 9 * * 1-5</code> = seg–sex às 9h</p>
-        </div>
+        <input type="text" id="agent-description" placeholder="Ex: Worker rodando no notebook pessoal" />
       </div>
     </div>
     <div class="modal-footer">
@@ -986,23 +988,64 @@ print('Concluído!')"></textarea>
   </div>
 </div>
 
+<!-- MODAL: Processo -->
+<div class="modal-overlay" id="modal-process">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header">
+      <h3 id="modal-process-title">Novo processo</h3>
+      <button class="modal-close" onclick="closeModal('modal-process')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="process-edit-id" />
+      <div class="form-group">
+        <label>Nome do processo</label>
+        <input type="text" id="process-name" placeholder="Ex: Scraper de preços" />
+      </div>
+      <div class="form-group">
+        <label>Descrição</label>
+        <input type="text" id="process-description" placeholder="O que esse processo faz?" />
+      </div>
+      <div class="form-group">
+        <label>Script Python</label>
+        <textarea class="code-editor" id="process-script" rows="12" placeholder="import os
+
+# Leia parâmetros com os.environ.get('HAC_PARAM_NOME')
+url = os.environ.get('HAC_PARAM_URL', '')
+
+print('Executando...')
+# sua lógica aqui
+print('Concluído!')"></textarea>
+        <p class="hint">Parâmetros ficam disponíveis como <code>os.environ.get('HAC_PARAM_NOME')</code></p>
+      </div>
+      <div class="form-group">
+        <label>Timeout (segundos)</label>
+        <input type="number" id="process-timeout" value="300" min="10" max="3600" style="width:160px" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-process')">Cancelar</button>
+      <button class="btn btn-blue" onclick="saveProcess()">Salvar processo</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Disparar Job -->
 <div class="modal-overlay" id="modal-job">
   <div class="modal">
     <div class="modal-header">
-      <h3>Disparar job</h3>
+      <h3>Disparar com parâmetros</h3>
       <button class="modal-close" onclick="closeModal('modal-job')">✕</button>
     </div>
     <div class="modal-body">
-      <input type="hidden" id="job-agent-id" />
+      <input type="hidden" id="job-process-id" />
       <p style="font-size:.875rem;color:var(--gray-600);margin-bottom:1rem">
-        Agente: <strong id="job-agent-name"></strong>
+        Processo: <strong id="job-process-name"></strong>
       </p>
       <div class="form-group">
         <label>Parâmetros (JSON)</label>
         <textarea id="job-params" rows="5" placeholder='{"url": "https://exemplo.com", "limite": 10}'
           style="font-family:monospace;font-size:.85rem;border:1.5px solid var(--gray-200);border-radius:8px;padding:.75rem;width:100%;resize:vertical;outline:none;color:var(--gray-800)"></textarea>
-        <p class="hint">Deixe <code>{}</code> se o agente não precisar de parâmetros</p>
+        <p class="hint">Deixe <code>{}</code> se o processo não precisar de parâmetros</p>
       </div>
     </div>
     <div class="modal-footer">
@@ -1132,7 +1175,7 @@ print('Concluído!')"></textarea>
     document.getElementById(`view-${view}`).classList.add('active');
     document.getElementById(`nav-${view}`).classList.add('active');
 
-    const titles = { dashboard: 'Dashboard', agents: 'Agentes', jobs: 'Jobs' };
+    const titles = { dashboard: 'Dashboard', agents: 'Agentes', processes: 'Processos', jobs: 'Jobs' };
     document.getElementById('topbar-title').textContent = titles[view];
 
     const actions = document.getElementById('topbar-actions');
@@ -1141,6 +1184,9 @@ print('Concluído!')"></textarea>
     if (view === 'agents') {
       actions.innerHTML = `<button class="btn btn-blue" onclick="openAgentModal()">+ Novo agente</button>`;
       loadAgents();
+    } else if (view === 'processes') {
+      actions.innerHTML = `<button class="btn btn-blue" onclick="openProcessModal()">+ Novo processo</button>`;
+      loadProcesses();
     } else if (view === 'jobs') {
       loadJobs();
     } else if (view === 'dashboard') {
@@ -1150,16 +1196,16 @@ print('Concluído!')"></textarea>
 
   // ── DASHBOARD ──
   async function loadDashboard() {
-    const [agents, jobs] = await Promise.all([
-      api('GET', '/agents'),
+    const [processes, jobs] = await Promise.all([
+      api('GET', '/processes'),
       api('GET', '/jobs?limit=50'),
     ]);
-    if (!agents || !jobs) return;
+    if (!processes || !jobs) return;
 
     const today = new Date().toDateString();
     const jobsToday = jobs.filter(j => new Date(j.created_at).toDateString() === today);
 
-    document.getElementById('stat-agents').textContent = agents.length;
+    document.getElementById('stat-agents').textContent = processes.length;
     document.getElementById('stat-jobs-today').textContent = jobsToday.length;
     document.getElementById('stat-done').textContent = jobs.filter(j => j.status === 'done').length;
     document.getElementById('stat-failed').textContent = jobs.filter(j => j.status === 'failed').length;
@@ -1167,12 +1213,12 @@ print('Concluído!')"></textarea>
     const tbody = document.getElementById('recent-jobs-body');
     const recent = jobs.slice(0, 10);
     if (!recent.length) {
-      tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">📭</div><h3>Nenhum job ainda</h3><p>Crie um agente e dispare seu primeiro job</p></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">📭</div><h3>Nenhum job ainda</h3><p>Crie um processo e dispare seu primeiro job</p></div></td></tr>`;
       return;
     }
     tbody.innerHTML = recent.map(j => `
       <tr>
-        <td class="agent-name-cell">${j.agent_name}</td>
+        <td class="agent-name-cell">${j.process_name}</td>
         <td>${statusBadge(j.status)}</td>
         <td>${formatDate(j.created_at)}</td>
         <td>${j.finished_at ? formatDate(j.finished_at) : '–'}</td>
@@ -1183,22 +1229,18 @@ print('Concluído!')"></textarea>
   // ── AGENTS ──
   async function loadAgents() {
     const tbody = document.getElementById('agents-body');
-    tbody.innerHTML = `<tr class="loading-row"><td colspan="5"><div class="spinner"></div></td></tr>`;
+    tbody.innerHTML = `<tr class="loading-row"><td colspan="3"><div class="spinner"></div></td></tr>`;
     const agents = await api('GET', '/agents');
     if (!agents) return;
     if (!agents.length) {
-      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🤖</div><h3>Nenhum agente ainda</h3><p>Crie seu primeiro agente Python</p></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="3"><div class="empty-state"><div class="empty-icon">🤖</div><h3>Nenhum agente ainda</h3><p>Cadastre o ambiente onde os processos vão executar</p></div></td></tr>`;
       return;
     }
     tbody.innerHTML = agents.map(a => `
       <tr>
         <td class="agent-name-cell">${a.name}</td>
-        <td><div class="script-preview">${a.description || '–'}</div></td>
-        <td>${a.timeout_seconds}s</td>
-        <td>${a.schedule ? `<span class="badge badge-blue">${a.schedule}</span>` : '–'}</td>
+        <td>${a.description || '–'}</td>
         <td class="actions-cell">
-          <button class="btn btn-blue btn-sm" onclick="runNow('${a.id}','${a.name.replace(/'/g,"\\'")}')">⚡ Executar</button>
-          <button class="btn btn-outline btn-sm" onclick="openJobModal('${a.id}','${a.name.replace(/'/g,"\\'")}')">▶ Com parâmetros</button>
           <button class="btn btn-outline btn-sm" onclick="editAgent('${a.id}')">Editar</button>
           <button class="btn btn-danger btn-sm" onclick="deleteAgent('${a.id}')">Remover</button>
         </td>
@@ -1206,13 +1248,10 @@ print('Concluído!')"></textarea>
     `).join('');
   }
 
-  function openAgentModal(agentId) {
+  function openAgentModal() {
     document.getElementById('agent-edit-id').value = '';
     document.getElementById('agent-name').value = '';
     document.getElementById('agent-description').value = '';
-    document.getElementById('agent-script').value = '';
-    document.getElementById('agent-timeout').value = '300';
-    document.getElementById('agent-schedule').value = '';
     document.getElementById('modal-agent-title').textContent = 'Novo agente';
     openModal('modal-agent');
   }
@@ -1223,9 +1262,6 @@ print('Concluído!')"></textarea>
     document.getElementById('agent-edit-id').value = agent.id;
     document.getElementById('agent-name').value = agent.name;
     document.getElementById('agent-description').value = agent.description || '';
-    document.getElementById('agent-script').value = '';
-    document.getElementById('agent-timeout').value = agent.timeout_seconds;
-    document.getElementById('agent-schedule').value = agent.schedule || '';
     document.getElementById('modal-agent-title').textContent = 'Editar agente';
     openModal('modal-agent');
   }
@@ -1235,17 +1271,10 @@ print('Concluído!')"></textarea>
     const body = {
       name: document.getElementById('agent-name').value.trim(),
       description: document.getElementById('agent-description').value.trim(),
-      timeout_seconds: parseInt(document.getElementById('agent-timeout').value),
-      schedule: document.getElementById('agent-schedule').value.trim() || null,
     };
-    const script = document.getElementById('agent-script').value.trim();
-    if (!id) body.script = script;
     if (!body.name) return toast('Informe o nome do agente', 'error');
-    if (!id && !body.script) return toast('Informe o script do agente', 'error');
-
     try {
       if (id) {
-        if (script) body.script = script;
         await api('PATCH', `/agents/${id}`, body);
         toast('Agente atualizado!', 'success');
       } else {
@@ -1266,33 +1295,112 @@ print('Concluído!')"></textarea>
     } catch(e) { toast(e.message, 'error'); }
   }
 
-  // ── JOBS ──
-  async function runNow(agentId, agentName) {
+  // ── PROCESSES ──
+  async function loadProcesses() {
+    const tbody = document.getElementById('processes-body');
+    tbody.innerHTML = `<tr class="loading-row"><td colspan="4"><div class="spinner"></div></td></tr>`;
+    const processes = await api('GET', '/processes');
+    if (!processes) return;
+    if (!processes.length) {
+      tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">📋</div><h3>Nenhum processo ainda</h3><p>Crie seu primeiro processo Python</p></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = processes.map(p => `
+      <tr>
+        <td class="agent-name-cell">${p.name}</td>
+        <td>${p.description || '–'}</td>
+        <td>${p.timeout_seconds}s</td>
+        <td class="actions-cell">
+          <button class="btn btn-blue btn-sm" onclick="runNow('${p.id}','${p.name.replace(/'/g,"\\'")}')">⚡ Executar</button>
+          <button class="btn btn-outline btn-sm" onclick="openJobModal('${p.id}','${p.name.replace(/'/g,"\\'")}')">▶ Com parâmetros</button>
+          <button class="btn btn-outline btn-sm" onclick="editProcess('${p.id}')">Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteProcess('${p.id}')">Remover</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function openProcessModal() {
+    document.getElementById('process-edit-id').value = '';
+    document.getElementById('process-name').value = '';
+    document.getElementById('process-description').value = '';
+    document.getElementById('process-script').value = '';
+    document.getElementById('process-timeout').value = '300';
+    document.getElementById('modal-process-title').textContent = 'Novo processo';
+    openModal('modal-process');
+  }
+
+  async function editProcess(id) {
+    const p = await api('GET', `/processes/${id}`);
+    if (!p) return;
+    document.getElementById('process-edit-id').value = p.id;
+    document.getElementById('process-name').value = p.name;
+    document.getElementById('process-description').value = p.description || '';
+    document.getElementById('process-script').value = p.script || '';
+    document.getElementById('process-timeout').value = p.timeout_seconds;
+    document.getElementById('modal-process-title').textContent = 'Editar processo';
+    openModal('modal-process');
+  }
+
+  async function saveProcess() {
+    const id = document.getElementById('process-edit-id').value;
+    const body = {
+      name: document.getElementById('process-name').value.trim(),
+      description: document.getElementById('process-description').value.trim(),
+      timeout_seconds: parseInt(document.getElementById('process-timeout').value),
+    };
+    const script = document.getElementById('process-script').value.trim();
+    if (!body.name) return toast('Informe o nome do processo', 'error');
+    if (!id && !script) return toast('Informe o script do processo', 'error');
+    if (script) body.script = script;
     try {
-      await api('POST', '/jobs', { agent_id: agentId, params: {} });
-      toast(`Job "${agentName}" disparado!`, 'success');
+      if (id) {
+        await api('PATCH', `/processes/${id}`, body);
+        toast('Processo atualizado!', 'success');
+      } else {
+        await api('POST', '/processes', body);
+        toast('Processo criado!', 'success');
+      }
+      closeModal('modal-process');
+      loadProcesses();
+    } catch(e) { toast(e.message, 'error'); }
+  }
+
+  async function deleteProcess(id) {
+    if (!confirm('Remover este processo?')) return;
+    try {
+      await api('DELETE', `/processes/${id}`);
+      toast('Processo removido', 'success');
+      loadProcesses();
+    } catch(e) { toast(e.message, 'error'); }
+  }
+
+  // ── JOBS ──
+  async function runNow(processId, processName) {
+    try {
+      await api('POST', '/jobs', { process_id: processId, params: {} });
+      toast(`Job "${processName}" disparado!`, 'success');
       navigate('jobs');
     } catch (e) {
       toast(e.message, 'error');
     }
   }
 
-  function openJobModal(agentId, agentName) {
-    document.getElementById('job-agent-id').value = agentId;
-    document.getElementById('job-agent-name').textContent = agentName;
+  function openJobModal(processId, processName) {
+    document.getElementById('job-process-id').value = processId;
+    document.getElementById('job-process-name').textContent = processName;
     document.getElementById('job-params').value = '{}';
     openModal('modal-job');
   }
 
   async function dispatchJob() {
-    const agentId = document.getElementById('job-agent-id').value;
+    const processId = document.getElementById('job-process-id').value;
     let params = {};
     try {
       params = JSON.parse(document.getElementById('job-params').value || '{}');
     } catch { return toast('JSON de parâmetros inválido', 'error'); }
-
     try {
-      await api('POST', '/jobs', { agent_id: agentId, params });
+      await api('POST', '/jobs', { process_id: processId, params });
       toast('Job disparado!', 'success');
       closeModal('modal-job');
       navigate('jobs');
@@ -1307,12 +1415,12 @@ print('Concluído!')"></textarea>
     const jobs = await api('GET', `/jobs${qs}`);
     if (!jobs) return;
     if (!jobs.length) {
-      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">⚙️</div><h3>Nenhum job encontrado</h3><p>Dispare um job a partir de um agente</p></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">⚙️</div><h3>Nenhum job encontrado</h3><p>Dispare um job a partir de um processo</p></div></td></tr>`;
       return;
     }
     tbody.innerHTML = jobs.map(j => `
       <tr>
-        <td class="agent-name-cell">${j.agent_name}</td>
+        <td class="agent-name-cell">${j.process_name}</td>
         <td>${statusBadge(j.status)}</td>
         <td><code style="font-size:.75rem;color:var(--gray-600)">${JSON.stringify(j.params).slice(0,50)}${JSON.stringify(j.params).length>50?'…':''}</code></td>
         <td>${formatDate(j.created_at)}</td>
@@ -1330,7 +1438,7 @@ print('Concluído!')"></textarea>
     const body = document.getElementById('job-result-body');
     body.innerHTML = `
       <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem">
-        <div><span style="font-size:.75rem;color:var(--gray-400);text-transform:uppercase;font-weight:600">Agente</span><br><strong>${job.agent_name}</strong></div>
+        <div><span style="font-size:.75rem;color:var(--gray-400);text-transform:uppercase;font-weight:600">Processo</span><br><strong>${job.process_name}</strong></div>
         <div><span style="font-size:.75rem;color:var(--gray-400);text-transform:uppercase;font-weight:600">Status</span><br>${statusBadge(job.status)}</div>
         <div><span style="font-size:.75rem;color:var(--gray-400);text-transform:uppercase;font-weight:600">Criado</span><br><span style="font-size:.85rem">${formatDate(job.created_at)}</span></div>
         ${job.finished_at ? `<div><span style="font-size:.75rem;color:var(--gray-400);text-transform:uppercase;font-weight:600">Finalizado</span><br><span style="font-size:.85rem">${formatDate(job.finished_at)}</span></div>` : ''}

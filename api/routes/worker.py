@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from pymongo import ReturnDocument
 
 from ..auth import get_current_user
-from ..database import agents_col, jobs_col
+from ..database import processes_col, jobs_col
 from ..notifier import send_job_notification
 
 router = APIRouter(prefix="/worker", tags=["worker"])
@@ -29,20 +29,20 @@ async def claim_job(user: dict = Depends(get_current_user)):
     if not job:
         return None
 
-    agent = await agents_col.find_one({"_id": job["agent_id"]})
-    if not agent:
+    process = await processes_col.find_one({"_id": job["process_id"]})
+    if not process:
         await jobs_col.update_one(
             {"_id": job["_id"]},
-            {"$set": {"status": "failed", "error": "Agente removido", "finished_at": datetime.utcnow()}},
+            {"$set": {"status": "failed", "error": "Processo removido", "finished_at": datetime.utcnow()}},
         )
         return None
 
     return {
         "job_id": job["_id"],
-        "agent_name": agent["name"],
-        "script": agent["script"],
+        "process_name": process["name"],
+        "script": process["script"],
         "params": job.get("params", {}),
-        "timeout_seconds": agent.get("timeout_seconds", 300),
+        "timeout_seconds": process.get("timeout_seconds", 300),
     }
 
 

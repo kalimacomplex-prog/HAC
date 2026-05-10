@@ -5,7 +5,7 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..auth import get_current_user
-from ..database import agents_col, jobs_col
+from ..database import processes_col, jobs_col
 from ..models.job import JobCreate, JobOut, job_doc_to_out
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -13,15 +13,15 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 @router.post("", response_model=JobOut, status_code=201)
 async def create_job(body: JobCreate, user: dict = Depends(get_current_user)):
-    agent = await agents_col.find_one({"_id": body.agent_id, "user_id": user["_id"]})
-    if not agent:
-        raise HTTPException(status_code=404, detail="Agente não encontrado")
+    process = await processes_col.find_one({"_id": body.process_id, "user_id": user["_id"]})
+    if not process:
+        raise HTTPException(status_code=404, detail="Processo não encontrado")
 
     doc = {
         "_id": str(ObjectId()),
         "user_id": user["_id"],
-        "agent_id": body.agent_id,
-        "agent_name": agent["name"],
+        "process_id": body.process_id,
+        "process_name": process["name"],
         "status": "pending",
         "params": body.params,
         "output": None,
@@ -37,15 +37,15 @@ async def create_job(body: JobCreate, user: dict = Depends(get_current_user)):
 @router.get("", response_model=List[JobOut])
 async def list_jobs(
     status: str = Query(None),
-    agent_id: str = Query(None),
+    process_id: str = Query(None),
     limit: int = Query(50, le=200),
     user: dict = Depends(get_current_user),
 ):
     query = {"user_id": user["_id"]}
     if status:
         query["status"] = status
-    if agent_id:
-        query["agent_id"] = agent_id
+    if process_id:
+        query["process_id"] = process_id
 
     cursor = jobs_col.find(query).sort("created_at", -1).limit(limit)
     return [job_doc_to_out(doc) async for doc in cursor]
