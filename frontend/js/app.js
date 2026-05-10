@@ -44,7 +44,7 @@ function navigate(view) {
   document.getElementById(`view-${view}`).classList.add('active');
   document.getElementById(`nav-${view}`).classList.add('active');
 
-  const titles = { dashboard: 'Dashboard', agents: 'Agentes', processes: 'Processos', cronjobs: 'Cron Jobs' };
+  const titles = { dashboard: 'Dashboard', agents: 'Agentes', processes: 'Processos', cronjobs: 'Cron Jobs', instructions: 'Instruções' };
   document.getElementById('topbar-title').textContent = titles[view];
 
   const actions = document.getElementById('topbar-actions');
@@ -59,6 +59,8 @@ function navigate(view) {
   } else if (view === 'cronjobs') {
     actions.innerHTML = `<button class="btn btn-blue" onclick="openNewCronModal()">+ Cadastrar</button>`;
     loadCronJobs();
+  } else if (view === 'instructions') {
+    // conteúdo estático, nada a carregar
   } else if (view === 'dashboard') {
     loadDashboard();
   }

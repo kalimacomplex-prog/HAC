@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HAC Platform</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=8" />
+  <link rel="stylesheet" href="/static/css/style.css?v=9" />
 </head>
 <body>
 
@@ -77,6 +77,9 @@
       </button>
       <button class="nav-item" onclick="navigate('cronjobs')" id="nav-cronjobs">
         <span class="icon">⏱</span> Cron Jobs
+      </button>
+      <button class="nav-item" onclick="navigate('instructions')" id="nav-instructions">
+        <span class="icon">📖</span> Instruções
       </button>
     </nav>
 
@@ -227,6 +230,155 @@
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- INSTRUÇÕES -->
+      <div class="view" id="view-instructions">
+        <div style="max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:1.5rem">
+
+          <!-- O que é -->
+          <div class="card">
+            <div class="card-header"><h3>⚡ O que é o HAC?</h3></div>
+            <div class="modal-body">
+              <p style="font-size:.9rem;color:var(--gray-600);line-height:1.8">
+                O <strong>HAC (Human Agent Controller)</strong> é uma plataforma para cadastrar, agendar e executar scripts Python remotamente em qualquer máquina. Você escreve o processo uma vez no painel web e o agente instalado na máquina executa automaticamente.
+              </p>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:1.25rem">
+                <div style="background:var(--blue-50);border-radius:12px;padding:1rem;text-align:center">
+                  <div style="font-size:1.75rem;margin-bottom:.5rem">🌐</div>
+                  <div style="font-weight:700;font-size:.85rem;color:var(--blue-800)">Painel Web</div>
+                  <div style="font-size:.78rem;color:var(--gray-600);margin-top:.25rem">Crie processos, agende cron jobs e veja os resultados</div>
+                </div>
+                <div style="background:var(--blue-50);border-radius:12px;padding:1rem;text-align:center">
+                  <div style="font-size:1.75rem;margin-bottom:.5rem">🔁</div>
+                  <div style="font-weight:700;font-size:.85rem;color:var(--blue-800)">API Central</div>
+                  <div style="font-size:.78rem;color:var(--gray-600);margin-top:.25rem">Coordena jobs entre o painel e os agentes via REST</div>
+                </div>
+                <div style="background:var(--blue-50);border-radius:12px;padding:1rem;text-align:center">
+                  <div style="font-size:1.75rem;margin-bottom:.5rem">🤖</div>
+                  <div style="font-weight:700;font-size:.85rem;color:var(--blue-800)">Worker (Agente)</div>
+                  <div style="font-size:.78rem;color:var(--gray-600);margin-top:.25rem">Roda na máquina local e executa os scripts Python</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Downloads -->
+          <div class="card">
+            <div class="card-header"><h3>⬇ Download do Worker</h3></div>
+            <div class="modal-body">
+              <p style="font-size:.875rem;color:var(--gray-600);margin-bottom:1.25rem">
+                Baixe o executável do agente para a máquina onde os scripts vão rodar. Na primeira execução ele configura tudo automaticamente.
+              </p>
+              <div style="display:flex;gap:1rem;flex-wrap:wrap">
+                <a href="/static/downloads/HAC-Worker-Windows.exe" download style="text-decoration:none">
+                  <button class="btn btn-blue" style="font-size:.9rem;padding:.65rem 1.25rem">
+                    🪟 Download Windows (.exe)
+                  </button>
+                </a>
+                <button class="btn btn-outline" style="font-size:.9rem;padding:.65rem 1.25rem;cursor:default;opacity:.6" disabled>
+                  🐧 Linux — em breve
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Instalação -->
+          <div class="card">
+            <div class="card-header"><h3>🛠 Instalação passo a passo</h3></div>
+            <div class="modal-body" style="display:flex;flex-direction:column;gap:1rem">
+
+              <div style="display:flex;gap:1rem;align-items:flex-start">
+                <div style="min-width:28px;height:28px;background:var(--blue-600);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:.8rem">1</div>
+                <div>
+                  <div style="font-weight:600;font-size:.875rem;margin-bottom:.25rem">Crie um Agente no painel</div>
+                  <div style="font-size:.82rem;color:var(--gray-600)">Vá em <strong>Agentes → + Novo agente</strong>, dê um nome (ex: "Meu Notebook") e salve. Copie o ID gerado clicando em <strong>📋 Copiar ID</strong>.</div>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:1rem;align-items:flex-start">
+                <div style="min-width:28px;height:28px;background:var(--blue-600);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:.8rem">2</div>
+                <div>
+                  <div style="font-weight:600;font-size:.875rem;margin-bottom:.25rem">Execute o HAC-Worker.exe</div>
+                  <div style="font-size:.82rem;color:var(--gray-600)">Dê dois cliques no executável baixado. Na primeira execução ele vai perguntar suas credenciais e criar os arquivos de configuração automaticamente em:</div>
+                  <code style="display:block;background:var(--gray-100);border-radius:6px;padding:.4rem .75rem;margin-top:.4rem;font-size:.8rem">C:\Users\&lt;usuario&gt;\AppData\Local\HACWorker\</code>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:1rem;align-items:flex-start">
+                <div style="min-width:28px;height:28px;background:var(--blue-600);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:.8rem">3</div>
+                <div>
+                  <div style="font-weight:600;font-size:.875rem;margin-bottom:.25rem">Preencha as informações solicitadas</div>
+                  <div style="font-size:.82rem;color:var(--gray-600)">O worker vai pedir:</div>
+                  <div style="background:var(--gray-100);border-radius:6px;padding:.6rem .75rem;margin-top:.4rem;font-family:monospace;font-size:.8rem;line-height:1.8">
+                    URL da API: https://hac-api-ojt8.onrender.com<br>
+                    Seu e-mail: seu@email.com<br>
+                    Sua senha: ••••••••<br>
+                    ID do agente: (cole o ID copiado no passo 1)
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:1rem;align-items:flex-start">
+                <div style="min-width:28px;height:28px;background:var(--blue-600);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:.8rem">4</div>
+                <div>
+                  <div style="font-weight:600;font-size:.875rem;margin-bottom:.25rem">Worker conectado!</div>
+                  <div style="font-size:.82rem;color:var(--gray-600)">O agente aparecerá como <span style="color:#16a34a;font-weight:600">● Conectado</span> na tela de Agentes. Um atalho <strong>"Iniciar HAC Worker.bat"</strong> é criado na Área de Trabalho para facilitar a inicialização.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Como usar -->
+          <div class="card">
+            <div class="card-header"><h3>📋 Como criar e executar processos</h3></div>
+            <div class="modal-body" style="display:flex;flex-direction:column;gap:.75rem">
+              <div style="font-size:.875rem;color:var(--gray-600);line-height:1.7">
+                <p><strong>1. Crie um Processo</strong> — Vá em <strong>Processos → + Novo processo</strong>. Escreva ou importe um script <code>.py</code>. Associe ao agente desejado.</p>
+                <p style="margin-top:.6rem"><strong>2. Execute</strong> — Clique em <strong>⚡ Executar</strong> para rodar imediatamente, ou em <strong>▶ Com parâmetros</strong> para passar valores via JSON.</p>
+                <p style="margin-top:.6rem"><strong>3. Acompanhe</strong> — Clique no nome do processo para ver o histórico de execuções com output e erros. O Dashboard mostra o resumo geral.</p>
+                <p style="margin-top:.6rem"><strong>4. Agende</strong> — Em <strong>Cron Jobs → + Cadastrar</strong> configure execução automática por intervalo, horário diário ou expressão cron.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Parâmetros -->
+          <div class="card">
+            <div class="card-header"><h3>⚙ Parâmetros nos scripts</h3></div>
+            <div class="modal-body">
+              <p style="font-size:.875rem;color:var(--gray-600);margin-bottom:.75rem">Passe valores para seus scripts via variáveis de ambiente com o prefixo <code>HAC_PARAM_</code>:</p>
+              <pre style="background:#0f1e3a;color:#93c5fd;border-radius:8px;padding:1rem;font-size:.8rem;line-height:1.7;overflow-x:auto">import os
+
+# Acesse os parâmetros passados ao disparar o job
+url   = os.environ.get('HAC_PARAM_URL', '')
+limit = os.environ.get('HAC_PARAM_LIMIT', '10')
+
+print(f"Processando {url} com limite {limit}")</pre>
+              <p style="font-size:.78rem;color:var(--gray-400);margin-top:.5rem">Ao disparar com parâmetros, informe o JSON: <code>{"url": "https://exemplo.com", "limit": "50"}</code></p>
+            </div>
+          </div>
+
+          <!-- Bibliotecas -->
+          <div class="card">
+            <div class="card-header"><h3>📦 Instalando bibliotecas Python</h3></div>
+            <div class="modal-body">
+              <p style="font-size:.875rem;color:var(--gray-600);margin-bottom:.75rem">Se um script falhar com <code>ModuleNotFoundError</code>, aparecerá automaticamente um botão <strong>📦 Instalar biblioteca</strong> no log do erro. Basta clicar — o agente instala o pacote no ambiente Python isolado.</p>
+              <p style="font-size:.875rem;color:var(--gray-600)">Para instalar manualmente, abra um terminal e use o pip do ambiente do worker:</p>
+              <pre style="background:#0f1e3a;color:#93c5fd;border-radius:8px;padding:.75rem 1rem;font-size:.8rem;margin-top:.5rem">"%LOCALAPPDATA%\HACWorker\env\Scripts\python.exe" -m pip install nome-da-biblioteca</pre>
+            </div>
+          </div>
+
+          <!-- Reconfigurar -->
+          <div class="card">
+            <div class="card-header"><h3>🔄 Reinstalar ou reconfigurar o worker</h3></div>
+            <div class="modal-body">
+              <p style="font-size:.875rem;color:var(--gray-600);margin-bottom:.5rem">Para remover e reinstalar do zero, delete a pasta abaixo e rode o <code>.exe</code> novamente:</p>
+              <code style="display:block;background:var(--gray-100);border-radius:6px;padding:.4rem .75rem;font-size:.8rem">C:\Users\&lt;usuario&gt;\AppData\Local\HACWorker\</code>
+              <p style="font-size:.78rem;color:var(--gray-400);margin-top:.5rem">O worker vai recriar tudo do zero na próxima execução.</p>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -467,14 +619,14 @@ print('Concluído!')"></textarea>
 <!-- TOAST -->
 <div class="toast-container" id="toast-container"></div>
 
-<script src="/static/js/helpers.js?v=8"></script>
-<script src="/static/js/app.js?v=8"></script>
-<script src="/static/js/auth.js?v=8"></script>
-<script src="/static/js/dashboard.js?v=8"></script>
-<script src="/static/js/agents.js?v=8"></script>
-<script src="/static/js/processes.js?v=8"></script>
-<script src="/static/js/jobs.js?v=8"></script>
-<script src="/static/js/cronjobs.js?v=8"></script>
+<script src="/static/js/helpers.js?v=9"></script>
+<script src="/static/js/app.js?v=9"></script>
+<script src="/static/js/auth.js?v=9"></script>
+<script src="/static/js/dashboard.js?v=9"></script>
+<script src="/static/js/agents.js?v=9"></script>
+<script src="/static/js/processes.js?v=9"></script>
+<script src="/static/js/jobs.js?v=9"></script>
+<script src="/static/js/cronjobs.js?v=9"></script>
 
 </body>
 </html>
