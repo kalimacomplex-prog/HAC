@@ -57,6 +57,7 @@ function navigate(view) {
     actions.innerHTML = `<button class="btn btn-blue" onclick="openProcessModal()">+ Novo processo</button>`;
     loadProcesses();
   } else if (view === 'cronjobs') {
+    actions.innerHTML = `<button class="btn btn-blue" onclick="openNewCronModal()">+ Cadastrar</button>`;
     loadCronJobs();
   } else if (view === 'dashboard') {
     loadDashboard();

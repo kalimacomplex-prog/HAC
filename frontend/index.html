@@ -367,14 +367,16 @@ print('Concluído!')"></textarea>
 <div class="modal-overlay" id="modal-cron">
   <div class="modal" style="max-width:500px">
     <div class="modal-header">
-      <h3>Configurar agendamento</h3>
+      <h3>Cadastrar cron job</h3>
       <button class="modal-close" onclick="closeModal('modal-cron')">✕</button>
     </div>
     <div class="modal-body">
-      <input type="hidden" id="cron-process-id" />
-      <p style="font-size:.875rem;color:var(--gray-600);margin-bottom:1.25rem">
-        Processo: <strong id="cron-process-name"></strong>
-      </p>
+      <div class="form-group">
+        <label>Processo</label>
+        <select id="cron-process-select" style="padding:.6rem .75rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.875rem;color:var(--gray-800);background:white;width:100%">
+          <option value="">Selecione um processo...</option>
+        </select>
+      </div>
       <div class="form-group">
         <label>Tipo de agendamento</label>
         <select id="cron-schedule-type" onchange="onCronTypeChange()" style="padding:.6rem .75rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.875rem;color:var(--gray-800);background:white;width:100%;margin-bottom:.75rem">
@@ -414,7 +416,7 @@ print('Concluído!')"></textarea>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-cron')">Cancelar</button>
-      <button class="btn btn-blue" onclick="saveCronSchedule()">Salvar agendamento</button>
+      <button class="btn btn-blue" onclick="saveCronSchedule()">Cadastrar</button>
     </div>
   </div>
 </div>

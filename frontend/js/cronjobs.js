@@ -3,90 +3,85 @@ async function loadCronJobs() {
   tbody.innerHTML = `<tr class="loading-row"><td colspan="4"><div class="spinner"></div></td></tr>`;
   const processes = await api('GET', '/processes');
   if (!processes) return;
-  if (!processes.length) {
-    tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">⏱</div><h3>Nenhum processo ainda</h3><p>Crie um processo primeiro para configurar agendamentos</p></div></td></tr>`;
+
+  const scheduled = processes.filter(p => !!p.schedule);
+
+  if (!scheduled.length) {
+    tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state">
+      <div class="empty-icon">⏱</div>
+      <h3>Nenhum cron job cadastrado</h3>
+      <p>Clique em "+ Cadastrar" para agendar um processo</p>
+    </div></td></tr>`;
     return;
   }
-  tbody.innerHTML = processes.map(p => {
-    const hasSchedule = !!p.schedule;
-    const scheduleLabel = hasSchedule ? _formatSchedule(p.schedule) : '–';
-    const nextRun = hasSchedule ? _cronNextRun(p.schedule) : '–';
-    return `
+
+  tbody.innerHTML = scheduled.map(p => `
     <tr>
       <td class="agent-name-cell">${p.name}</td>
-      <td>${p.description || '–'}</td>
       <td>
-        ${hasSchedule
-          ? `<div style="display:flex;flex-direction:column;gap:.25rem">
-               <span class="badge badge-blue" style="font-family:monospace;font-size:.72rem;width:fit-content">${p.schedule}</span>
-               <span style="font-size:.75rem;color:var(--gray-600)">${scheduleLabel}</span>
-             </div>`
-          : `<span style="color:var(--gray-400);font-size:.82rem">Sem agendamento</span>`
-        }
+        <div style="display:flex;flex-direction:column;gap:.25rem">
+          <span class="badge badge-blue" style="font-family:monospace;font-size:.72rem;width:fit-content">${p.schedule}</span>
+          <span style="font-size:.75rem;color:var(--gray-600)">${_formatSchedule(p.schedule)}</span>
+        </div>
       </td>
-      <td style="font-size:.82rem;color:var(--gray-600)">${nextRun}</td>
+      <td style="font-size:.82rem;color:var(--gray-600)">${_cronNextRun(p.schedule)}</td>
       <td class="actions-cell">
-        <button class="btn btn-blue btn-sm" onclick="openCronModal('${p.id}','${p.name.replace(/'/g,"\\'")}','${p.schedule || ''}')">
-          ${hasSchedule ? '✏ Editar' : '+ Configurar'}
-        </button>
-        ${hasSchedule ? `<button class="btn btn-danger btn-sm" onclick="removeCronSchedule('${p.id}','${p.name.replace(/'/g,"\\'")}')">Remover</button>` : ''}
+        <button class="btn btn-danger btn-sm" onclick="removeCronSchedule('${p.id}','${p.name.replace(/'/g,"\\'")}')">Remover</button>
       </td>
-    </tr>`;
-  }).join('');
+    </tr>
+  `).join('');
 }
 
-function openCronModal(processId, processName, currentSchedule) {
-  document.getElementById('cron-process-id').value = processId;
-  document.getElementById('cron-process-name').textContent = processName;
-  _cronScheduleToFields(currentSchedule || '');
+async function openNewCronModal() {
+  const processes = await api('GET', '/processes');
+  if (!processes) return;
+
+  const available = processes.filter(p => !p.schedule);
+  const sel = document.getElementById('cron-process-select');
+  sel.innerHTML = '<option value="">Selecione um processo...</option>';
+  available.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name;
+    sel.appendChild(opt);
+  });
+
+  if (!available.length) {
+    return toast('Todos os processos já têm agendamento', 'error');
+  }
+
+  document.getElementById('cron-schedule-type').value = '';
+  onCronTypeChange();
   openModal('modal-cron');
 }
 
 async function saveCronSchedule() {
-  const id = document.getElementById('cron-process-id').value;
+  const processId = document.getElementById('cron-process-select').value;
+  if (!processId) return toast('Selecione um processo', 'error');
   const schedule = _cronFieldsToSchedule();
-  if (!schedule) return toast('Selecione um tipo de agendamento', 'error');
+  if (!schedule) return toast('Configure o agendamento', 'error');
   try {
-    await api('PATCH', `/processes/${id}`, { schedule });
-    toast('Agendamento salvo!', 'success');
+    await api('PATCH', `/processes/${processId}`, { schedule });
+    toast('Cron job cadastrado!', 'success');
     closeModal('modal-cron');
     loadCronJobs();
   } catch(e) { toast(e.message, 'error'); }
 }
 
 async function removeCronSchedule(processId, processName) {
-  if (!confirm(`Remover agendamento de "${processName}"?`)) return;
+  if (!confirm(`Remover o cron job de "${processName}"? O processo deixará de ser executado automaticamente.`)) return;
   try {
     await api('PATCH', `/processes/${processId}`, { schedule: null });
-    toast('Agendamento removido', 'success');
+    toast('Cron job removido', 'success');
     loadCronJobs();
   } catch(e) { toast(e.message, 'error'); }
 }
 
 function onCronTypeChange() {
   const type = document.getElementById('cron-schedule-type').value;
-  document.getElementById('cron-interval').style.display  = type === 'interval' ? 'block' : 'none';
-  document.getElementById('cron-daily').style.display     = type === 'daily'    ? 'block' : 'none';
-  document.getElementById('cron-custom').style.display    = type === 'cron'     ? 'block' : 'none';
-}
-
-function _cronScheduleToFields(schedule) {
-  if (!schedule) { document.getElementById('cron-schedule-type').value = ''; onCronTypeChange(); return; }
-  const intervalMatch = schedule.match(/^\*\/(\d+) \* \* \* \*$/);
-  const dailyMatch    = schedule.match(/^(\d+) (\d+) \* \* \*$/);
-  if (intervalMatch) {
-    document.getElementById('cron-schedule-type').value = 'interval';
-    document.getElementById('cron-minutes').value = intervalMatch[1];
-  } else if (dailyMatch) {
-    document.getElementById('cron-schedule-type').value = 'daily';
-    const h = String(dailyMatch[2]).padStart(2,'0');
-    const m = String(dailyMatch[1]).padStart(2,'0');
-    document.getElementById('cron-time').value = `${h}:${m}`;
-  } else {
-    document.getElementById('cron-schedule-type').value = 'cron';
-    document.getElementById('cron-expr').value = schedule;
-  }
-  onCronTypeChange();
+  document.getElementById('cron-interval').style.display = type === 'interval' ? 'block' : 'none';
+  document.getElementById('cron-daily').style.display    = type === 'daily'    ? 'block' : 'none';
+  document.getElementById('cron-custom').style.display   = type === 'cron'     ? 'block' : 'none';
 }
 
 function _cronFieldsToSchedule() {
