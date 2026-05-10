@@ -5,7 +5,6 @@
 import os
 import sys
 import shutil
-import venv
 import time
 import logging
 import threading
@@ -75,7 +74,14 @@ def _ensure_venv():
     print(f"  {VENV_DIR}")
     print("Aguarde...")
 
-    venv.create(VENV_DIR, with_pip=True, clear=False)
+    result = subprocess.run(
+        [python, "-m", "venv", VENV_DIR],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        print(f"Erro ao criar ambiente: {result.stderr}")
+        input("Pressione Enter para sair...")
+        sys.exit(1)
 
     print("Ambiente criado com sucesso!")
     print()
