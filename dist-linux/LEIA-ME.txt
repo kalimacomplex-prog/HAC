@@ -1,0 +1,31 @@
+HAC Worker — Linux
+==================
+
+INSTALAÇÃO
+----------
+1. Abra um terminal nesta pasta
+2. Execute:
+   chmod +x instalar-agente.sh && ./instalar-agente.sh
+
+   OU clique com botão direito → "Executar como programa" (Ubuntu/GNOME)
+
+3. Na primeira execução será pedido:
+   - URL da API (pressione Enter para usar o padrão)
+   - E-mail e senha do painel HAC
+   - ID do agente (criado em hac-api-ojt8.onrender.com → Agentes)
+
+APÓS INSTALAR
+-------------
+- Terminal:        hac-worker
+- Nesta pasta:     ./Iniciar-Agente.sh
+- Menu de apps:    "HAC Worker" (ambientes GNOME/KDE)
+
+RECONFIGURAR
+------------
+Delete o arquivo ~/.hac-worker/hac_config.ini e reinicie.
+
+DESINSTALAR
+-----------
+rm -rf ~/.hac-worker
+rm -f ~/.local/bin/hac-worker
+rm -f ~/.local/share/applications/hac-worker.desktop
