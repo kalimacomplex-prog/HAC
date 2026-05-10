@@ -1079,6 +1079,20 @@ print('Concluído!')"></textarea>
   </div>
 </div>
 
+<!-- MODAL: Logs do Processo -->
+<div class="modal-overlay" id="modal-process-logs">
+  <div class="modal" style="max-width:800px">
+    <div class="modal-header">
+      <h3 id="modal-process-logs-title">Logs do processo</h3>
+      <button class="modal-close" onclick="closeModal('modal-process-logs')">✕</button>
+    </div>
+    <div class="modal-body" id="process-logs-body" style="padding:0"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-process-logs')">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast-container" id="toast-container"></div>
 
@@ -1336,7 +1350,9 @@ print('Concluído!')"></textarea>
         : `<span style="color:var(--gray-400);font-size:.82rem">Qualquer</span>`;
       return `
       <tr>
-        <td class="agent-name-cell">${p.name}</td>
+        <td class="agent-name-cell" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--blue-300)" onclick="openProcessLogs('${p.id}','${p.name.replace(/'/g,"\\'")}')">
+          ${p.name}
+        </td>
         <td>${p.description || '–'}</td>
         <td>${agentCell}</td>
         <td>${p.timeout_seconds}s</td>
@@ -1419,6 +1435,40 @@ print('Concluído!')"></textarea>
       toast('Processo removido', 'success');
       loadProcesses();
     } catch(e) { toast(e.message, 'error'); }
+  }
+
+  async function openProcessLogs(processId, processName) {
+    document.getElementById('modal-process-logs-title').textContent = `Logs — ${processName}`;
+    const body = document.getElementById('process-logs-body');
+    body.innerHTML = `<div style="padding:2rem;text-align:center"><div class="spinner"></div></div>`;
+    openModal('modal-process-logs');
+
+    const jobs = await api('GET', `/jobs?process_id=${processId}&limit=50`);
+    if (!jobs) return;
+    if (!jobs.length) {
+      body.innerHTML = `<div style="padding:3rem;text-align:center;color:var(--gray-400)">
+        <div style="font-size:2rem;margin-bottom:.75rem">📭</div>
+        <p>Nenhuma execução ainda</p>
+      </div>`;
+      return;
+    }
+
+    body.innerHTML = jobs.map(j => `
+      <div style="border-bottom:1px solid var(--gray-200);padding:1rem 1.5rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+          <div style="display:flex;align-items:center;gap:.75rem">
+            ${statusBadge(j.status)}
+            <span style="font-size:.8rem;color:var(--gray-400)">${formatDate(j.created_at)}</span>
+            ${j.finished_at ? `<span style="font-size:.8rem;color:var(--gray-400)">→ ${formatDate(j.finished_at)}</span>` : ''}
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="viewJob('${j.id}')">Ver detalhes</button>
+        </div>
+        ${j.output ? `<pre style="background:var(--gray-100);border-radius:6px;padding:.6rem .75rem;font-size:.78rem;max-height:120px;overflow:auto;margin:0;white-space:pre-wrap;word-break:break-all">${escapeHtml(j.output.slice(0, 500))}${j.output.length > 500 ? '\n…' : ''}</pre>` : ''}
+        ${j.error ? `<pre style="background:#fef2f2;border-radius:6px;padding:.6rem .75rem;font-size:.78rem;max-height:80px;overflow:auto;margin:0;color:#991b1b;white-space:pre-wrap;word-break:break-all">${escapeHtml(j.error.slice(0, 300))}${j.error.length > 300 ? '\n…' : ''}</pre>` : ''}
+        ${!j.output && !j.error && j.status === 'pending' ? `<span style="font-size:.8rem;color:var(--gray-400)">Aguardando worker...</span>` : ''}
+        ${!j.output && !j.error && j.status === 'running' ? `<span style="font-size:.8rem;color:var(--blue-600)">Executando...</span>` : ''}
+      </div>
+    `).join('');
   }
 
   // ── JOBS ──
