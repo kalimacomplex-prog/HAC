@@ -1031,7 +1031,7 @@ print('Concluído!')"></textarea>
 
 <script>
   // ── CONFIG ──
-  const API = (localStorage.getItem('hac_api_url') || 'http://localhost:8000').replace(/\/$/, '');
+  const API = (localStorage.getItem('hac_api_url') || window.location.origin).replace(/\/$/, '');
 
   // ── STATE ──
   let token = localStorage.getItem('hac_token');
@@ -1039,11 +1039,6 @@ print('Concluído!')"></textarea>
 
   // ── INIT ──
   window.addEventListener('load', () => {
-    const savedUrl = localStorage.getItem('hac_api_url');
-    if (!savedUrl) {
-      const url = prompt('URL da API (ex: https://minha-api.koyeb.app):', 'http://localhost:8000');
-      if (url) localStorage.setItem('hac_api_url', url.replace(/\/$/, ''));
-    }
     if (token) initApp();
     else showAuth();
   });
@@ -1056,7 +1051,7 @@ print('Concluído!')"></textarea>
     };
     if (token) opts.headers['Authorization'] = `Bearer ${token}`;
     if (body) opts.body = JSON.stringify(body);
-    const res = await fetch(`${localStorage.getItem('hac_api_url') || API}${path}`, opts);
+    const res = await fetch(`${API}${path}`, opts);
     if (res.status === 401) { logout(); return null; }
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: 'Erro desconhecido' }));
