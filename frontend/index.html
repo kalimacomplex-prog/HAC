@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HAC Platform</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=3" />
+  <link rel="stylesheet" href="/static/css/style.css?v=4" />
 </head>
 <body>
 
@@ -102,33 +102,38 @@
 
       <!-- DASHBOARD -->
       <div class="view active" id="view-dashboard">
-        <div class="stats-grid" id="stats-grid">
+        <div class="stats-grid">
           <div class="stat-card">
-            <div class="stat-label">Processos</div>
-            <div class="stat-value" id="stat-agents">–</div>
-            <div class="stat-sub">cadastrados</div>
+            <div class="stat-label">Agentes ativos</div>
+            <div class="stat-value" style="color:var(--green)" id="stat-agents-on">–</div>
+            <div class="stat-sub">conectados agora</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">Jobs hoje</div>
-            <div class="stat-value" id="stat-jobs-today">–</div>
-            <div class="stat-sub">executados</div>
+            <div class="stat-label">Agentes inativos</div>
+            <div class="stat-value" style="color:var(--gray-400)" id="stat-agents-off">–</div>
+            <div class="stat-sub">desconectados</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">Concluídos</div>
-            <div class="stat-value" id="stat-done">–</div>
-            <div class="stat-sub">com sucesso</div>
+            <div class="stat-label">Execuções</div>
+            <div class="stat-value" id="stat-total">–</div>
+            <div class="stat-sub">total registrado</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">Falhas</div>
-            <div class="stat-value" id="stat-failed">–</div>
+            <div class="stat-label">Com sucesso</div>
+            <div class="stat-value" style="color:#16a34a" id="stat-done">–</div>
+            <div class="stat-sub">finalizadas ok</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Com falha</div>
+            <div class="stat-value" style="color:var(--red)" id="stat-failed">–</div>
             <div class="stat-sub">com erro</div>
           </div>
         </div>
 
         <div class="card">
           <div class="card-header">
-            <h3>Jobs recentes</h3>
-            <button class="btn btn-outline btn-sm" onclick="navigate('jobs')">Ver todos</button>
+            <h3>Histórico de execuções</h3>
+            <button class="btn btn-outline btn-sm" onclick="loadDashboard()">↻ Atualizar</button>
           </div>
           <div class="card-body">
             <table class="table">
@@ -136,12 +141,13 @@
                 <tr>
                   <th>Processo</th>
                   <th>Status</th>
-                  <th>Criado em</th>
-                  <th>Finalizado em</th>
+                  <th>Início</th>
+                  <th>Fim</th>
+                  <th>Duração</th>
                 </tr>
               </thead>
               <tbody id="recent-jobs-body">
-                <tr class="loading-row"><td colspan="4"><div class="spinner"></div></td></tr>
+                <tr class="loading-row"><td colspan="5"><div class="spinner"></div></td></tr>
               </tbody>
             </table>
           </div>
@@ -455,14 +461,14 @@ print('Concluído!')"></textarea>
 <!-- TOAST -->
 <div class="toast-container" id="toast-container"></div>
 
-<script src="/static/js/helpers.js?v=3"></script>
-<script src="/static/js/app.js?v=3"></script>
-<script src="/static/js/auth.js?v=3"></script>
-<script src="/static/js/dashboard.js?v=3"></script>
-<script src="/static/js/agents.js?v=3"></script>
-<script src="/static/js/processes.js?v=3"></script>
-<script src="/static/js/jobs.js?v=3"></script>
-<script src="/static/js/cronjobs.js?v=3"></script>
+<script src="/static/js/helpers.js?v=4"></script>
+<script src="/static/js/app.js?v=4"></script>
+<script src="/static/js/auth.js?v=4"></script>
+<script src="/static/js/dashboard.js?v=4"></script>
+<script src="/static/js/agents.js?v=4"></script>
+<script src="/static/js/processes.js?v=4"></script>
+<script src="/static/js/jobs.js?v=4"></script>
+<script src="/static/js/cronjobs.js?v=4"></script>
 
 </body>
 </html>
