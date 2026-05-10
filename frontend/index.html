@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HAC Platform</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=9" />
+  <link rel="stylesheet" href="/static/css/style.css?v=10" />
 </head>
 <body>
 
@@ -277,9 +277,15 @@
                     🪟 Download Windows (.exe)
                   </button>
                 </a>
-                <button class="btn btn-outline" style="font-size:.9rem;padding:.65rem 1.25rem;cursor:default;opacity:.6" disabled>
-                  🐧 Linux — em breve
-                </button>
+                <a href="/static/downloads/HAC-Worker-Linux.sh" download style="text-decoration:none">
+                  <button class="btn btn-outline" style="font-size:.9rem;padding:.65rem 1.25rem">
+                    🐧 Download Linux (.sh)
+                  </button>
+                </a>
+              </div>
+              <div style="background:var(--blue-50);border-radius:8px;padding:.75rem 1rem;margin-top:1rem;font-size:.82rem;color:var(--gray-600)">
+                <strong>Linux:</strong> após baixar, abra um terminal na pasta do arquivo e execute:<br>
+                <code style="background:var(--white);border-radius:4px;padding:.15rem .4rem;margin-top:.3rem;display:inline-block">chmod +x HAC-Worker-Linux.sh && ./HAC-Worker-Linux.sh</code>
               </div>
             </div>
           </div>
@@ -619,14 +625,14 @@ print('Concluído!')"></textarea>
 <!-- TOAST -->
 <div class="toast-container" id="toast-container"></div>
 
-<script src="/static/js/helpers.js?v=9"></script>
-<script src="/static/js/app.js?v=9"></script>
-<script src="/static/js/auth.js?v=9"></script>
-<script src="/static/js/dashboard.js?v=9"></script>
-<script src="/static/js/agents.js?v=9"></script>
-<script src="/static/js/processes.js?v=9"></script>
-<script src="/static/js/jobs.js?v=9"></script>
-<script src="/static/js/cronjobs.js?v=9"></script>
+<script src="/static/js/helpers.js?v=10"></script>
+<script src="/static/js/app.js?v=10"></script>
+<script src="/static/js/auth.js?v=10"></script>
+<script src="/static/js/dashboard.js?v=10"></script>
+<script src="/static/js/agents.js?v=10"></script>
+<script src="/static/js/processes.js?v=10"></script>
+<script src="/static/js/jobs.js?v=10"></script>
+<script src="/static/js/cronjobs.js?v=10"></script>
 
 </body>
 </html>
