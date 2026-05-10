@@ -1,30 +1,34 @@
 async function loadDashboard() {
-  let agents = [], jobs = [];
+  let agentList = [], jobList = [];
+  let erros = [];
+
   try {
-    [agents, jobs] = await Promise.all([
-      api('GET', '/agents'),
-      api('GET', '/jobs?limit=200'),
-    ]);
-    agents = agents || [];
-    jobs   = jobs   || [];
-  } catch(e) {}
+    agentList = await api('GET', '/agents') || [];
+  } catch(e) {
+    erros.push('agentes: ' + e.message);
+    console.error('[dashboard] /agents falhou:', e);
+  }
 
-  const ativos     = agents.filter(a => a.connected).length;
-  const inativos   = agents.length - ativos;
-  const total      = jobs.length;
-  const sucesso    = jobs.filter(j => j.status === 'done').length;
-  const falha      = jobs.filter(j => j.status === 'failed').length;
+  try {
+    jobList = await api('GET', '/jobs?limit=200') || [];
+  } catch(e) {
+    erros.push('jobs: ' + e.message);
+    console.error('[dashboard] /jobs falhou:', e);
+  }
 
-  document.getElementById('stat-agents-on').textContent  = ativos;
-  document.getElementById('stat-agents-off').textContent = inativos;
-  document.getElementById('stat-total').textContent      = total;
-  document.getElementById('stat-done').textContent       = sucesso;
-  document.getElementById('stat-failed').textContent     = falha;
+  if (erros.length) {
+    toast('Erro ao carregar dashboard — ' + erros.join(' | '), 'error');
+  }
+
+  document.getElementById('stat-agents-on').textContent  = agentList.filter(a => a.connected).length;
+  document.getElementById('stat-agents-off').textContent = agentList.length - agentList.filter(a => a.connected).length;
+  document.getElementById('stat-total').textContent      = jobList.length;
+  document.getElementById('stat-done').textContent       = jobList.filter(j => j.status === 'done').length;
+  document.getElementById('stat-failed').textContent     = jobList.filter(j => j.status === 'failed').length;
 
   const tbody = document.getElementById('recent-jobs-body');
-  const recent = jobs.slice(0, 50);
 
-  if (!recent.length) {
+  if (!jobList.length) {
     tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">
       <div class="empty-icon">📭</div>
       <h3>Nenhuma execução ainda</h3>
@@ -33,7 +37,7 @@ async function loadDashboard() {
     return;
   }
 
-  tbody.innerHTML = recent.map(j => `
+  tbody.innerHTML = jobList.map(j => `
     <tr>
       <td class="agent-name-cell">${j.process_name}</td>
       <td>${statusBadge(j.status)}</td>
@@ -51,7 +55,6 @@ function _duration(start, end) {
   const s = Math.floor(ms / 1000);
   if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60);
-  const rs = s % 60;
-  if (m < 60) return `${m}m ${rs}s`;
+  if (m < 60) return `${m}m ${s % 60}s`;
   return `${Math.floor(m / 60)}h ${m % 60}m`;
 }
