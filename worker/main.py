@@ -36,7 +36,12 @@ def _headers(token: str) -> dict:
 
 
 def claim_job(token: str) -> dict | None:
-    resp = httpx.post(f"{API_URL}/worker/claim", headers=_headers(token), timeout=30)
+    resp = httpx.post(
+        f"{API_URL}/worker/claim",
+        json={"agent_id": AGENT_ID or None},
+        headers=_headers(token),
+        timeout=30,
+    )
     if resp.status_code == 401:
         raise PermissionError("token_expired")
     resp.raise_for_status()

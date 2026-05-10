@@ -913,12 +913,13 @@
                 <tr>
                   <th>Nome</th>
                   <th>Descrição</th>
+                  <th>Agente</th>
                   <th>Timeout</th>
                   <th>Ações</th>
                 </tr>
               </thead>
               <tbody id="processes-body">
-                <tr class="loading-row"><td colspan="4"><div class="spinner"></div></td></tr>
+                <tr class="loading-row"><td colspan="5"><div class="spinner"></div></td></tr>
               </tbody>
             </table>
           </div>
@@ -1018,9 +1019,17 @@ print('Executando...')
 print('Concluído!')"></textarea>
         <p class="hint">Parâmetros ficam disponíveis como <code>os.environ.get('HAC_PARAM_NOME')</code></p>
       </div>
-      <div class="form-group">
-        <label>Timeout (segundos)</label>
-        <input type="number" id="process-timeout" value="300" min="10" max="3600" style="width:160px" />
+      <div class="two-col">
+        <div class="form-group">
+          <label>Timeout (segundos)</label>
+          <input type="number" id="process-timeout" value="300" min="10" max="3600" />
+        </div>
+        <div class="form-group">
+          <label>Agente executor</label>
+          <select id="process-agent-id" style="padding:.6rem .75rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.875rem;color:var(--gray-800);background:white;width:100%">
+            <option value="">Qualquer agente</option>
+          </select>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1308,17 +1317,28 @@ print('Concluído!')"></textarea>
   // ── PROCESSES ──
   async function loadProcesses() {
     const tbody = document.getElementById('processes-body');
-    tbody.innerHTML = `<tr class="loading-row"><td colspan="4"><div class="spinner"></div></td></tr>`;
-    const processes = await api('GET', '/processes');
+    tbody.innerHTML = `<tr class="loading-row"><td colspan="5"><div class="spinner"></div></td></tr>`;
+    const [processes, agents] = await Promise.all([
+      api('GET', '/processes'),
+      api('GET', '/agents'),
+    ]);
     if (!processes) return;
     if (!processes.length) {
-      tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">📋</div><h3>Nenhum processo ainda</h3><p>Crie seu primeiro processo Python</p></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">📋</div><h3>Nenhum processo ainda</h3><p>Crie seu primeiro processo Python</p></div></td></tr>`;
       return;
     }
-    tbody.innerHTML = processes.map(p => `
+    const agentMap = {};
+    if (agents) agents.forEach(a => agentMap[a.id] = a);
+    tbody.innerHTML = processes.map(p => {
+      const agent = p.agent_id ? agentMap[p.agent_id] : null;
+      const agentCell = agent
+        ? `<span style="display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem">${agent.connected ? '🟢' : '⚫'} ${agent.name}</span>`
+        : `<span style="color:var(--gray-400);font-size:.82rem">Qualquer</span>`;
+      return `
       <tr>
         <td class="agent-name-cell">${p.name}</td>
         <td>${p.description || '–'}</td>
+        <td>${agentCell}</td>
         <td>${p.timeout_seconds}s</td>
         <td class="actions-cell">
           <button class="btn btn-blue btn-sm" onclick="runNow('${p.id}','${p.name.replace(/'/g,"\\'")}')">⚡ Executar</button>
@@ -1326,17 +1346,31 @@ print('Concluído!')"></textarea>
           <button class="btn btn-outline btn-sm" onclick="editProcess('${p.id}')">Editar</button>
           <button class="btn btn-danger btn-sm" onclick="deleteProcess('${p.id}')">Remover</button>
         </td>
-      </tr>
-    `).join('');
+      </tr>`;
+    }).join('');
   }
 
-  function openProcessModal() {
+  async function _fillAgentDropdown(selectedId = '') {
+    const sel = document.getElementById('process-agent-id');
+    sel.innerHTML = '<option value="">Qualquer agente</option>';
+    const agents = await api('GET', '/agents');
+    if (agents) agents.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a.id;
+      opt.textContent = a.name + (a.connected ? ' 🟢' : ' ⚫');
+      opt.selected = a.id === selectedId;
+      sel.appendChild(opt);
+    });
+  }
+
+  async function openProcessModal() {
     document.getElementById('process-edit-id').value = '';
     document.getElementById('process-name').value = '';
     document.getElementById('process-description').value = '';
     document.getElementById('process-script').value = '';
     document.getElementById('process-timeout').value = '300';
     document.getElementById('modal-process-title').textContent = 'Novo processo';
+    await _fillAgentDropdown();
     openModal('modal-process');
   }
 
@@ -1349,6 +1383,7 @@ print('Concluído!')"></textarea>
     document.getElementById('process-script').value = p.script || '';
     document.getElementById('process-timeout').value = p.timeout_seconds;
     document.getElementById('modal-process-title').textContent = 'Editar processo';
+    await _fillAgentDropdown(p.agent_id || '');
     openModal('modal-process');
   }
 
@@ -1358,6 +1393,7 @@ print('Concluído!')"></textarea>
       name: document.getElementById('process-name').value.trim(),
       description: document.getElementById('process-description').value.trim(),
       timeout_seconds: parseInt(document.getElementById('process-timeout').value),
+      agent_id: document.getElementById('process-agent-id').value || null,
     };
     const script = document.getElementById('process-script').value.trim();
     if (!body.name) return toast('Informe o nome do processo', 'error');

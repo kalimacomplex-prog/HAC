@@ -12,6 +12,10 @@ from ..notifier import send_job_notification
 router = APIRouter(prefix="/worker", tags=["worker"])
 
 
+class ClaimRequest(BaseModel):
+    agent_id: Optional[str] = None
+
+
 class JobFinish(BaseModel):
     status: str
     output: Optional[str] = None
@@ -19,9 +23,13 @@ class JobFinish(BaseModel):
 
 
 @router.post("/claim")
-async def claim_job(user: dict = Depends(get_current_user)):
+async def claim_job(body: ClaimRequest, user: dict = Depends(get_current_user)):
+    query = {"user_id": user["_id"], "status": "pending"}
+    if body.agent_id:
+        query["agent_id"] = body.agent_id
+
     job = await jobs_col.find_one_and_update(
-        {"user_id": user["_id"], "status": "pending"},
+        query,
         {"$set": {"status": "running", "started_at": datetime.utcnow()}},
         sort=[("created_at", 1)],
         return_document=ReturnDocument.AFTER,

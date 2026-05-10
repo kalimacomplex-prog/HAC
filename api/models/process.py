@@ -8,6 +8,7 @@ class ProcessCreate(BaseModel):
     description: str = ""
     script: str
     timeout_seconds: int = 300
+    agent_id: Optional[str] = None
 
 
 class ProcessUpdate(BaseModel):
@@ -15,6 +16,7 @@ class ProcessUpdate(BaseModel):
     description: Optional[str] = None
     script: Optional[str] = None
     timeout_seconds: Optional[int] = None
+    agent_id: Optional[str] = None
 
 
 class ProcessOut(BaseModel):
@@ -24,6 +26,7 @@ class ProcessOut(BaseModel):
     description: str
     script: str
     timeout_seconds: int
+    agent_id: Optional[str]
     created_at: datetime
     updated_at: datetime
 
@@ -36,6 +39,7 @@ def process_doc_to_out(doc: dict) -> ProcessOut:
         description=doc.get("description", ""),
         script=doc["script"],
         timeout_seconds=doc.get("timeout_seconds", 300),
+        agent_id=doc.get("agent_id"),
         created_at=doc["created_at"],
         updated_at=doc["updated_at"],
     )

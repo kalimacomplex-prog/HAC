@@ -22,6 +22,7 @@ async def create_job(body: JobCreate, user: dict = Depends(get_current_user)):
         "user_id": user["_id"],
         "process_id": body.process_id,
         "process_name": process["name"],
+        "agent_id": process.get("agent_id"),
         "status": "pending",
         "params": body.params,
         "output": None,
