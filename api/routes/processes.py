@@ -5,7 +5,7 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import get_current_user
-from ..database import processes_col
+from ..database import processes_col, jobs_col
 from ..models.process import ProcessCreate, ProcessUpdate, ProcessOut, process_doc_to_out
 
 router = APIRouter(prefix="/processes", tags=["processes"])
@@ -52,6 +52,17 @@ async def update_process(process_id: str, body: ProcessUpdate, user: dict = Depe
     updates["updated_at"] = datetime.utcnow()
     await processes_col.update_one({"_id": process_id}, {"$set": updates})
     return process_doc_to_out({**doc, **updates})
+
+
+@router.post("/{process_id}/stop", status_code=204)
+async def stop_process(process_id: str, user: dict = Depends(get_current_user)):
+    doc = await processes_col.find_one({"_id": process_id, "user_id": user["_id"]})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Processo não encontrado")
+    await jobs_col.update_many(
+        {"process_id": process_id, "user_id": user["_id"], "status": {"$in": ["pending", "running"]}},
+        {"$set": {"status": "cancelled", "finished_at": datetime.utcnow()}},
+    )
 
 
 @router.delete("/{process_id}", status_code=204)

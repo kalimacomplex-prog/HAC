@@ -1,3 +1,16 @@
+function stopProcess(processId, processName) {
+  showConfirm(
+    'Parar processo',
+    `Deseja cancelar todas as execuções pendentes e em andamento de "${processName}"?`,
+    async () => {
+      try {
+        await api('POST', `/processes/${processId}/stop`);
+        toast(`Execuções de "${processName}" canceladas.`, 'success');
+      } catch(e) { toast(e.message, 'error'); }
+    }
+  );
+}
+
 async function loadProcesses() {
   const tbody = document.getElementById('processes-body');
   tbody.innerHTML = `<tr class="loading-row"><td colspan="5"><div class="spinner"></div></td></tr>`;
@@ -27,6 +40,7 @@ async function loadProcesses() {
       <td>${p.schedule ? `<span class="badge badge-blue" style="font-family:monospace;font-size:.72rem">${p.schedule}</span>` : '<span style="color:var(--gray-400);font-size:.82rem">–</span>'}</td>
       <td class="actions-cell">
         <button class="btn btn-blue btn-sm" onclick="runNow('${p.id}','${p.name.replace(/'/g,"\\'")}')">⚡ Executar</button>
+        <button class="btn btn-danger btn-sm" onclick="stopProcess('${p.id}','${p.name.replace(/'/g,"\\'")}')">⏹ Parar</button>
         <button class="btn btn-outline btn-sm" onclick="openJobModal('${p.id}','${p.name.replace(/'/g,"\\'")}')">▶ Com parâmetros</button>
         <button class="btn btn-outline btn-sm" onclick="editProcess('${p.id}')">Editar</button>
         <button class="btn btn-danger btn-sm" onclick="deleteProcess('${p.id}')">Remover</button>
