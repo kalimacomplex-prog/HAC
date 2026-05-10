@@ -3,6 +3,7 @@ from typing import List
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from ..auth import get_current_user
 from ..database import agents_col
@@ -64,6 +65,23 @@ async def heartbeat(agent_id: str, user: dict = Depends(get_current_user)):
     result = await agents_col.update_one(
         {"_id": agent_id, "user_id": user["_id"]},
         {"$set": {"last_seen": datetime.utcnow()}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Agente não encontrado")
+
+
+class InstallRequest(BaseModel):
+    package: str
+
+
+@router.post("/{agent_id}/install", status_code=204)
+async def queue_install(agent_id: str, body: InstallRequest, user: dict = Depends(get_current_user)):
+    package = body.package.strip()
+    if not package:
+        raise HTTPException(status_code=400, detail="Nome do pacote obrigatório")
+    result = await agents_col.update_one(
+        {"_id": agent_id, "user_id": user["_id"]},
+        {"$addToSet": {"install_queue": package}},
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Agente não encontrado")

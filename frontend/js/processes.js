@@ -204,7 +204,10 @@ async function openProcessLogs(processId, processName) {
         <button class="btn btn-outline btn-sm" onclick="viewJob('${j.id}')">Ver detalhes</button>
       </div>
       ${j.output ? `<pre style="background:var(--gray-100);border-radius:6px;padding:.6rem .75rem;font-size:.78rem;max-height:120px;overflow:auto;margin:0;white-space:pre-wrap;word-break:break-all">${escapeHtml(j.output.slice(0, 500))}${j.output.length > 500 ? '\n…' : ''}</pre>` : ''}
-      ${j.error ? `<pre style="background:#fef2f2;border-radius:6px;padding:.6rem .75rem;font-size:.78rem;max-height:80px;overflow:auto;margin:0;color:#991b1b;white-space:pre-wrap;word-break:break-all">${escapeHtml(j.error.slice(0, 300))}${j.error.length > 300 ? '\n…' : ''}</pre>` : ''}
+      ${j.error ? `
+        <pre style="background:#fef2f2;border-radius:6px;padding:.6rem .75rem;font-size:.78rem;max-height:80px;overflow:auto;margin:0;color:#991b1b;white-space:pre-wrap;word-break:break-all">${escapeHtml(j.error.slice(0, 300))}${j.error.length > 300 ? '\n…' : ''}</pre>
+        ${_installBtn(j.agent_id, _missingModule(j.error))}
+      ` : ''}
       ${!j.output && !j.error && j.status === 'pending' ? `<span style="font-size:.8rem;color:var(--gray-400)">Aguardando worker...</span>` : ''}
       ${!j.output && !j.error && j.status === 'running' ? `<span style="font-size:.8rem;color:var(--blue-600)">Executando...</span>` : ''}
     </div>

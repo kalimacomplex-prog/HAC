@@ -1,3 +1,23 @@
+function _missingModule(error) {
+  if (!error) return null;
+  const m = error.match(/ModuleNotFoundError: No module named '([^']+)'/);
+  return m ? m[1] : null;
+}
+
+function _installBtn(agentId, pkg) {
+  if (!agentId || !pkg) return '';
+  return `<button class="btn btn-blue btn-sm" style="margin-top:.75rem" onclick="installPackage('${agentId}','${pkg}')">
+    📦 Instalar biblioteca "${pkg}"
+  </button>`;
+}
+
+async function installPackage(agentId, pkg) {
+  try {
+    await api('POST', `/agents/${agentId}/install`, { package: pkg });
+    toast(`Instalação de "${pkg}" enfileirada — o agente vai instalar em breve.`, 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
 async function runNow(processId, processName) {
   try {
     await api('POST', '/jobs', { process_id: processId, params: {} });
@@ -79,6 +99,7 @@ async function viewJob(id) {
       <div>
         <div style="font-size:.8rem;font-weight:600;color:#991b1b;margin-bottom:.5rem">Erro</div>
         <div class="output-box output-error">${escapeHtml(job.error)}</div>
+        ${_installBtn(job.agent_id, _missingModule(job.error))}
       </div>
     ` : ''}
     ${!job.output && !job.error ? `<p style="color:var(--gray-400);font-size:.875rem;text-align:center;padding:2rem">Nenhuma saída registrada ainda.</p>` : ''}

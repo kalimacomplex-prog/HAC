@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from pymongo import ReturnDocument
 
 from ..auth import get_current_user
-from ..database import processes_col, jobs_col
+from ..database import processes_col, jobs_col, agents_col
 from ..notifier import send_job_notification
 
 router = APIRouter(prefix="/worker", tags=["worker"])
@@ -52,6 +52,20 @@ async def claim_job(body: ClaimRequest, user: dict = Depends(get_current_user)):
         "params": job.get("params", {}),
         "timeout_seconds": process.get("timeout_seconds", 300),
     }
+
+
+@router.post("/claim-installs")
+async def claim_installs(body: ClaimRequest, user: dict = Depends(get_current_user)):
+    if not body.agent_id:
+        return []
+    agent = await agents_col.find_one_and_update(
+        {"_id": body.agent_id, "user_id": user["_id"]},
+        {"$set": {"install_queue": []}},
+        return_document=ReturnDocument.BEFORE,
+    )
+    if not agent:
+        return []
+    return agent.get("install_queue") or []
 
 
 @router.post("/jobs/{job_id}/finish", status_code=204)

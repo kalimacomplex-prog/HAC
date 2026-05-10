@@ -13,6 +13,7 @@ class JobOut(BaseModel):
     user_id: str
     process_id: str
     process_name: str
+    agent_id: Optional[str] = None
     status: str  # pending | running | done | failed | cancelled
     params: Dict[str, Any]
     output: Optional[str] = None
@@ -28,6 +29,7 @@ def job_doc_to_out(doc: dict) -> JobOut:
         user_id=str(doc.get("user_id", "")),
         process_id=str(doc.get("process_id", "")),
         process_name=doc.get("process_name") or "",
+        agent_id=doc.get("agent_id") or None,
         status=doc.get("status", "pending"),
         params=doc.get("params") or {},
         output=doc.get("output") or None,

@@ -220,6 +220,31 @@ def _claim(api_url: str, token: str, agent_id: str):
     return resp.json()
 
 
+def _check_installs(api_url: str, token: str, agent_id: str):
+    if not agent_id:
+        return
+    resp = httpx.post(
+        f"{api_url}/worker/claim-installs",
+        json={"agent_id": agent_id},
+        headers=_headers(token),
+        timeout=30,
+    )
+    if resp.status_code == 401:
+        raise PermissionError("token_expired")
+    resp.raise_for_status()
+    packages = resp.json() or []
+    for pkg in packages:
+        log.info(f"Instalando biblioteca: {pkg}")
+        result = subprocess.run(
+            [VENV_PIP, "install", pkg],
+            capture_output=True, text=True,
+        )
+        if result.returncode == 0:
+            log.info(f"{pkg} instalado com sucesso")
+        else:
+            log.error(f"Erro ao instalar {pkg}: {result.stderr}")
+
+
 def _finish(api_url: str, token: str, job_id: str, status: str, output: str, error: str):
     httpx.post(
         f"{api_url}/worker/jobs/{job_id}/finish",
@@ -284,6 +309,7 @@ def main():
     while True:
         try:
             token = token_ref[0]
+            _check_installs(api_url, token, agent_id)
             job = _claim(api_url, token, agent_id)
             if job:
                 log.info(f"Executando job {job['job_id']} | processo: {job['process_name']}")
