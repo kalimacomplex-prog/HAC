@@ -44,7 +44,7 @@ function navigate(view) {
   document.getElementById(`view-${view}`).classList.add('active');
   document.getElementById(`nav-${view}`).classList.add('active');
 
-  const titles = { dashboard: 'Dashboard', agents: 'Agentes', processes: 'Processos', jobs: 'Jobs' };
+  const titles = { dashboard: 'Dashboard', agents: 'Agentes', processes: 'Processos', cronjobs: 'Cron Jobs' };
   document.getElementById('topbar-title').textContent = titles[view];
 
   const actions = document.getElementById('topbar-actions');
@@ -56,8 +56,8 @@ function navigate(view) {
   } else if (view === 'processes') {
     actions.innerHTML = `<button class="btn btn-blue" onclick="openProcessModal()">+ Novo processo</button>`;
     loadProcesses();
-  } else if (view === 'jobs') {
-    loadJobs();
+  } else if (view === 'cronjobs') {
+    loadCronJobs();
   } else if (view === 'dashboard') {
     loadDashboard();
   }

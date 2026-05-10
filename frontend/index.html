@@ -75,8 +75,8 @@
       <button class="nav-item" onclick="navigate('processes')" id="nav-processes">
         <span class="icon">📋</span> Processos
       </button>
-      <button class="nav-item" onclick="navigate('jobs')" id="nav-jobs">
-        <span class="icon">⚙️</span> Jobs
+      <button class="nav-item" onclick="navigate('cronjobs')" id="nav-cronjobs">
+        <span class="icon">⏱</span> Cron Jobs
       </button>
     </nav>
 
@@ -198,34 +198,25 @@
         </div>
       </div>
 
-      <!-- JOBS -->
-      <div class="view" id="view-jobs">
+      <!-- CRON JOBS -->
+      <div class="view" id="view-cronjobs">
         <div class="card">
           <div class="card-header">
-            <h3>Todos os jobs</h3>
-            <div style="display:flex;gap:.5rem">
-              <select id="filter-status" onchange="loadJobs()" style="padding:.4rem .75rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.82rem;color:var(--gray-800);background:white;cursor:pointer">
-                <option value="">Todos os status</option>
-                <option value="pending">Pendente</option>
-                <option value="running">Executando</option>
-                <option value="done">Concluído</option>
-                <option value="failed">Falhou</option>
-                <option value="cancelled">Cancelado</option>
-              </select>
-            </div>
+            <h3>Agendamentos</h3>
+            <button class="btn btn-outline btn-sm" onclick="loadCronJobs()">↻ Atualizar</button>
           </div>
           <div class="card-body">
             <table class="table">
               <thead>
                 <tr>
                   <th>Processo</th>
-                  <th>Status</th>
-                  <th>Parâmetros</th>
-                  <th>Criado em</th>
+                  <th>Descrição</th>
+                  <th>Agendamento</th>
+                  <th>Próxima execução</th>
                   <th>Ações</th>
                 </tr>
               </thead>
-              <tbody id="jobs-body">
+              <tbody id="cronjobs-body">
                 <tr class="loading-row"><td colspan="5"><div class="spinner"></div></td></tr>
               </tbody>
             </table>
@@ -372,6 +363,62 @@ print('Concluído!')"></textarea>
   </div>
 </div>
 
+<!-- MODAL: Cron Schedule -->
+<div class="modal-overlay" id="modal-cron">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h3>Configurar agendamento</h3>
+      <button class="modal-close" onclick="closeModal('modal-cron')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cron-process-id" />
+      <p style="font-size:.875rem;color:var(--gray-600);margin-bottom:1.25rem">
+        Processo: <strong id="cron-process-name"></strong>
+      </p>
+      <div class="form-group">
+        <label>Tipo de agendamento</label>
+        <select id="cron-schedule-type" onchange="onCronTypeChange()" style="padding:.6rem .75rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.875rem;color:var(--gray-800);background:white;width:100%;margin-bottom:.75rem">
+          <option value="">Selecione...</option>
+          <option value="interval">A cada X minutos</option>
+          <option value="daily">Todo dia em um horário</option>
+          <option value="cron">Expressão cron personalizada</option>
+        </select>
+
+        <div id="cron-interval" style="display:none">
+          <div style="display:flex;align-items:center;gap:.75rem">
+            <input type="number" id="cron-minutes" min="1" max="1440" value="60"
+              style="width:120px;padding:.6rem .75rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.875rem" />
+            <span style="font-size:.875rem;color:var(--gray-600)">minutos</span>
+          </div>
+          <p class="hint" style="margin-top:.4rem">Mínimo 1 min · Máximo 1440 min (24h)</p>
+        </div>
+
+        <div id="cron-daily" style="display:none">
+          <div style="display:flex;align-items:center;gap:.75rem">
+            <input type="time" id="cron-time" value="09:00"
+              style="padding:.6rem .75rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.875rem" />
+            <span style="font-size:.875rem;color:var(--gray-600)">todo dia</span>
+          </div>
+        </div>
+
+        <div id="cron-custom" style="display:none">
+          <input type="text" id="cron-expr" placeholder="*/5 * * * *"
+            style="width:100%;padding:.6rem .75rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.875rem;font-family:monospace" />
+          <p class="hint" style="margin-top:.4rem">
+            Ex: <code>0 9 * * 1-5</code> = seg–sex às 9h &nbsp;|&nbsp;
+            <code>*/30 * * * *</code> = a cada 30min &nbsp;|&nbsp;
+            <code>0 8,18 * * *</code> = 8h e 18h
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-cron')">Cancelar</button>
+      <button class="btn btn-blue" onclick="saveCronSchedule()">Salvar agendamento</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Logs do Processo -->
 <div class="modal-overlay" id="modal-process-logs">
   <div class="modal" style="max-width:800px">
@@ -396,6 +443,7 @@ print('Concluído!')"></textarea>
 <script src="/static/js/agents.js"></script>
 <script src="/static/js/processes.js"></script>
 <script src="/static/js/jobs.js"></script>
+<script src="/static/js/cronjobs.js"></script>
 
 </body>
 </html>
