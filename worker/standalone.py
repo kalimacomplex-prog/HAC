@@ -21,9 +21,11 @@ logging.basicConfig(
 )
 log = logging.getLogger("hac.worker")
 
-# Config fica na mesma pasta do .exe (ou do script em dev)
-_BASE = os.path.dirname(sys.executable if getattr(sys, "frozen", False) else os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(_BASE, "hac_config.ini")
+# Config fica em AppData\Local\HACWorker\ (independente de onde o .exe está)
+_APPDATA = os.environ.get("LOCALAPPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Local")
+_CONFIG_DIR = os.path.join(_APPDATA, "HACWorker")
+os.makedirs(_CONFIG_DIR, exist_ok=True)
+CONFIG_FILE = os.path.join(_CONFIG_DIR, "hac_config.ini")
 
 HEARTBEAT_INTERVAL = 30
 POLL_INTERVAL = 5
@@ -66,8 +68,10 @@ def _load_or_create_config() -> configparser.ConfigParser:
         config.write(f)
 
     print()
-    print(f"Configuracao salva em: {CONFIG_FILE}")
-    print("Para reconfigurar delete esse arquivo e reinicie.")
+    print(f"Configuracao salva em:")
+    print(f"  {CONFIG_FILE}")
+    print()
+    print("Para reconfigurar, delete o arquivo acima e reinicie.")
     print()
     return config
 
@@ -162,7 +166,8 @@ def main():
     agent_id = w.get("agent_id", "")
 
     if not api_url or not email or not password:
-        print("Configuracao incompleta. Delete hac_config.ini e reinicie.")
+        print(f"Configuracao incompleta. Delete o arquivo abaixo e reinicie:")
+        print(f"  {CONFIG_FILE}")
         input("Pressione Enter para sair...")
         sys.exit(1)
 
