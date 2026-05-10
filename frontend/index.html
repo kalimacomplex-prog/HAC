@@ -435,6 +435,23 @@ print('Concluído!')"></textarea>
   </div>
 </div>
 
+<!-- MODAL: Confirmação -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h3 id="confirm-title">Confirmar</h3>
+      <button class="modal-close" onclick="closeModal('modal-confirm')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="confirm-message" style="font-size:.9rem;color:var(--gray-600);line-height:1.6"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-confirm')">Cancelar</button>
+      <button class="btn btn-danger" id="confirm-btn-ok">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast-container" id="toast-container"></div>
 

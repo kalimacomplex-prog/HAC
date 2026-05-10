@@ -1,3 +1,11 @@
+function showConfirm(title, message, onConfirm) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-message').textContent = message;
+  const btn = document.getElementById('confirm-btn-ok');
+  btn.onclick = () => { closeModal('modal-confirm'); onConfirm(); };
+  openModal('modal-confirm');
+}
+
 function copyId(id) {
   navigator.clipboard.writeText(id).then(() => toast('ID copiado!', 'success'));
 }

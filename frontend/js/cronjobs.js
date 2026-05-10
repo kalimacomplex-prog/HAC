@@ -68,13 +68,18 @@ async function saveCronSchedule() {
   } catch(e) { toast(e.message, 'error'); }
 }
 
-async function removeCronSchedule(processId, processName) {
-  if (!confirm(`Remover o cron job de "${processName}"? O processo deixará de ser executado automaticamente.`)) return;
-  try {
-    await api('PATCH', `/processes/${processId}`, { schedule: null });
-    toast('Cron job removido', 'success');
-    loadCronJobs();
-  } catch(e) { toast(e.message, 'error'); }
+function removeCronSchedule(processId, processName) {
+  showConfirm(
+    'Remover cron job',
+    `Deseja remover o agendamento de "${processName}"? O processo deixará de ser executado automaticamente.`,
+    async () => {
+      try {
+        await api('PATCH', `/processes/${processId}`, { schedule: null });
+        toast('Cron job removido', 'success');
+        loadCronJobs();
+      } catch(e) { toast(e.message, 'error'); }
+    }
+  );
 }
 
 function onCronTypeChange() {
