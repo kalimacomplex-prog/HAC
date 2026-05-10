@@ -4,7 +4,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 
+import asyncio
 from .database import create_indexes
+from .scheduler import scheduler_loop
 from .routes import auth, agents, processes, jobs, worker
 
 app = FastAPI(title="HAC Platform", version="1.0.0")
@@ -27,6 +29,7 @@ app.include_router(worker.router)
 @app.on_event("startup")
 async def startup():
     await create_indexes()
+    asyncio.create_task(scheduler_loop())
 
 
 @app.get("/health")

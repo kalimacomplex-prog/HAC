@@ -833,7 +833,7 @@
       <div class="view active" id="view-dashboard">
         <div class="stats-grid" id="stats-grid">
           <div class="stat-card">
-            <div class="stat-label">Agentes</div>
+            <div class="stat-label">Processos</div>
             <div class="stat-value" id="stat-agents">–</div>
             <div class="stat-sub">cadastrados</div>
           </div>
@@ -914,7 +914,7 @@
                   <th>Nome</th>
                   <th>Descrição</th>
                   <th>Agente</th>
-                  <th>Timeout</th>
+                  <th>Trigger</th>
                   <th>Ações</th>
                 </tr>
               </thead>
@@ -1030,6 +1030,27 @@ print('Concluído!')"></textarea>
             <option value="">Qualquer agente</option>
           </select>
         </div>
+      </div>
+      <div class="form-group">
+        <label>Trigger automático</label>
+        <select id="process-schedule-type" onchange="onScheduleTypeChange()" style="padding:.6rem .75rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.875rem;color:var(--gray-800);background:white;width:100%;margin-bottom:.5rem">
+          <option value="">Desativado</option>
+          <option value="interval">A cada X minutos</option>
+          <option value="daily">Todo dia às horário</option>
+          <option value="cron">Expressão cron personalizada</option>
+        </select>
+        <div id="schedule-interval" style="display:none">
+          <input type="number" id="schedule-minutes" min="1" max="1440" value="60" placeholder="Minutos" style="width:160px;padding:.6rem .75rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.875rem" />
+          <span style="margin-left:.5rem;font-size:.85rem;color:var(--gray-600)">minutos</span>
+        </div>
+        <div id="schedule-daily" style="display:none">
+          <input type="time" id="schedule-time" value="09:00" style="padding:.6rem .75rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.875rem" />
+        </div>
+        <div id="schedule-cron" style="display:none">
+          <input type="text" id="schedule-cron-expr" placeholder="*/5 * * * *" style="padding:.6rem .75rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.875rem;width:100%;font-family:monospace" />
+          <p class="hint">Ex: <code>0 9 * * 1-5</code> = seg–sex às 9h &nbsp;|&nbsp; <code>*/30 * * * *</code> = a cada 30min</p>
+        </div>
+        <input type="hidden" id="process-schedule" />
       </div>
     </div>
     <div class="modal-footer">
@@ -1220,14 +1241,18 @@ print('Concluído!')"></textarea>
 
   // ── DASHBOARD ──
   async function loadDashboard() {
-    const [processes, jobs] = await Promise.all([
-      api('GET', '/processes'),
-      api('GET', '/jobs?limit=50'),
-    ]);
-    if (!processes || !jobs) return;
+    let processes = [], jobs = [];
+    try {
+      [processes, jobs] = await Promise.all([
+        api('GET', '/processes'),
+        api('GET', '/jobs?limit=100'),
+      ]);
+      processes = processes || [];
+      jobs = jobs || [];
+    } catch(e) {}
 
     const today = new Date().toDateString();
-    const jobsToday = jobs.filter(j => new Date(j.created_at).toDateString() === today);
+    const jobsToday = jobs.filter(j => new Date(j.created_at + 'Z').toDateString() === today);
 
     document.getElementById('stat-agents').textContent = processes.length;
     document.getElementById('stat-jobs-today').textContent = jobsToday.length;
@@ -1355,7 +1380,7 @@ print('Concluído!')"></textarea>
         </td>
         <td>${p.description || '–'}</td>
         <td>${agentCell}</td>
-        <td>${p.timeout_seconds}s</td>
+        <td>${p.schedule ? `<span class="badge badge-blue" style="font-family:monospace;font-size:.72rem">${p.schedule}</span>` : '<span style="color:var(--gray-400);font-size:.82rem">–</span>'}</td>
         <td class="actions-cell">
           <button class="btn btn-blue btn-sm" onclick="runNow('${p.id}','${p.name.replace(/'/g,"\\'")}')">⚡ Executar</button>
           <button class="btn btn-outline btn-sm" onclick="openJobModal('${p.id}','${p.name.replace(/'/g,"\\'")}')">▶ Com parâmetros</button>
@@ -1364,6 +1389,46 @@ print('Concluído!')"></textarea>
         </td>
       </tr>`;
     }).join('');
+  }
+
+  function onScheduleTypeChange() {
+    const type = document.getElementById('process-schedule-type').value;
+    document.getElementById('schedule-interval').style.display = type === 'interval' ? 'block' : 'none';
+    document.getElementById('schedule-daily').style.display = type === 'daily' ? 'block' : 'none';
+    document.getElementById('schedule-cron').style.display = type === 'cron' ? 'block' : 'none';
+  }
+
+  function _scheduleToFields(schedule) {
+    if (!schedule) { document.getElementById('process-schedule-type').value = ''; return; }
+    const intervalMatch = schedule.match(/^\*\/(\d+) \* \* \* \*$/);
+    const dailyMatch = schedule.match(/^(\d+) (\d+) \* \* \*$/);
+    if (intervalMatch) {
+      document.getElementById('process-schedule-type').value = 'interval';
+      document.getElementById('schedule-minutes').value = intervalMatch[1];
+    } else if (dailyMatch) {
+      document.getElementById('process-schedule-type').value = 'daily';
+      const h = String(dailyMatch[2]).padStart(2,'0');
+      const m = String(dailyMatch[1]).padStart(2,'0');
+      document.getElementById('schedule-time').value = `${h}:${m}`;
+    } else {
+      document.getElementById('process-schedule-type').value = 'cron';
+      document.getElementById('schedule-cron-expr').value = schedule;
+    }
+    onScheduleTypeChange();
+  }
+
+  function _fieldsToSchedule() {
+    const type = document.getElementById('process-schedule-type').value;
+    if (!type) return null;
+    if (type === 'interval') {
+      const m = parseInt(document.getElementById('schedule-minutes').value) || 60;
+      return `*/${m} * * * *`;
+    }
+    if (type === 'daily') {
+      const [h, m] = (document.getElementById('schedule-time').value || '09:00').split(':');
+      return `${parseInt(m)} ${parseInt(h)} * * *`;
+    }
+    return document.getElementById('schedule-cron-expr').value.trim() || null;
   }
 
   async function _fillAgentDropdown(selectedId = '') {
@@ -1385,6 +1450,8 @@ print('Concluído!')"></textarea>
     document.getElementById('process-description').value = '';
     document.getElementById('process-script').value = '';
     document.getElementById('process-timeout').value = '300';
+    document.getElementById('process-schedule-type').value = '';
+    onScheduleTypeChange();
     document.getElementById('modal-process-title').textContent = 'Novo processo';
     await _fillAgentDropdown();
     openModal('modal-process');
@@ -1398,6 +1465,7 @@ print('Concluído!')"></textarea>
     document.getElementById('process-description').value = p.description || '';
     document.getElementById('process-script').value = p.script || '';
     document.getElementById('process-timeout').value = p.timeout_seconds;
+    _scheduleToFields(p.schedule || '');
     document.getElementById('modal-process-title').textContent = 'Editar processo';
     await _fillAgentDropdown(p.agent_id || '');
     openModal('modal-process');
@@ -1410,6 +1478,7 @@ print('Concluído!')"></textarea>
       description: document.getElementById('process-description').value.trim(),
       timeout_seconds: parseInt(document.getElementById('process-timeout').value),
       agent_id: document.getElementById('process-agent-id').value || null,
+      schedule: _fieldsToSchedule(),
     };
     const script = document.getElementById('process-script').value.trim();
     if (!body.name) return toast('Informe o nome do processo', 'error');
@@ -1475,8 +1544,7 @@ print('Concluído!')"></textarea>
   async function runNow(processId, processName) {
     try {
       await api('POST', '/jobs', { process_id: processId, params: {} });
-      toast(`Job "${processName}" disparado!`, 'success');
-      navigate('jobs');
+      toast(`Job "${processName}" disparado! Worker vai executar em breve.`, 'success');
     } catch (e) {
       toast(e.message, 'error');
     }
@@ -1497,9 +1565,8 @@ print('Concluído!')"></textarea>
     } catch { return toast('JSON de parâmetros inválido', 'error'); }
     try {
       await api('POST', '/jobs', { process_id: processId, params });
-      toast('Job disparado!', 'success');
+      toast('Job disparado! Worker vai executar em breve.', 'success');
       closeModal('modal-job');
-      navigate('jobs');
     } catch(e) { toast(e.message, 'error'); }
   }
 
