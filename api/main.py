@@ -11,6 +11,9 @@ from .routes import auth, agents, processes, jobs, worker
 
 app = FastAPI(title="HAC Platform", version="1.0.0")
 
+frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
+app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
