@@ -48,7 +48,7 @@ async def update_process(process_id: str, body: ProcessUpdate, user: dict = Depe
     if not doc:
         raise HTTPException(status_code=404, detail="Processo não encontrado")
 
-    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    updates = body.model_dump(exclude_unset=True)
     updates["updated_at"] = datetime.utcnow()
     await processes_col.update_one({"_id": process_id}, {"$set": updates})
     return process_doc_to_out({**doc, **updates})
