@@ -50,11 +50,11 @@ async function loadProcesses() {
       <td>${agentCell}</td>
       <td>${p.schedule ? `<span class="badge badge-blue" style="font-family:monospace;font-size:.72rem">${p.schedule}</span>` : '<span style="color:var(--gray-400);font-size:.82rem">–</span>'}</td>
       <td class="actions-cell">
-        <button class="btn btn-blue btn-sm" onclick="runNow('${p.id}','${p.name.replace(/'/g,"\\'")}')">⚡ Executar</button>
         <button class="btn btn-outline btn-sm" onclick="openProcessLogs('${p.id}','${p.name.replace(/'/g,"\\'")}')">📋 Logs</button>
-        <button class="btn btn-danger btn-sm" onclick="stopProcess('${p.id}','${p.name.replace(/'/g,"\\'")}')">⏹ Parar</button>
-        <button class="btn btn-outline btn-sm" onclick="openJobModal('${p.id}','${p.name.replace(/'/g,"\\'")}')">▶ Com parâmetros</button>
+        <button class="btn btn-outline btn-sm" onclick="runNow('${p.id}','${p.name.replace(/'/g,"\\'")}')">⚡ Executar</button>
+        <button class="btn btn-outline btn-sm" onclick="openJobModal('${p.id}','${p.name.replace(/'/g,"\\'")}')">▶ Parâmetros</button>
         <button class="btn btn-outline btn-sm" onclick="editProcess('${p.id}')">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="stopProcess('${p.id}','${p.name.replace(/'/g,"\\'")}')">⏹ Parar</button>
         <button class="btn btn-danger btn-sm" onclick="deleteProcess('${p.id}')">Remover</button>
       </td>
     </tr>`;
