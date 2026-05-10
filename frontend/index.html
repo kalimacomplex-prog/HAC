@@ -1197,7 +1197,8 @@ print('Concluído!')"></textarea>
         <td>${a.timeout_seconds}s</td>
         <td>${a.schedule ? `<span class="badge badge-blue">${a.schedule}</span>` : '–'}</td>
         <td class="actions-cell">
-          <button class="btn btn-blue btn-sm" onclick="openJobModal('${a.id}','${a.name.replace(/'/g,"\\'")}')">▶ Disparar</button>
+          <button class="btn btn-blue btn-sm" onclick="runNow('${a.id}','${a.name.replace(/'/g,"\\'")}')">⚡ Executar</button>
+          <button class="btn btn-outline btn-sm" onclick="openJobModal('${a.id}','${a.name.replace(/'/g,"\\'")}')">▶ Com parâmetros</button>
           <button class="btn btn-outline btn-sm" onclick="editAgent('${a.id}')">Editar</button>
           <button class="btn btn-danger btn-sm" onclick="deleteAgent('${a.id}')">Remover</button>
         </td>
@@ -1266,6 +1267,16 @@ print('Concluído!')"></textarea>
   }
 
   // ── JOBS ──
+  async function runNow(agentId, agentName) {
+    try {
+      await api('POST', '/jobs', { agent_id: agentId, params: {} });
+      toast(`Job "${agentName}" disparado!`, 'success');
+      navigate('jobs');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
   function openJobModal(agentId, agentName) {
     document.getElementById('job-agent-id').value = agentId;
     document.getElementById('job-agent-name').textContent = agentName;
