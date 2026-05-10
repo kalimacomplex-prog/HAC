@@ -1227,6 +1227,10 @@ print('Concluído!')"></textarea>
     `).join('');
   }
 
+  function copyId(id) {
+    navigator.clipboard.writeText(id).then(() => toast('ID copiado!', 'success'));
+  }
+
   // ── AGENTS ──
   async function loadAgents() {
     const tbody = document.getElementById('agents-body');
@@ -1246,6 +1250,7 @@ print('Concluído!')"></textarea>
           : `<span style="display:inline-flex;align-items:center;gap:.4rem;color:var(--gray-400);font-size:.82rem"><span style="width:8px;height:8px;border-radius:50%;background:var(--gray-400);display:inline-block"></span>Desconectado</span>`
         }</td>
         <td class="actions-cell">
+          <button class="btn btn-outline btn-sm" onclick="copyId('${a.id}')" title="${a.id}">📋 Copiar ID</button>
           <button class="btn btn-outline btn-sm" onclick="editAgent('${a.id}')">Editar</button>
           <button class="btn btn-danger btn-sm" onclick="deleteAgent('${a.id}')">Remover</button>
         </td>
