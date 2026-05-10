@@ -57,3 +57,13 @@ async def delete_agent(agent_id: str, user: dict = Depends(get_current_user)):
     result = await agents_col.delete_one({"_id": agent_id, "user_id": user["_id"]})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Agente não encontrado")
+
+
+@router.post("/{agent_id}/heartbeat", status_code=204)
+async def heartbeat(agent_id: str, user: dict = Depends(get_current_user)):
+    result = await agents_col.update_one(
+        {"_id": agent_id, "user_id": user["_id"]},
+        {"$set": {"last_seen": datetime.utcnow()}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Agente não encontrado")

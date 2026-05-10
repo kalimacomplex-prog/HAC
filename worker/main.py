@@ -1,10 +1,11 @@
 """
 Worker HAC — executa jobs localmente, comunicando com a API central.
-Configuração via .env: HAC_API_URL, HAC_EMAIL, HAC_PASSWORD
+Configuração via .env: HAC_API_URL, HAC_EMAIL, HAC_PASSWORD, HAC_AGENT_ID (opcional)
 """
 import os
 import time
 import logging
+import threading
 
 import httpx
 from dotenv import load_dotenv
@@ -19,7 +20,9 @@ log = logging.getLogger("hac.worker")
 API_URL = os.environ["HAC_API_URL"].rstrip("/")
 EMAIL = os.environ["HAC_EMAIL"]
 PASSWORD = os.environ["HAC_PASSWORD"]
+AGENT_ID = os.getenv("HAC_AGENT_ID", "")
 POLL_INTERVAL = int(os.getenv("WORKER_POLL_SECONDS", "5"))
+HEARTBEAT_INTERVAL = 30
 
 
 def login() -> str:
@@ -49,13 +52,40 @@ def finish_job(token: str, job_id: str, status: str, output: str, error: str):
     ).raise_for_status()
 
 
+def _heartbeat_loop(token_ref: list):
+    while True:
+        time.sleep(HEARTBEAT_INTERVAL)
+        if not AGENT_ID:
+            continue
+        try:
+            resp = httpx.post(
+                f"{API_URL}/agents/{AGENT_ID}/heartbeat",
+                headers=_headers(token_ref[0]),
+                timeout=10,
+            )
+            if resp.status_code == 401:
+                token_ref[0] = login()
+        except Exception:
+            pass
+
+
 def main():
     log.info(f"HAC Worker iniciado. Conectando a {API_URL}...")
     token = login()
     log.info("Autenticado. Aguardando jobs...")
 
+    token_ref = [token]
+
+    if AGENT_ID:
+        t = threading.Thread(target=_heartbeat_loop, args=(token_ref,), daemon=True)
+        t.start()
+        log.info(f"Heartbeat ativo para agente {AGENT_ID}")
+    else:
+        log.info("HAC_AGENT_ID não configurado — status de conexão desativado")
+
     while True:
         try:
+            token = token_ref[0]
             job = claim_job(token)
             if job:
                 log.info(f"Executando job {job['job_id']} | processo: {job['process_name']}")
@@ -67,7 +97,7 @@ def main():
                 time.sleep(POLL_INTERVAL)
         except PermissionError:
             log.info("Token expirado, renovando...")
-            token = login()
+            token_ref[0] = login()
         except Exception as e:
             log.error(f"Erro: {e}", exc_info=True)
             time.sleep(POLL_INTERVAL)

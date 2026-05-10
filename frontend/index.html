@@ -889,11 +889,12 @@
                 <tr>
                   <th>Nome</th>
                   <th>Descrição</th>
+                  <th>Status</th>
                   <th>Ações</th>
                 </tr>
               </thead>
               <tbody id="agents-body">
-                <tr class="loading-row"><td colspan="3"><div class="spinner"></div></td></tr>
+                <tr class="loading-row"><td colspan="4"><div class="spinner"></div></td></tr>
               </tbody>
             </table>
           </div>
@@ -1233,13 +1234,17 @@ print('Concluído!')"></textarea>
     const agents = await api('GET', '/agents');
     if (!agents) return;
     if (!agents.length) {
-      tbody.innerHTML = `<tr><td colspan="3"><div class="empty-state"><div class="empty-icon">🤖</div><h3>Nenhum agente ainda</h3><p>Cadastre o ambiente onde os processos vão executar</p></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">🤖</div><h3>Nenhum agente ainda</h3><p>Cadastre o ambiente onde os processos vão executar</p></div></td></tr>`;
       return;
     }
     tbody.innerHTML = agents.map(a => `
       <tr>
         <td class="agent-name-cell">${a.name}</td>
         <td>${a.description || '–'}</td>
+        <td>${a.connected
+          ? `<span style="display:inline-flex;align-items:center;gap:.4rem;color:#16a34a;font-size:.82rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:#16a34a;display:inline-block"></span>Conectado</span>`
+          : `<span style="display:inline-flex;align-items:center;gap:.4rem;color:var(--gray-400);font-size:.82rem"><span style="width:8px;height:8px;border-radius:50%;background:var(--gray-400);display:inline-block"></span>Desconectado</span>`
+        }</td>
         <td class="actions-cell">
           <button class="btn btn-outline btn-sm" onclick="editAgent('${a.id}')">Editar</button>
           <button class="btn btn-danger btn-sm" onclick="deleteAgent('${a.id}')">Remover</button>
