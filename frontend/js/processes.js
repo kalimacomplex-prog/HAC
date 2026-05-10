@@ -50,12 +50,12 @@ async function loadProcesses() {
       <td>${agentCell}</td>
       <td>${p.schedule ? `<span class="badge badge-blue" style="font-family:monospace;font-size:.72rem">${p.schedule}</span>` : '<span style="color:var(--gray-400);font-size:.82rem">–</span>'}</td>
       <td class="actions-cell">
-        <button class="btn btn-outline btn-xs" onclick="openProcessLogs('${p.id}','${p.name.replace(/'/g,"\\'")}')">Logs</button>
-        <button class="btn btn-outline btn-xs" onclick="runNow('${p.id}','${p.name.replace(/'/g,"\\'")}')">Executar</button>
-        <button class="btn btn-outline btn-xs" onclick="openJobModal('${p.id}','${p.name.replace(/'/g,"\\'")}')">Parâmetros</button>
-        <button class="btn btn-outline btn-xs" onclick="editProcess('${p.id}')">Editar</button>
-        <button class="btn btn-danger btn-xs" onclick="stopProcess('${p.id}','${p.name.replace(/'/g,"\\'")}')">Parar</button>
-        <button class="btn btn-danger btn-xs" onclick="deleteProcess('${p.id}')">Remover</button>
+        <button class="btn btn-outline btn-xs" onclick="openProcessLogs('${p.id}','${p.name.replace(/'/g,"\\'")}')">📋 Logs</button>
+        <button class="btn btn-outline btn-xs" onclick="runNow('${p.id}','${p.name.replace(/'/g,"\\'")}')">⚡ Executar</button>
+        <button class="btn btn-outline btn-xs" onclick="openJobModal('${p.id}','${p.name.replace(/'/g,"\\'")}')">▶ Parâmetros</button>
+        <button class="btn btn-outline btn-xs" onclick="editProcess('${p.id}')">✏ Editar</button>
+        <button class="btn btn-danger btn-xs" onclick="stopProcess('${p.id}','${p.name.replace(/'/g,"\\'")}')">⏹ Parar</button>
+        <button class="btn btn-danger btn-xs" onclick="deleteProcess('${p.id}')">🗑 Remover</button>
       </td>
     </tr>`;
   }).join('');
