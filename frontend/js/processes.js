@@ -44,7 +44,7 @@ async function loadProcesses() {
       ? `<span style="display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem">${agent.connected ? '🟢' : '⚫'} ${agent.name}</span>`
       : `<span style="color:var(--gray-400);font-size:.82rem">Qualquer</span>`;
     return `
-    <tr style="cursor:pointer" onclick="openProcessLogs('${p.id}','${p.name.replace(/'/g,"\\'")}'">`
+    <tr style="cursor:pointer" onclick="openProcessLogs('${p.id}','${p.name.replace(/'/g,"\\'")}')">
       <td class="agent-name-cell">${p.name}</td>
       <td>${p.description || '–'}</td>
       <td>${agentCell}</td>
