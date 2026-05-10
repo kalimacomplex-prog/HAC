@@ -1,3 +1,16 @@
+function importPyFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (!file.name.endsWith('.py')) return toast('Selecione um arquivo .py', 'error');
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('process-script').value = e.target.result;
+    toast(`"${file.name}" importado com sucesso`, 'success');
+  };
+  reader.readAsText(file, 'utf-8');
+  input.value = '';
+}
+
 function stopProcess(processId, processName) {
   showConfirm(
     'Parar processo',

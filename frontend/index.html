@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HAC Platform</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=6" />
+  <link rel="stylesheet" href="/static/css/style.css?v=7" />
 </head>
 <body>
 
@@ -277,7 +277,13 @@
         <input type="text" id="process-description" placeholder="O que esse processo faz?" />
       </div>
       <div class="form-group">
-        <label>Script Python</label>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem">
+          <label style="margin-bottom:0">Script Python</label>
+          <label style="cursor:pointer;display:inline-flex;align-items:center;gap:.35rem;font-size:.8rem;font-weight:600;color:var(--blue-600);border:1.5px solid var(--blue-200);border-radius:7px;padding:.25rem .65rem;transition:all .15s" onmouseover="this.style.background='var(--blue-50)'" onmouseout="this.style.background='transparent'">
+            📂 Importar .py
+            <input type="file" accept=".py" style="display:none" onchange="importPyFile(this)" />
+          </label>
+        </div>
         <textarea class="code-editor" id="process-script" rows="12" placeholder="import os
 
 # Leia parâmetros com os.environ.get('HAC_PARAM_NOME')
@@ -461,14 +467,14 @@ print('Concluído!')"></textarea>
 <!-- TOAST -->
 <div class="toast-container" id="toast-container"></div>
 
-<script src="/static/js/helpers.js?v=6"></script>
-<script src="/static/js/app.js?v=6"></script>
-<script src="/static/js/auth.js?v=6"></script>
-<script src="/static/js/dashboard.js?v=6"></script>
-<script src="/static/js/agents.js?v=6"></script>
-<script src="/static/js/processes.js?v=6"></script>
-<script src="/static/js/jobs.js?v=6"></script>
-<script src="/static/js/cronjobs.js?v=6"></script>
+<script src="/static/js/helpers.js?v=7"></script>
+<script src="/static/js/app.js?v=7"></script>
+<script src="/static/js/auth.js?v=7"></script>
+<script src="/static/js/dashboard.js?v=7"></script>
+<script src="/static/js/agents.js?v=7"></script>
+<script src="/static/js/processes.js?v=7"></script>
+<script src="/static/js/jobs.js?v=7"></script>
+<script src="/static/js/cronjobs.js?v=7"></script>
 
 </body>
 </html>
