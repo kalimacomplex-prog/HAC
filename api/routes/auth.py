@@ -5,7 +5,7 @@ from bson import ObjectId
 
 from ..auth import hash_password, verify_password, create_token, get_current_user
 from ..database import users_col
-from ..models.user import UserCreate, UserOut, user_doc_to_out
+from ..models.user import UserCreate, UserLogin, UserOut, user_doc_to_out
 from fastapi import Depends
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -31,7 +31,7 @@ async def register(body: UserCreate):
 
 
 @router.post("/login")
-async def login(body: UserCreate):
+async def login(body: UserLogin):
     user = await users_col.find_one({"email": body.email})
     if not user or not verify_password(body.password, user["hashed_password"]):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")

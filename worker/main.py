@@ -1,86 +1,75 @@
 """
-Worker HAC — processa jobs da fila MongoDB.
-Inicia como processo separado: python -m worker.main
+Worker HAC — executa jobs localmente, comunicando com a API central.
+Configuração via .env: HAC_API_URL, HAC_EMAIL, HAC_PASSWORD
 """
 import os
 import time
 import logging
-from datetime import datetime
 
+import httpx
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from pymongo import MongoClient, ReturnDocument
-
 from .executor import run_script
-from .notifier import send_job_notification
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("hac.worker")
 
-MONGO_URL = os.environ["MONGO_URL"]
+API_URL = os.environ["HAC_API_URL"].rstrip("/")
+EMAIL = os.environ["HAC_EMAIL"]
+PASSWORD = os.environ["HAC_PASSWORD"]
 POLL_INTERVAL = int(os.getenv("WORKER_POLL_SECONDS", "5"))
 
-client = MongoClient(MONGO_URL)
-db = client.hac
-jobs_col = db.jobs
-agents_col = db.agents
-users_col = db.users
+
+def login() -> str:
+    resp = httpx.post(f"{API_URL}/auth/login", json={"email": EMAIL, "password": PASSWORD}, timeout=30)
+    resp.raise_for_status()
+    return resp.json()["access_token"]
 
 
-def pick_job() -> dict | None:
-    """Pega atomicamente o próximo job pendente e marca como 'running'."""
-    return jobs_col.find_one_and_update(
-        {"status": "pending"},
-        {"$set": {"status": "running", "started_at": datetime.utcnow()}},
-        sort=[("created_at", 1)],
-        return_document=ReturnDocument.AFTER,
-    )
+def _headers(token: str) -> dict:
+    return {"Authorization": f"Bearer {token}"}
 
 
-def process_job(job: dict):
-    job_id = job["_id"]
-    agent = agents_col.find_one({"_id": job["agent_id"]})
-    if not agent:
-        jobs_col.update_one(
-            {"_id": job_id},
-            {"$set": {"status": "failed", "error": "Agente removido", "finished_at": datetime.utcnow()}},
-        )
-        return
+def claim_job(token: str) -> dict | None:
+    resp = httpx.post(f"{API_URL}/worker/claim", headers=_headers(token), timeout=30)
+    if resp.status_code == 401:
+        raise PermissionError("token_expired")
+    resp.raise_for_status()
+    return resp.json()
 
-    log.info(f"Executando job {job_id} | agente: {agent['name']}")
-    output, error = run_script(agent["script"], job.get("params", {}), agent.get("timeout_seconds", 300))
 
-    status = "failed" if error else "done"
-    jobs_col.update_one(
-        {"_id": job_id},
-        {"$set": {
-            "status": status,
-            "output": output[:50_000] if output else None,
-            "error": error[:10_000] if error else None,
-            "finished_at": datetime.utcnow(),
-        }},
-    )
-    log.info(f"Job {job_id} finalizado com status: {status}")
-
-    user = users_col.find_one({"_id": job["user_id"]})
-    if user:
-        updated_job = jobs_col.find_one({"_id": job_id})
-        send_job_notification(user["email"], user["name"], updated_job)
+def finish_job(token: str, job_id: str, status: str, output: str, error: str):
+    httpx.post(
+        f"{API_URL}/worker/jobs/{job_id}/finish",
+        json={"status": status, "output": output or None, "error": error or None},
+        headers=_headers(token),
+        timeout=30,
+    ).raise_for_status()
 
 
 def main():
-    log.info("HAC Worker iniciado. Aguardando jobs...")
+    log.info(f"HAC Worker iniciado. Conectando a {API_URL}...")
+    token = login()
+    log.info("Autenticado. Aguardando jobs...")
+
     while True:
         try:
-            job = pick_job()
+            job = claim_job(token)
             if job:
-                process_job(job)
+                log.info(f"Executando job {job['job_id']} | agente: {job['agent_name']}")
+                output, error = run_script(job["script"], job.get("params", {}), job.get("timeout_seconds", 300))
+                status = "failed" if error else "done"
+                finish_job(token, job["job_id"], status, output, error)
+                log.info(f"Job {job['job_id']} finalizado: {status}")
             else:
                 time.sleep(POLL_INTERVAL)
+        except PermissionError:
+            log.info("Token expirado, renovando...")
+            token = login()
         except Exception as e:
-            log.error(f"Erro inesperado: {e}", exc_info=True)
+            log.error(f"Erro: {e}", exc_info=True)
             time.sleep(POLL_INTERVAL)
 
 
