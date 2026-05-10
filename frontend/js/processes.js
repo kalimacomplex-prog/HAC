@@ -45,9 +45,7 @@ async function loadProcesses() {
       : `<span style="color:var(--gray-400);font-size:.82rem">Qualquer</span>`;
     return `
     <tr>
-      <td class="agent-name-cell" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--blue-300)" onclick="openProcessLogs('${p.id}','${p.name.replace(/'/g,"\\'")}')">
-        ${p.name}
-      </td>
+      <td class="agent-name-cell">${p.name}</td>
       <td>${p.description || '–'}</td>
       <td>${agentCell}</td>
       <td>${p.schedule ? `<span class="badge badge-blue" style="font-family:monospace;font-size:.72rem">${p.schedule}</span>` : '<span style="color:var(--gray-400);font-size:.82rem">–</span>'}</td>
