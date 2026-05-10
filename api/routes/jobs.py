@@ -48,8 +48,11 @@ async def list_jobs(
     if process_id:
         query["process_id"] = process_id
 
-    cursor = jobs_col.find(query).sort("created_at", -1).limit(limit)
-    return [job_doc_to_out(doc) async for doc in cursor]
+    try:
+        cursor = jobs_col.find(query).sort("created_at", -1).limit(limit)
+        return [job_doc_to_out(doc) async for doc in cursor]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao listar jobs: {str(e)}")
 
 
 @router.get("/{job_id}", response_model=JobOut)
