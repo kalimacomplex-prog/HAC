@@ -136,12 +136,31 @@ def _create_env():
     print()
 
 
+def _create_bat():
+    exe_path = sys.executable if getattr(sys, "frozen", False) else os.path.abspath(sys.argv[0])
+    content = f'@echo off\ntitle HAC Worker\n"{exe_path}"\npause\n'
+
+    bat_appdata = os.path.join(_CONFIG_DIR, "Iniciar HAC Worker.bat")
+    with open(bat_appdata, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+    if os.path.isdir(desktop):
+        bat_desktop = os.path.join(desktop, "Iniciar HAC Worker.bat")
+        with open(bat_desktop, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"Atalho criado na Area de Trabalho: Iniciar HAC Worker.bat")
+
+    print(f"Bat salvo em: {bat_appdata}")
+
+
 def _ensure_env():
     if os.path.exists(ENV_FILE):
         _load_env()
         log.info(f"Configuracao: {ENV_FILE}")
     else:
         _create_env()
+        _create_bat()
 
 
 # ── EXECUTOR ──
