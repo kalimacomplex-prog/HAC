@@ -44,12 +44,12 @@ async function loadProcesses() {
       ? `<span style="display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem">${agent.connected ? '🟢' : '⚫'} ${agent.name}</span>`
       : `<span style="color:var(--gray-400);font-size:.82rem">Qualquer</span>`;
     return `
-    <tr>
+    <tr style="cursor:pointer" onclick="openProcessLogs('${p.id}','${p.name.replace(/'/g,"\\'")}'">`
       <td class="agent-name-cell">${p.name}</td>
       <td>${p.description || '–'}</td>
       <td>${agentCell}</td>
       <td>${p.schedule ? `<span class="badge badge-blue" style="font-family:monospace;font-size:.72rem">${p.schedule}</span>` : '<span style="color:var(--gray-400);font-size:.82rem">–</span>'}</td>
-      <td class="actions-cell">
+      <td class="actions-cell" onclick="event.stopPropagation()">
         <button class="btn btn-outline btn-xs" onclick="openProcessLogs('${p.id}','${p.name.replace(/'/g,"\\'")}')">📋 Logs</button>
         <button class="btn btn-outline btn-xs" onclick="runNow('${p.id}','${p.name.replace(/'/g,"\\'")}')">⚡ Executar</button>
         <button class="btn btn-outline btn-xs" onclick="openJobModal('${p.id}','${p.name.replace(/'/g,"\\'")}')">▶ Parâmetros</button>
