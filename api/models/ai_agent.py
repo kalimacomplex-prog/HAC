@@ -36,6 +36,8 @@ class AIAgentOut(BaseModel):
     system_prompt: str
     temperature: float
     max_tokens: int
+    tokens_used_last: Optional[int] = None
+    tokens_remaining: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
@@ -52,6 +54,8 @@ def ai_agent_doc_to_out(doc: dict) -> AIAgentOut:
         system_prompt=doc.get("system_prompt", ""),
         temperature=doc.get("temperature", 0.7),
         max_tokens=doc.get("max_tokens", 1000),
+        tokens_used_last=doc.get("tokens_used_last"),
+        tokens_remaining=doc.get("tokens_remaining"),
         created_at=doc["created_at"],
         updated_at=doc["updated_at"],
     )

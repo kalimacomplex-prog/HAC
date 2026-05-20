@@ -15,6 +15,7 @@ async function loadAIAgents() {
         <td>${providerBadge(a.provider)}</td>
         <td><code style="font-size:.78rem;background:var(--gray-100);padding:.1rem .35rem;border-radius:4px">${escapeHtml(a.model)}</code></td>
         <td>${a.api_key_set ? '<span style="color:#16a34a;font-size:.8rem">✓ Configurada</span>' : '<span style="color:var(--red);font-size:.8rem">✕ Sem chave</span>'}</td>
+        <td style="font-size:.82rem">${tokenInfo(a)}</td>
         <td>
           <div style="display:flex;gap:.3rem;flex-wrap:wrap">
             <button class="btn btn-outline btn-xs" onclick="openAIAgentTest('${a.id}')">⚡ Testar</button>
@@ -27,6 +28,16 @@ async function loadAIAgents() {
   } catch(e) {
     body.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--red)">${escapeHtml(e.message)}</td></tr>`;
   }
+}
+
+function tokenInfo(a) {
+  if (a.tokens_remaining !== null && a.tokens_remaining !== undefined) {
+    return `<span style="color:#16a34a;font-weight:600">${a.tokens_remaining.toLocaleString('pt-BR')}</span> <span style="color:var(--gray-400)">restantes</span>`;
+  }
+  if (a.tokens_used_last !== null && a.tokens_used_last !== undefined) {
+    return `<span style="color:var(--gray-600)">${a.tokens_used_last.toLocaleString('pt-BR')}</span> <span style="color:var(--gray-400)">usados</span>`;
+  }
+  return '<span style="color:var(--gray-300)">—</span>';
 }
 
 function providerBadge(provider) {

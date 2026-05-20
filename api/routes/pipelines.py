@@ -113,7 +113,7 @@ async def run_pipeline(pipeline_id: str, body: PipelineRunRequest, user: dict = 
         step_input = template.replace("{input}", body.input).replace("{output}", current_output)
 
         try:
-            output = await call_ai(agent, step_input)
+            output, _ = await call_ai(agent, step_input)
             steps_results.append({
                 "ai_agent_id": step["ai_agent_id"],
                 "name": step.get("name") or agent["name"],

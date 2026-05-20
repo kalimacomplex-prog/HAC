@@ -11,13 +11,14 @@ from ..models.ai_agent import AIAgentCreate, AIAgentUpdate, AIAgentOut, ai_agent
 router = APIRouter(prefix="/ai-agents", tags=["ai-agents"])
 
 
-async def call_ai(agent: dict, user_input: str) -> str:
+async def call_ai(agent: dict, user_input: str) -> tuple[str, dict]:
     provider = agent["provider"]
     model = agent["model"]
     api_key = agent.get("api_key", "")
     system_prompt = agent.get("system_prompt", "")
     temperature = agent.get("temperature", 0.7)
     max_tokens = agent.get("max_tokens", 1000)
+    meta = {"tokens_used": None, "tokens_remaining": None}
 
     if not api_key:
         raise ValueError("Chave de API não configurada neste agente")
@@ -33,25 +34,33 @@ async def call_ai(agent: dict, user_input: str) -> str:
         if system_prompt:
             kwargs["system"] = system_prompt
         response = await client.messages.create(**kwargs)
-        return response.content[0].text
+        if response.usage:
+            meta["tokens_used"] = response.usage.input_tokens + response.usage.output_tokens
+        return response.content[0].text, meta
 
     elif provider in ("openai", "groq"):
         from openai import AsyncOpenAI
-        kwargs = {"api_key": api_key}
+        init_kwargs = {"api_key": api_key}
         if provider == "groq":
-            kwargs["base_url"] = "https://api.groq.com/openai/v1"
-        client = AsyncOpenAI(**kwargs)
+            init_kwargs["base_url"] = "https://api.groq.com/openai/v1"
+        client = AsyncOpenAI(**init_kwargs)
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": user_input})
-        response = await client.chat.completions.create(
+        raw = await client.chat.completions.with_raw_response.create(
             model=model,
             max_tokens=max_tokens,
             temperature=temperature,
             messages=messages,
         )
-        return response.choices[0].message.content
+        completion = raw.parse()
+        if completion.usage:
+            meta["tokens_used"] = completion.usage.total_tokens
+        remaining = raw.headers.get("x-ratelimit-remaining-tokens")
+        if remaining:
+            meta["tokens_remaining"] = int(remaining)
+        return completion.choices[0].message.content, meta
 
     else:
         raise ValueError(f"Provider desconhecido: {provider}")
@@ -124,7 +133,14 @@ async def run_ai_agent_endpoint(ai_agent_id: str, body: RunRequest, user: dict =
     if not doc:
         raise HTTPException(status_code=404, detail="Agente IA não encontrado")
     try:
-        output = await call_ai(doc, body.input)
+        output, meta = await call_ai(doc, body.input)
+        usage_update = {}
+        if meta["tokens_used"] is not None:
+            usage_update["tokens_used_last"] = meta["tokens_used"]
+        if meta["tokens_remaining"] is not None:
+            usage_update["tokens_remaining"] = meta["tokens_remaining"]
+        if usage_update:
+            await ai_agents_col.update_one({"_id": ai_agent_id}, {"$set": usage_update})
         return {"output": output}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
