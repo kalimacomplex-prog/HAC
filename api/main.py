@@ -7,7 +7,7 @@ import os
 import asyncio
 from .database import create_indexes
 from .scheduler import scheduler_loop
-from .routes import auth, agents, processes, jobs, worker
+from .routes import auth, agents, processes, jobs, worker, ai_agents, pipelines
 
 app = FastAPI(title="HAC Platform", version="1.0.0")
 
@@ -27,6 +27,8 @@ app.include_router(agents.router)
 app.include_router(processes.router)
 app.include_router(jobs.router)
 app.include_router(worker.router)
+app.include_router(ai_agents.router)
+app.include_router(pipelines.router)
 
 
 @app.on_event("startup")

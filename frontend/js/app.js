@@ -44,7 +44,7 @@ function navigate(view) {
   document.getElementById(`view-${view}`).classList.add('active');
   document.getElementById(`nav-${view}`).classList.add('active');
 
-  const titles = { dashboard: 'Dashboard', agents: 'Agentes', processes: 'Processos', cronjobs: 'Cron Jobs', instructions: 'Instruções' };
+  const titles = { dashboard: 'Dashboard', agents: 'Agentes', processes: 'Processos', cronjobs: 'Cron Jobs', instructions: 'Instruções', ai_agents: 'Agentes IA', pipelines: 'Pipelines de IA' };
   document.getElementById('topbar-title').textContent = titles[view];
 
   const actions = document.getElementById('topbar-actions');
@@ -63,5 +63,11 @@ function navigate(view) {
     // conteúdo estático, nada a carregar
   } else if (view === 'dashboard') {
     loadDashboard();
+  } else if (view === 'ai_agents') {
+    actions.innerHTML = `<button class="btn btn-blue" onclick="openAIAgentModal()">+ Novo agente IA</button>`;
+    loadAIAgents();
+  } else if (view === 'pipelines') {
+    actions.innerHTML = `<button class="btn btn-blue" onclick="openPipelineModal()">+ Nova pipeline</button>`;
+    loadPipelines();
   }
 }

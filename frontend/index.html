@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HAC Platform</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=17" />
+  <link rel="stylesheet" href="/static/css/style.css?v=18" />
 </head>
 <body>
 
@@ -80,6 +80,13 @@
       </button>
       <button class="nav-item" onclick="navigate('instructions')" id="nav-instructions">
         <span class="icon">📖</span> Instruções
+      </button>
+      <span class="nav-label" style="margin-top:.75rem">Inteligência Artificial</span>
+      <button class="nav-item" onclick="navigate('ai_agents')" id="nav-ai_agents">
+        <span class="icon">🧠</span> Agentes IA
+      </button>
+      <button class="nav-item" onclick="navigate('pipelines')" id="nav-pipelines">
+        <span class="icon">🔗</span> Pipelines
       </button>
     </nav>
 
@@ -388,6 +395,55 @@ print(f"Processando {url} com limite {limit}")</pre>
         </div>
       </div>
 
+      <!-- AGENTES IA -->
+      <div class="view" id="view-ai_agents">
+        <div class="card">
+          <div class="card-header">
+            <h3>Agentes IA</h3>
+          </div>
+          <div class="card-body">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Provider</th>
+                  <th>Modelo</th>
+                  <th>Chave API</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="ai-agents-body">
+                <tr class="loading-row"><td colspan="5"><div class="spinner"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PIPELINES -->
+      <div class="view" id="view-pipelines">
+        <div class="card">
+          <div class="card-header">
+            <h3>Pipelines de IA</h3>
+          </div>
+          <div class="card-body">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Descrição</th>
+                  <th>Passos</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="pipelines-body">
+                <tr class="loading-row"><td colspan="4"><div class="spinner"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -605,6 +661,146 @@ print('Concluído!')"></textarea>
   </div>
 </div>
 
+<!-- MODAL: Agente IA -->
+<div class="modal-overlay" id="modal-ai-agent">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h3 id="modal-ai-agent-title">Novo agente IA</h3>
+      <button class="modal-close" onclick="closeModal('modal-ai-agent')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ai-agent-edit-id" />
+      <div class="two-col">
+        <div class="form-group">
+          <label>Nome</label>
+          <input type="text" id="ai-agent-name" placeholder="Ex: Resumidor de textos" />
+        </div>
+        <div class="form-group">
+          <label>Descrição</label>
+          <input type="text" id="ai-agent-description" placeholder="O que esse agente faz?" />
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="form-group">
+          <label>Provider</label>
+          <select id="ai-agent-provider" onchange="onAIProviderChange()" style="padding:.6rem .75rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.875rem;background:white;width:100%">
+            <option value="anthropic">Anthropic (Claude)</option>
+            <option value="openai">OpenAI (GPT)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Modelo</label>
+          <select id="ai-agent-model" style="padding:.6rem .75rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.875rem;background:white;width:100%"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Chave de API <span style="color:var(--gray-400);font-weight:400">(armazenada com segurança)</span></label>
+        <input type="password" id="ai-agent-api-key" placeholder="sk-ant-... ou sk-..." autocomplete="new-password" />
+        <p class="hint" id="ai-agent-api-key-hint" style="display:none">Chave já configurada. Preencha apenas para alterar.</p>
+      </div>
+      <div class="form-group">
+        <label>System Prompt</label>
+        <textarea id="ai-agent-system-prompt" rows="5" placeholder="Você é um assistente especializado em..." style="font-size:.875rem;border:1.5px solid var(--gray-200);border-radius:8px;padding:.75rem;width:100%;resize:vertical;outline:none;color:var(--gray-800);font-family:inherit;box-sizing:border-box"></textarea>
+      </div>
+      <div class="two-col">
+        <div class="form-group">
+          <label>Temperature <span style="color:var(--gray-400);font-weight:400">(0 = determinístico)</span></label>
+          <input type="number" id="ai-agent-temperature" value="0.7" min="0" max="2" step="0.1" />
+        </div>
+        <div class="form-group">
+          <label>Max Tokens</label>
+          <input type="number" id="ai-agent-max-tokens" value="1000" min="100" max="8000" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-ai-agent')">Cancelar</button>
+      <button class="btn btn-blue" onclick="saveAIAgent()">Salvar agente IA</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Testar Agente IA -->
+<div class="modal-overlay" id="modal-ai-test">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <h3>Testar: <span id="ai-test-agent-name" style="color:var(--blue-600)"></span></h3>
+      <button class="modal-close" onclick="closeModal('modal-ai-test')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ai-test-agent-id" />
+      <div class="form-group">
+        <label>Entrada</label>
+        <textarea id="ai-test-input" rows="4" placeholder="Digite o texto de entrada para o agente..."
+          style="font-size:.875rem;border:1.5px solid var(--gray-200);border-radius:8px;padding:.75rem;width:100%;resize:vertical;outline:none;color:var(--gray-800);font-family:inherit;box-sizing:border-box"></textarea>
+      </div>
+      <div id="ai-test-output-wrap" style="display:none">
+        <div style="font-weight:600;font-size:.85rem;margin-bottom:.4rem;color:var(--gray-700)">Resposta:</div>
+        <pre id="ai-test-output-text" style="background:var(--gray-100);border-radius:8px;padding:.75rem;font-size:.875rem;white-space:pre-wrap;word-break:break-word;margin:0;font-family:inherit;max-height:300px;overflow-y:auto"></pre>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-ai-test')">Fechar</button>
+      <button class="btn btn-blue" id="btn-run-ai-test" onclick="runAIAgentTest()">⚡ Executar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Pipeline -->
+<div class="modal-overlay" id="modal-pipeline">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-header">
+      <h3 id="modal-pipeline-title">Nova pipeline</h3>
+      <button class="modal-close" onclick="closeModal('modal-pipeline')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pipeline-edit-id" />
+      <div class="two-col">
+        <div class="form-group">
+          <label>Nome</label>
+          <input type="text" id="pipeline-name" placeholder="Ex: Análise e resumo" />
+        </div>
+        <div class="form-group">
+          <label>Descrição</label>
+          <input type="text" id="pipeline-description" placeholder="O que essa pipeline faz?" />
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+        <label style="margin:0;font-weight:600;font-size:.875rem">Passos</label>
+        <button class="btn btn-outline btn-sm" onclick="addPipelineStep()">+ Adicionar passo</button>
+      </div>
+      <div id="pipeline-steps-container" style="display:flex;flex-direction:column;gap:.5rem"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-pipeline')">Cancelar</button>
+      <button class="btn btn-blue" onclick="savePipeline()">Salvar pipeline</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Executar Pipeline -->
+<div class="modal-overlay" id="modal-pipeline-run">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header">
+      <h3>Executar: <span id="pipeline-run-name" style="color:var(--blue-600)"></span></h3>
+      <button class="modal-close" onclick="closeModal('modal-pipeline-run')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pipeline-run-id" />
+      <div class="form-group">
+        <label>Entrada inicial</label>
+        <textarea id="pipeline-run-input" rows="4" placeholder="Texto ou dados de entrada para a pipeline..."
+          style="font-size:.875rem;border:1.5px solid var(--gray-200);border-radius:8px;padding:.75rem;width:100%;resize:vertical;outline:none;color:var(--gray-800);font-family:inherit;box-sizing:border-box"></textarea>
+      </div>
+      <div id="pipeline-run-result" style="display:none;margin-top:.5rem"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-pipeline-run')">Fechar</button>
+      <button class="btn btn-blue" id="btn-exec-pipeline" onclick="executePipeline()">⚡ Executar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Confirmação -->
 <div class="modal-overlay" id="modal-confirm">
   <div class="modal" style="max-width:420px">
@@ -625,14 +821,16 @@ print('Concluído!')"></textarea>
 <!-- TOAST -->
 <div class="toast-container" id="toast-container"></div>
 
-<script src="/static/js/helpers.js?v=17"></script>
-<script src="/static/js/app.js?v=17"></script>
-<script src="/static/js/auth.js?v=17"></script>
-<script src="/static/js/dashboard.js?v=17"></script>
-<script src="/static/js/agents.js?v=17"></script>
-<script src="/static/js/processes.js?v=17"></script>
-<script src="/static/js/jobs.js?v=17"></script>
-<script src="/static/js/cronjobs.js?v=17"></script>
+<script src="/static/js/helpers.js?v=18"></script>
+<script src="/static/js/app.js?v=18"></script>
+<script src="/static/js/auth.js?v=18"></script>
+<script src="/static/js/dashboard.js?v=18"></script>
+<script src="/static/js/agents.js?v=18"></script>
+<script src="/static/js/processes.js?v=18"></script>
+<script src="/static/js/jobs.js?v=18"></script>
+<script src="/static/js/cronjobs.js?v=18"></script>
+<script src="/static/js/ai_agents.js?v=18"></script>
+<script src="/static/js/pipelines.js?v=18"></script>
 
 </body>
 </html>
