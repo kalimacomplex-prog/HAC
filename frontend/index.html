@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HAC Platform</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=22" />
+  <link rel="stylesheet" href="/static/css/style.css?v=23" />
 </head>
 <body>
 
@@ -719,6 +719,31 @@ print('Concluído!')"></textarea>
           <input type="number" id="ai-agent-max-tokens" value="1000" min="100" max="8000" />
         </div>
       </div>
+      <div class="form-group">
+        <label>Agendamento (cron)</label>
+        <select id="ai-agent-schedule-type" onchange="onAIScheduleTypeChange()" style="padding:.6rem .75rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.875rem;background:white;width:100%;margin-bottom:.5rem">
+          <option value="">Desativado</option>
+          <option value="interval">A cada X minutos</option>
+          <option value="daily">Todo dia em um horário</option>
+          <option value="cron">Expressão cron personalizada</option>
+        </select>
+        <div id="ai-schedule-interval" style="display:none;align-items:center;gap:.5rem">
+          <input type="number" id="ai-schedule-minutes" min="1" max="1440" value="60" style="width:100px;padding:.5rem .65rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.875rem" />
+          <span style="font-size:.85rem;color:var(--gray-600)">minutos</span>
+        </div>
+        <div id="ai-schedule-daily" style="display:none">
+          <input type="time" id="ai-schedule-time" value="09:00" style="padding:.5rem .65rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.875rem" />
+        </div>
+        <div id="ai-schedule-cron" style="display:none">
+          <input type="text" id="ai-schedule-cron-expr" placeholder="*/5 * * * *" style="width:100%;padding:.5rem .65rem;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.875rem;font-family:monospace;box-sizing:border-box" />
+          <p class="hint">Ex: <code>0 9 * * 1-5</code> = seg–sex às 9h</p>
+        </div>
+        <input type="hidden" id="ai-agent-schedule" />
+      </div>
+      <div class="form-group" id="ai-schedule-input-wrap" style="display:none">
+        <label>Entrada padrão <span style="color:var(--gray-400);font-weight:400">(enviada ao agente quando o cron disparar)</span></label>
+        <textarea id="ai-agent-schedule-input" rows="3" placeholder="Texto enviado ao agente automaticamente..." style="font-size:.875rem;border:1.5px solid var(--gray-200);border-radius:8px;padding:.75rem;width:100%;resize:vertical;outline:none;color:var(--gray-800);font-family:inherit;box-sizing:border-box"></textarea>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-ai-agent')">Cancelar</button>
@@ -767,10 +792,37 @@ print('Concluído!')"></textarea>
     </div>
 
     <!-- Nome/desc bar -->
-    <div style="padding:.5rem 1.25rem;border-bottom:1px solid #e2e8f0;display:flex;gap:.75rem;flex-shrink:0;background:#f8fafc">
+    <div style="padding:.5rem 1.25rem;border-bottom:1px solid #e2e8f0;display:flex;gap:.75rem;flex-shrink:0;background:#f8fafc;align-items:center">
       <input type="hidden" id="pipeline-edit-id" />
       <input type="text" id="pipeline-name" placeholder="Nome da pipeline" style="flex:1;padding:.4rem .75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.875rem;outline:none;color:#1e293b" />
       <input type="text" id="pipeline-description" placeholder="Descrição (opcional)" style="flex:2;padding:.4rem .75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.875rem;outline:none;color:#1e293b" />
+      <button onclick="togglePipelineSchedule()" title="Agendamento" style="padding:.4rem .75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.82rem;background:white;cursor:pointer;white-space:nowrap;color:#475569;flex-shrink:0">⏱ Cron</button>
+    </div>
+    <!-- Painel de agendamento da pipeline (oculto por padrão) -->
+    <div id="pipeline-schedule-panel" style="display:none;padding:.6rem 1.25rem;border-bottom:1px solid #e2e8f0;background:#fffbeb;gap:.75rem;flex-wrap:wrap;align-items:flex-end">
+      <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+        <select id="pl-schedule-type" onchange="onPLScheduleTypeChange()" style="padding:.4rem .65rem;border:1.5px solid #e2e8f0;border-radius:7px;font-size:.82rem;background:white">
+          <option value="">Desativado</option>
+          <option value="interval">A cada X minutos</option>
+          <option value="daily">Todo dia às</option>
+          <option value="cron">Expressão cron</option>
+        </select>
+        <div id="pl-sched-interval" style="display:none;align-items:center;gap:.35rem">
+          <input type="number" id="pl-sched-minutes" value="60" min="1" max="1440" style="width:80px;padding:.4rem .65rem;border:1.5px solid #e2e8f0;border-radius:7px;font-size:.82rem" />
+          <span style="font-size:.82rem;color:#64748b">min</span>
+        </div>
+        <div id="pl-sched-daily" style="display:none">
+          <input type="time" id="pl-sched-time" value="09:00" style="padding:.4rem .65rem;border:1.5px solid #e2e8f0;border-radius:7px;font-size:.82rem" />
+        </div>
+        <div id="pl-sched-cron" style="display:none">
+          <input type="text" id="pl-sched-expr" placeholder="*/5 * * * *" style="width:160px;padding:.4rem .65rem;border:1.5px solid #e2e8f0;border-radius:7px;font-size:.82rem;font-family:monospace" />
+        </div>
+        <input type="hidden" id="pipeline-schedule" />
+      </div>
+      <div style="display:flex;gap:.5rem;align-items:center;flex:1;min-width:220px">
+        <label style="font-size:.78rem;color:#64748b;white-space:nowrap">Entrada padrão:</label>
+        <input type="text" id="pipeline-schedule-input" placeholder="Texto enviado ao rodar automaticamente..." style="flex:1;padding:.4rem .65rem;border:1.5px solid #e2e8f0;border-radius:7px;font-size:.82rem" />
+      </div>
     </div>
 
     <!-- Canvas + painel de config -->
@@ -859,16 +911,16 @@ print('Concluído!')"></textarea>
 <!-- TOAST -->
 <div class="toast-container" id="toast-container"></div>
 
-<script src="/static/js/helpers.js?v=22"></script>
-<script src="/static/js/app.js?v=22"></script>
-<script src="/static/js/auth.js?v=22"></script>
-<script src="/static/js/dashboard.js?v=22"></script>
-<script src="/static/js/agents.js?v=22"></script>
-<script src="/static/js/processes.js?v=22"></script>
-<script src="/static/js/jobs.js?v=22"></script>
-<script src="/static/js/cronjobs.js?v=22"></script>
-<script src="/static/js/ai_agents.js?v=22"></script>
-<script src="/static/js/pipelines.js?v=22"></script>
+<script src="/static/js/helpers.js?v=23"></script>
+<script src="/static/js/app.js?v=23"></script>
+<script src="/static/js/auth.js?v=23"></script>
+<script src="/static/js/dashboard.js?v=23"></script>
+<script src="/static/js/agents.js?v=23"></script>
+<script src="/static/js/processes.js?v=23"></script>
+<script src="/static/js/jobs.js?v=23"></script>
+<script src="/static/js/cronjobs.js?v=23"></script>
+<script src="/static/js/ai_agents.js?v=23"></script>
+<script src="/static/js/pipelines.js?v=23"></script>
 
 </body>
 </html>

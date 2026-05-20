@@ -82,6 +82,8 @@ async def create_ai_agent(body: AIAgentCreate, user: dict = Depends(get_current_
         "api_key": body.api_key,
         "system_prompt": body.system_prompt,
         "guardrail_prompt": body.guardrail_prompt,
+        "schedule": body.schedule,
+        "schedule_input": body.schedule_input,
         "temperature": body.temperature,
         "max_tokens": body.max_tokens,
         "created_at": now,
@@ -110,7 +112,8 @@ async def update_ai_agent(ai_agent_id: str, body: AIAgentUpdate, user: dict = De
     doc = await ai_agents_col.find_one({"_id": ai_agent_id, "user_id": user["_id"]})
     if not doc:
         raise HTTPException(status_code=404, detail="Agente IA não encontrado")
-    updates = {k: v for k, v in body.model_dump(exclude_unset=True).items() if v is not None}
+    data = body.model_dump(exclude_unset=True)
+    updates = {k: v for k, v in data.items() if v is not None or k in ("schedule", "schedule_input", "guardrail_prompt")}
     updates["updated_at"] = datetime.utcnow()
     await ai_agents_col.update_one({"_id": ai_agent_id}, {"$set": updates})
     return ai_agent_doc_to_out({**doc, **updates})

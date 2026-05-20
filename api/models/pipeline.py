@@ -13,12 +13,16 @@ class PipelineCreate(BaseModel):
     name: str
     description: str = ""
     steps: List[PipelineStep] = []
+    schedule: Optional[str] = None
+    schedule_input: str = ""
 
 
 class PipelineUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     steps: Optional[List[PipelineStep]] = None
+    schedule: Optional[str] = None
+    schedule_input: Optional[str] = None
 
 
 class PipelineOut(BaseModel):
@@ -27,6 +31,8 @@ class PipelineOut(BaseModel):
     name: str
     description: str
     steps: List[PipelineStep]
+    schedule: Optional[str] = None
+    schedule_input: str = ""
     created_at: datetime
     updated_at: datetime
 
@@ -59,6 +65,8 @@ def pipeline_doc_to_out(doc: dict) -> PipelineOut:
         name=doc["name"],
         description=doc.get("description", ""),
         steps=[PipelineStep(**s) for s in doc.get("steps", [])],
+        schedule=doc.get("schedule"),
+        schedule_input=doc.get("schedule_input", ""),
         created_at=doc["created_at"],
         updated_at=doc["updated_at"],
     )

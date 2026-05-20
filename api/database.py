@@ -12,6 +12,7 @@ jobs_col = db.jobs
 ai_agents_col = db.ai_agents
 pipelines_col = db.pipelines
 pipeline_runs_col = db.pipeline_runs
+ai_agent_runs_col = db.ai_agent_runs
 
 
 async def create_indexes():
@@ -35,5 +36,9 @@ async def create_indexes():
     ])
     await pipeline_runs_col.create_indexes([
         IndexModel([("pipeline_id", ASCENDING)]),
+        IndexModel([("user_id", ASCENDING)]),
+    ])
+    await ai_agent_runs_col.create_indexes([
+        IndexModel([("agent_id", ASCENDING)]),
         IndexModel([("user_id", ASCENDING)]),
     ])

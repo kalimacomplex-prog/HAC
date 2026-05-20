@@ -25,6 +25,8 @@ async def create_pipeline(body: PipelineCreate, user: dict = Depends(get_current
         "name": body.name,
         "description": body.description,
         "steps": [s.model_dump() for s in body.steps],
+        "schedule": body.schedule,
+        "schedule_input": body.schedule_input,
         "created_at": now,
         "updated_at": now,
     }
@@ -52,7 +54,7 @@ async def update_pipeline(pipeline_id: str, body: PipelineUpdate, user: dict = D
     if not doc:
         raise HTTPException(status_code=404, detail="Pipeline não encontrada")
     data = body.model_dump(exclude_unset=True)
-    updates = {k: v for k, v in data.items() if v is not None}
+    updates = {k: v for k, v in data.items() if v is not None or k in ("schedule", "schedule_input")}
     updates["updated_at"] = datetime.utcnow()
     await pipelines_col.update_one({"_id": pipeline_id}, {"$set": updates})
     return pipeline_doc_to_out({**doc, **updates})

@@ -13,6 +13,8 @@ class AIAgentCreate(BaseModel):
     guardrail_prompt: str = ""
     temperature: float = 0.7
     max_tokens: int = 1000
+    schedule: Optional[str] = None
+    schedule_input: str = ""
 
 
 class AIAgentUpdate(BaseModel):
@@ -25,6 +27,8 @@ class AIAgentUpdate(BaseModel):
     guardrail_prompt: Optional[str] = None
     temperature: Optional[float] = None
     max_tokens: Optional[int] = None
+    schedule: Optional[str] = None
+    schedule_input: Optional[str] = None
 
 
 class AIAgentOut(BaseModel):
@@ -41,6 +45,8 @@ class AIAgentOut(BaseModel):
     max_tokens: int
     tokens_used_last: Optional[int] = None
     tokens_remaining: Optional[int] = None
+    schedule: Optional[str] = None
+    schedule_input: str = ""
     created_at: datetime
     updated_at: datetime
 
@@ -60,6 +66,8 @@ def ai_agent_doc_to_out(doc: dict) -> AIAgentOut:
         max_tokens=doc.get("max_tokens", 1000),
         tokens_used_last=doc.get("tokens_used_last"),
         tokens_remaining=doc.get("tokens_remaining"),
+        schedule=doc.get("schedule"),
+        schedule_input=doc.get("schedule_input", ""),
         created_at=doc["created_at"],
         updated_at=doc["updated_at"],
     )

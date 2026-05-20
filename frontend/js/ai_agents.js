@@ -84,7 +84,51 @@ function openAIAgentModal(agent = null) {
   document.getElementById('ai-agent-guardrail').value = agent?.guardrail_prompt || '';
   document.getElementById('ai-agent-temperature').value = agent?.temperature ?? 0.7;
   document.getElementById('ai-agent-max-tokens').value = agent?.max_tokens || 1000;
+  // schedule
+  setAIScheduleFromCron(agent?.schedule || null);
+  document.getElementById('ai-agent-schedule-input').value = agent?.schedule_input || '';
   openModal('modal-ai-agent');
+}
+
+function setAIScheduleFromCron(cron) {
+  const typeEl = document.getElementById('ai-agent-schedule-type');
+  document.getElementById('ai-agent-schedule').value = cron || '';
+  if (!cron) {
+    typeEl.value = '';
+  } else if (/^\*\/(\d+) \* \* \* \*$/.test(cron)) {
+    typeEl.value = 'interval';
+    document.getElementById('ai-schedule-minutes').value = cron.match(/^\*\/(\d+)/)[1];
+  } else if (/^(\d+) (\d+) \* \* \*$/.test(cron)) {
+    typeEl.value = 'daily';
+    const [, m, h] = cron.match(/^(\d+) (\d+)/);
+    document.getElementById('ai-schedule-time').value = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  } else {
+    typeEl.value = 'cron';
+    document.getElementById('ai-schedule-cron-expr').value = cron;
+  }
+  onAIScheduleTypeChange();
+}
+
+function onAIScheduleTypeChange() {
+  const type = document.getElementById('ai-agent-schedule-type').value;
+  document.getElementById('ai-schedule-interval').style.display = type === 'interval' ? 'flex' : 'none';
+  document.getElementById('ai-schedule-daily').style.display   = type === 'daily'    ? 'block' : 'none';
+  document.getElementById('ai-schedule-cron').style.display    = type === 'cron'     ? 'block' : 'none';
+  document.getElementById('ai-schedule-input-wrap').style.display = type ? 'block' : 'none';
+}
+
+function buildAICron() {
+  const type = document.getElementById('ai-agent-schedule-type').value;
+  if (!type) return null;
+  if (type === 'interval') {
+    const m = parseInt(document.getElementById('ai-schedule-minutes').value) || 60;
+    return `*/${m} * * * *`;
+  }
+  if (type === 'daily') {
+    const [h, m] = document.getElementById('ai-schedule-time').value.split(':');
+    return `${parseInt(m)} ${parseInt(h)} * * *`;
+  }
+  return document.getElementById('ai-schedule-cron-expr').value.trim() || null;
 }
 
 function onAIProviderChange(selectModel = null) {
@@ -106,6 +150,8 @@ async function saveAIAgent() {
     model: document.getElementById('ai-agent-model').value,
     system_prompt: document.getElementById('ai-agent-system-prompt').value.trim(),
     guardrail_prompt: document.getElementById('ai-agent-guardrail').value.trim(),
+    schedule: buildAICron(),
+    schedule_input: document.getElementById('ai-agent-schedule-input').value.trim(),
     temperature: parseFloat(document.getElementById('ai-agent-temperature').value),
     max_tokens: parseInt(document.getElementById('ai-agent-max-tokens').value),
   };

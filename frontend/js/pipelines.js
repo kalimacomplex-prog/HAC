@@ -50,8 +50,56 @@ async function openPipelineModal(pipeline = null) {
   pipelineSteps = pipeline ? pipeline.steps.map(s => ({ ...s })) : [];
   selectedStepIndex = -1;
   document.getElementById('pipeline-config-panel').style.display = 'none';
+  document.getElementById('pipeline-schedule-panel').style.display = 'none';
+  setPLScheduleFromCron(pipeline?.schedule || null);
+  document.getElementById('pipeline-schedule-input').value = pipeline?.schedule_input || '';
   renderPipelineCanvas();
   openModal('modal-pipeline');
+}
+
+function togglePipelineSchedule() {
+  const panel = document.getElementById('pipeline-schedule-panel');
+  panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+}
+
+function setPLScheduleFromCron(cron) {
+  document.getElementById('pipeline-schedule').value = cron || '';
+  const typeEl = document.getElementById('pl-schedule-type');
+  if (!cron) {
+    typeEl.value = '';
+  } else if (/^\*\/(\d+) \* \* \* \*$/.test(cron)) {
+    typeEl.value = 'interval';
+    document.getElementById('pl-sched-minutes').value = cron.match(/^\*\/(\d+)/)[1];
+  } else if (/^(\d+) (\d+) \* \* \*$/.test(cron)) {
+    typeEl.value = 'daily';
+    const [, m, h] = cron.match(/^(\d+) (\d+)/);
+    document.getElementById('pl-sched-time').value = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  } else {
+    typeEl.value = 'cron';
+    document.getElementById('pl-sched-expr').value = cron;
+  }
+  onPLScheduleTypeChange();
+}
+
+function onPLScheduleTypeChange() {
+  const type = document.getElementById('pl-schedule-type').value;
+  document.getElementById('pl-sched-interval').style.display = type === 'interval' ? 'flex' : 'none';
+  document.getElementById('pl-sched-daily').style.display   = type === 'daily'    ? 'block' : 'none';
+  document.getElementById('pl-sched-cron').style.display    = type === 'cron'     ? 'block' : 'none';
+}
+
+function buildPLCron() {
+  const type = document.getElementById('pl-schedule-type').value;
+  if (!type) return null;
+  if (type === 'interval') {
+    const m = parseInt(document.getElementById('pl-sched-minutes').value) || 60;
+    return `*/${m} * * * *`;
+  }
+  if (type === 'daily') {
+    const [h, m] = document.getElementById('pl-sched-time').value.split(':');
+    return `${parseInt(m)} ${parseInt(h)} * * *`;
+  }
+  return document.getElementById('pl-sched-expr').value.trim() || null;
 }
 
 function renderPipelineCanvas() {
@@ -207,6 +255,8 @@ async function savePipeline() {
     name: document.getElementById('pipeline-name').value.trim(),
     description: document.getElementById('pipeline-description').value.trim(),
     steps: pipelineSteps,
+    schedule: buildPLCron(),
+    schedule_input: document.getElementById('pipeline-schedule-input').value.trim(),
   };
   if (!body.name) return toast('Nome obrigatório', 'error');
   for (const s of body.steps) {
