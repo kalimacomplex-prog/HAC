@@ -16,6 +16,9 @@ async def call_ai(agent: dict, user_input: str) -> tuple[str, dict]:
     model = agent["model"]
     api_key = agent.get("api_key", "")
     system_prompt = agent.get("system_prompt", "")
+    guardrail = agent.get("guardrail_prompt", "")
+    if guardrail:
+        system_prompt = f"{system_prompt}\n\nRESTRIÇÕES OBRIGATÓRIAS (guardrail):\n{guardrail}"
     temperature = agent.get("temperature", 0.7)
     max_tokens = agent.get("max_tokens", 1000)
     meta = {"tokens_used": None, "tokens_remaining": None}
@@ -78,6 +81,7 @@ async def create_ai_agent(body: AIAgentCreate, user: dict = Depends(get_current_
         "model": body.model,
         "api_key": body.api_key,
         "system_prompt": body.system_prompt,
+        "guardrail_prompt": body.guardrail_prompt,
         "temperature": body.temperature,
         "max_tokens": body.max_tokens,
         "created_at": now,

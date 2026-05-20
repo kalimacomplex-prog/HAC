@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HAC Platform</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=20" />
+  <link rel="stylesheet" href="/static/css/style.css?v=21" />
 </head>
 <body>
 
@@ -702,7 +702,12 @@ print('Concluído!')"></textarea>
       </div>
       <div class="form-group">
         <label>System Prompt</label>
-        <textarea id="ai-agent-system-prompt" rows="5" placeholder="Você é um assistente especializado em..." style="font-size:.875rem;border:1.5px solid var(--gray-200);border-radius:8px;padding:.75rem;width:100%;resize:vertical;outline:none;color:var(--gray-800);font-family:inherit;box-sizing:border-box"></textarea>
+        <textarea id="ai-agent-system-prompt" rows="4" placeholder="Você é um assistente especializado em..." style="font-size:.875rem;border:1.5px solid var(--gray-200);border-radius:8px;padding:.75rem;width:100%;resize:vertical;outline:none;color:var(--gray-800);font-family:inherit;box-sizing:border-box"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Guardrail <span style="color:var(--gray-400);font-weight:400">(restrições obrigatórias)</span></label>
+        <textarea id="ai-agent-guardrail" rows="3" placeholder="Ex: Nunca responda sobre temas políticos. Sempre responda em português. Não forneça informações pessoais." style="font-size:.875rem;border:1.5px solid #f59e0b;border-radius:8px;padding:.75rem;width:100%;resize:vertical;outline:none;color:var(--gray-800);font-family:inherit;box-sizing:border-box;background:#fffbeb"></textarea>
+        <p class="hint">Aplicado após o system prompt como restrições que o modelo deve sempre seguir.</p>
       </div>
       <div class="two-col">
         <div class="form-group">
@@ -823,16 +828,16 @@ print('Concluído!')"></textarea>
 <!-- TOAST -->
 <div class="toast-container" id="toast-container"></div>
 
-<script src="/static/js/helpers.js?v=20"></script>
-<script src="/static/js/app.js?v=20"></script>
-<script src="/static/js/auth.js?v=20"></script>
-<script src="/static/js/dashboard.js?v=20"></script>
-<script src="/static/js/agents.js?v=20"></script>
-<script src="/static/js/processes.js?v=20"></script>
-<script src="/static/js/jobs.js?v=20"></script>
-<script src="/static/js/cronjobs.js?v=20"></script>
-<script src="/static/js/ai_agents.js?v=20"></script>
-<script src="/static/js/pipelines.js?v=20"></script>
+<script src="/static/js/helpers.js?v=21"></script>
+<script src="/static/js/app.js?v=21"></script>
+<script src="/static/js/auth.js?v=21"></script>
+<script src="/static/js/dashboard.js?v=21"></script>
+<script src="/static/js/agents.js?v=21"></script>
+<script src="/static/js/processes.js?v=21"></script>
+<script src="/static/js/jobs.js?v=21"></script>
+<script src="/static/js/cronjobs.js?v=21"></script>
+<script src="/static/js/ai_agents.js?v=21"></script>
+<script src="/static/js/pipelines.js?v=21"></script>
 
 </body>
 </html>

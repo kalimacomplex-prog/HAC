@@ -10,6 +10,7 @@ class AIAgentCreate(BaseModel):
     model: str
     api_key: str = ""
     system_prompt: str = ""
+    guardrail_prompt: str = ""
     temperature: float = 0.7
     max_tokens: int = 1000
 
@@ -21,6 +22,7 @@ class AIAgentUpdate(BaseModel):
     model: Optional[str] = None
     api_key: Optional[str] = None
     system_prompt: Optional[str] = None
+    guardrail_prompt: Optional[str] = None
     temperature: Optional[float] = None
     max_tokens: Optional[int] = None
 
@@ -34,6 +36,7 @@ class AIAgentOut(BaseModel):
     model: str
     api_key_set: bool
     system_prompt: str
+    guardrail_prompt: str
     temperature: float
     max_tokens: int
     tokens_used_last: Optional[int] = None
@@ -52,6 +55,7 @@ def ai_agent_doc_to_out(doc: dict) -> AIAgentOut:
         model=doc["model"],
         api_key_set=bool(doc.get("api_key", "")),
         system_prompt=doc.get("system_prompt", ""),
+        guardrail_prompt=doc.get("guardrail_prompt", ""),
         temperature=doc.get("temperature", 0.7),
         max_tokens=doc.get("max_tokens", 1000),
         tokens_used_last=doc.get("tokens_used_last"),

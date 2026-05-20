@@ -81,6 +81,7 @@ function openAIAgentModal(agent = null) {
   document.getElementById('ai-agent-api-key').value = '';
   document.getElementById('ai-agent-api-key-hint').style.display = agent?.api_key_set ? 'block' : 'none';
   document.getElementById('ai-agent-system-prompt').value = agent?.system_prompt || '';
+  document.getElementById('ai-agent-guardrail').value = agent?.guardrail_prompt || '';
   document.getElementById('ai-agent-temperature').value = agent?.temperature ?? 0.7;
   document.getElementById('ai-agent-max-tokens').value = agent?.max_tokens || 1000;
   openModal('modal-ai-agent');
@@ -104,6 +105,7 @@ async function saveAIAgent() {
     provider: document.getElementById('ai-agent-provider').value,
     model: document.getElementById('ai-agent-model').value,
     system_prompt: document.getElementById('ai-agent-system-prompt').value.trim(),
+    guardrail_prompt: document.getElementById('ai-agent-guardrail').value.trim(),
     temperature: parseFloat(document.getElementById('ai-agent-temperature').value),
     max_tokens: parseInt(document.getElementById('ai-agent-max-tokens').value),
   };
