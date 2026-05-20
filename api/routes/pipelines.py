@@ -111,7 +111,7 @@ async def run_pipeline(pipeline_id: str, body: PipelineRunRequest, user: dict = 
             final_status = "failed"
             break
 
-        template = step.get("input_template", "{output}")
+        template = step.get("input_template") or "{output}"
         step_input = template.replace("{input}", body.input).replace("{output}", current_output)
 
         try:

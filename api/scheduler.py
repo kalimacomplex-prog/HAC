@@ -156,7 +156,7 @@ async def _tick_pipelines():
                     steps_results.append({"ai_agent_id": step["ai_agent_id"], "name": step.get("name", ""), "input": current_output, "output": "", "status": "failed", "error": "Agente não encontrado"})
                     final_status = "failed"
                     break
-                template = step.get("input_template", "{output}")
+                template = step.get("input_template") or "{output}"
                 step_input = template.replace("{input}", initial_input).replace("{output}", current_output)
                 try:
                     output, _ = await call_ai(agent, step_input)
