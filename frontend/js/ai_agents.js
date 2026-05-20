@@ -33,23 +33,30 @@ function providerBadge(provider) {
   const styles = {
     anthropic: 'background:#d9770615;color:#d97706;border:1px solid #d9770640',
     openai:    'background:#16a34a15;color:#16a34a;border:1px solid #16a34a40',
+    groq:      'background:#7c3aed15;color:#7c3aed;border:1px solid #7c3aed40',
   };
-  const labels = { anthropic: 'Anthropic', openai: 'OpenAI' };
+  const labels = { anthropic: 'Anthropic', openai: 'OpenAI', groq: 'Groq' };
   const style = styles[provider] || 'background:var(--gray-100);color:var(--gray-600)';
   return `<span style="${style};border-radius:999px;padding:.15rem .6rem;font-size:.75rem;font-weight:600">${labels[provider] || provider}</span>`;
 }
 
 const AI_MODELS = {
   anthropic: [
-    { value: 'claude-opus-4-7',         label: 'Claude Opus 4.7' },
-    { value: 'claude-sonnet-4-6',        label: 'Claude Sonnet 4.6' },
-    { value: 'claude-haiku-4-5-20251001',label: 'Claude Haiku 4.5' },
+    { value: 'claude-opus-4-7',          label: 'Claude Opus 4.7' },
+    { value: 'claude-sonnet-4-6',         label: 'Claude Sonnet 4.6' },
+    { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
   ],
   openai: [
-    { value: 'gpt-4o',       label: 'GPT-4o' },
-    { value: 'gpt-4o-mini',  label: 'GPT-4o Mini' },
-    { value: 'gpt-4-turbo',  label: 'GPT-4 Turbo' },
-    { value: 'gpt-3.5-turbo',label: 'GPT-3.5 Turbo' },
+    { value: 'gpt-4o',        label: 'GPT-4o' },
+    { value: 'gpt-4o-mini',   label: 'GPT-4o Mini' },
+    { value: 'gpt-4-turbo',   label: 'GPT-4 Turbo' },
+    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+  ],
+  groq: [
+    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (recomendado)' },
+    { value: 'llama-3.1-8b-instant',    label: 'Llama 3.1 8B (rápido)' },
+    { value: 'gemma2-9b-it',            label: 'Gemma 2 9B' },
+    { value: 'mixtral-8x7b-32768',      label: 'Mixtral 8x7B' },
   ],
 };
 

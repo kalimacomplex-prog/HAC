@@ -35,9 +35,12 @@ async def call_ai(agent: dict, user_input: str) -> str:
         response = await client.messages.create(**kwargs)
         return response.content[0].text
 
-    elif provider == "openai":
+    elif provider in ("openai", "groq"):
         from openai import AsyncOpenAI
-        client = AsyncOpenAI(api_key=api_key)
+        kwargs = {"api_key": api_key}
+        if provider == "groq":
+            kwargs["base_url"] = "https://api.groq.com/openai/v1"
+        client = AsyncOpenAI(**kwargs)
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
