@@ -254,7 +254,7 @@ async function savePipeline() {
   const body = {
     name: document.getElementById('pipeline-name').value.trim(),
     description: document.getElementById('pipeline-description').value.trim(),
-    steps: pipelineSteps,
+    steps: pipelineSteps.map(s => ({ ...s, input_template: s.input_template || '{output}' })),
     schedule: buildPLCron(),
     schedule_input: document.getElementById('pipeline-schedule-input').value.trim(),
   };
@@ -327,9 +327,10 @@ function renderRunNodes(steps, results) {
             ${res?.error ? `<div style="color:#f87171;font-size:.68rem;margin-top:.2rem">${escapeHtml(res.error)}</div>` : ''}
           </div>
         </div>
-        ${res?.output ? `
-          <div style="width:140px;background:#f1f5f9;border-radius:8px;padding:.35rem .5rem;font-size:.7rem;color:#475569;max-height:60px;overflow:hidden;text-overflow:ellipsis;white-space:pre-wrap;word-break:break-word;border:1px solid #e2e8f0">
-            ${escapeHtml(res.output.slice(0, 120))}${res.output.length > 120 ? '…' : ''}
+        ${res ? `
+          <div style="width:140px;border-radius:8px;font-size:.68rem;margin-top:.2rem">
+            ${res.input ? `<div style="background:#e0f2fe;border:1px solid #bae6fd;border-radius:6px;padding:.25rem .45rem;color:#0369a1;margin-bottom:.2rem;max-height:40px;overflow:hidden;word-break:break-word"><span style="font-weight:700">↳ entrada:</span> ${escapeHtml(res.input.slice(0, 80))}${res.input.length > 80 ? '…' : ''}</div>` : ''}
+            ${res.output ? `<div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:.25rem .45rem;color:#475569;max-height:50px;overflow:hidden;word-break:break-word">${escapeHtml(res.output.slice(0, 120))}${res.output.length > 120 ? '…' : ''}</div>` : ''}
           </div>
         ` : ''}
       </div>
