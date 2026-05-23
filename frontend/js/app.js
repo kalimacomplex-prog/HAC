@@ -44,7 +44,7 @@ function navigate(view) {
   document.getElementById(`view-${view}`).classList.add('active');
   document.getElementById(`nav-${view}`).classList.add('active');
 
-  const titles = { dashboard: 'Dashboard', agents: 'Agentes', processes: 'Processos', cronjobs: 'Cron Jobs', instructions: 'Instruções', ai_agents: 'Agentes IA', pipelines: 'Pipelines de IA' };
+  const titles = { dashboard: 'Dashboard', agents: 'Agentes', processes: 'Processos', cronjobs: 'Cron Jobs', instructions: 'Instruções', ai_agents: 'Agentes IA', pipelines: 'Pipelines de IA', oraculo: 'Oráculo' };
   document.getElementById('topbar-title').textContent = titles[view];
 
   const actions = document.getElementById('topbar-actions');
@@ -69,5 +69,7 @@ function navigate(view) {
   } else if (view === 'pipelines') {
     actions.innerHTML = `<button class="btn btn-blue" onclick="openPipelineModal()">+ Nova pipeline</button>`;
     loadPipelines();
+  } else if (view === 'oraculo') {
+    loadOraculoAgents();
   }
 }
