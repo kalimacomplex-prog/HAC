@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 from bson import ObjectId
 from croniter import croniter
 
-from .database import processes_col, jobs_col, ai_agents_col, ai_agent_runs_col, pipelines_col, pipeline_runs_col
+from .database import processes_col, jobs_col, ai_agents_col, ai_agent_runs_col, pipelines_col, pipeline_runs_col, studio_automations_col, studio_runs_col
 
 log = logging.getLogger("hac.scheduler")
 
@@ -179,6 +179,38 @@ async def _tick_pipelines():
             log.error(f"Scheduler: pipeline '{pipeline['name']}' falhou: {e}")
 
 
+async def _tick_studio():
+    now = datetime.now(timezone.utc)
+    window_start = now - timedelta(seconds=70)
+
+    cursor = studio_automations_col.find({
+        "active": True,
+        "trigger.type": "cron",
+        "trigger.schedule": {"$exists": True, "$ne": ""},
+    })
+    async for automation in cursor:
+        schedule = automation.get("trigger", {}).get("schedule", "")
+        if not schedule or not _is_due(schedule, now, window_start):
+            continue
+
+        existing = await studio_runs_col.find_one({
+            "automation_id": automation["_id"],
+            "created_at": {"$gte": window_start.replace(tzinfo=None)},
+            "trigger_type": "cron",
+            "status": "running",
+        })
+        if existing:
+            continue
+
+        try:
+            from .routes.studio import _execute_automation
+            initial_input = automation.get("trigger", {}).get("schedule_input", "")
+            await _execute_automation(automation, initial_input, trigger_type="cron")
+            log.info(f"Scheduler: studio automação '{automation['name']}' executada")
+        except Exception as e:
+            log.error(f"Scheduler: studio automação '{automation['name']}' falhou: {e}")
+
+
 async def scheduler_loop():
     log.info("Scheduler iniciado.")
     while True:
@@ -186,6 +218,7 @@ async def scheduler_loop():
             await _tick_processes()
             await _tick_ai_agents()
             await _tick_pipelines()
+            await _tick_studio()
         except Exception as e:
             log.error(f"Scheduler erro: {e}", exc_info=True)
         await asyncio.sleep(60)
