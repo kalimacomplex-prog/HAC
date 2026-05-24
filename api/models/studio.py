@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from enum import Enum
 
 
@@ -10,9 +10,33 @@ class TriggerType(str, Enum):
 
 
 class StepType(str, Enum):
-    pipeline = "pipeline"
-    http_request = "http_request"
+    # Controle de Fluxo
     condition = "condition"
+    loop_count = "loop_count"
+    wait = "wait"
+    comment = "comment"
+    # Variáveis
+    set_variable = "set_variable"
+    calculate = "calculate"
+    # Arquivos
+    read_file = "read_file"
+    write_file = "write_file"
+    list_files = "list_files"
+    delete_file = "delete_file"
+    # HTTP & Internet
+    http_request = "http_request"
+    parse_json = "parse_json"
+    # Email
+    send_email = "send_email"
+    # Sistema
+    run_command = "run_command"
+    run_python = "run_python"
+    # IA
+    call_ai_agent = "call_ai_agent"
+    call_pipeline = "call_pipeline"
+    # Dados
+    text_transform = "text_transform"
+    # Navegador
     browser = "browser"
 
 
@@ -24,15 +48,54 @@ class BrowserAction(BaseModel):
 
 
 class StepConfig(BaseModel):
-    pipeline_id: str = ""
-    input_template: str = "{output}"
+    # condition
+    operator: str = "contains"
+    condition_value: str = ""
+    else_step_id: str = ""
+    # loop_count
+    count: int = 3
+    index_variable: str = "loop_index"
+    # wait
+    seconds: float = 1.0
+    # comment
+    text: str = ""
+    # set_variable / calculate
+    variable_name: str = ""
+    value: str = ""
+    expression: str = ""
+    # files
+    file_path: str = ""
+    content: str = "{output}"
+    append: bool = False
+    directory: str = ""
+    pattern: str = "*"
+    # http_request
     method: str = "GET"
     url: str = ""
     headers: Dict[str, str] = Field(default_factory=dict)
     body: str = ""
-    operator: str = "contains"
-    condition_value: str = ""
-    else_step_id: str = ""
+    # parse_json
+    json_input: str = "{output}"
+    key_path: str = ""
+    # send_email
+    to: str = ""
+    subject: str = ""
+    email_body: str = ""
+    is_html: bool = False
+    # run_command / run_python
+    command: str = ""
+    code: str = ""
+    # call_ai_agent
+    agent_id: str = ""
+    input_template: str = "{output}"
+    # call_pipeline
+    pipeline_id: str = ""
+    # text_transform
+    text_input: str = "{output}"
+    operation: str = "upper"
+    search: str = ""
+    replace_with: str = ""
+    # browser
     browser_actions: List[BrowserAction] = Field(default_factory=list)
 
 

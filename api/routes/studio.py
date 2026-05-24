@@ -1,5 +1,12 @@
+import asyncio
+import glob as glob_module
+import io
 import json
+import os
+import re
 import secrets
+import subprocess
+import sys
 import time
 from datetime import datetime
 from typing import List
@@ -10,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from ..auth import get_current_user
+from ..config import settings
 from ..database import pipelines_col, ai_agents_col, studio_automations_col, studio_runs_col
 from ..models.studio import (
     AutomationCreate, AutomationUpdate, AutomationOut, AutomationRunOut,
@@ -19,6 +27,8 @@ from .ai_agents import call_ai
 
 router = APIRouter(prefix="/studio", tags=["studio"])
 
+
+# ─── Helpers ──────────────────────────────────────────────────────
 
 def _doc_to_out(doc: dict, base_url: str = "") -> AutomationOut:
     trigger = doc.get("trigger", {})
@@ -56,25 +66,301 @@ def _run_doc_to_out(doc: dict) -> AutomationRunOut:
     )
 
 
-def _evaluate_condition(output: str, operator: str, value: str) -> bool:
+def _sub(text: str, ctx: dict) -> str:
+    """Substitui {input}, {output} e {varname} no texto."""
+    text = str(text)
+    text = text.replace("{input}", str(ctx.get("input", "")))
+    text = text.replace("{output}", str(ctx.get("output", "")))
+    for k, v in ctx.get("vars", {}).items():
+        text = text.replace(f"{{{k}}}", str(v))
+    return text
+
+
+def _store(result: str, variable_name: str, ctx: dict):
+    """Salva resultado no contexto. Se variable_name, salva em vars; sempre atualiza output."""
+    ctx["output"] = result
+    if variable_name:
+        ctx["vars"][variable_name] = result
+
+
+def _eval_condition(output: str, operator: str, value: str) -> bool:
     out_l, val_l = output.lower(), value.lower()
-    if operator == "contains":
-        return val_l in out_l
-    elif operator == "not_contains":
-        return val_l not in out_l
-    elif operator == "equals":
-        return output.strip() == value.strip()
-    elif operator == "not_equals":
-        return output.strip() != value.strip()
-    elif operator == "starts_with":
-        return out_l.startswith(val_l)
-    elif operator == "ends_with":
-        return out_l.endswith(val_l)
-    elif operator == "is_empty":
-        return output.strip() == ""
-    elif operator == "not_empty":
-        return output.strip() != ""
+    if operator == "contains":       return val_l in out_l
+    if operator == "not_contains":   return val_l not in out_l
+    if operator == "equals":         return output.strip() == value.strip()
+    if operator == "not_equals":     return output.strip() != value.strip()
+    if operator == "starts_with":    return out_l.startswith(val_l)
+    if operator == "ends_with":      return out_l.endswith(val_l)
+    if operator == "is_empty":       return output.strip() == ""
+    if operator == "not_empty":      return output.strip() != ""
+    if operator == "greater_than":
+        try: return float(output.strip()) > float(value.strip())
+        except: return False
+    if operator == "less_than":
+        try: return float(output.strip()) < float(value.strip())
+        except: return False
     return False
+
+
+async def _exec_step(step: dict, ctx: dict) -> str:
+    """Executa um step e retorna o output. Atualiza ctx em tempo real."""
+    t = step["type"]
+    cfg = step.get("config", {})
+    var = cfg.get("variable_name", "")
+
+    # ── Controle de Fluxo ──────────────────────────────────
+
+    if t == "wait":
+        secs = float(cfg.get("seconds", 1))
+        await asyncio.sleep(min(secs, 60))
+        return f"Aguardou {secs}s"
+
+    if t == "comment":
+        return f"# {cfg.get('text', '')}"
+
+    # condition é tratado no loop principal (precisa controlar índice)
+    # loop_count idem — retornamos placeholder aqui
+    if t in ("condition", "loop_count"):
+        return ""
+
+    # ── Variáveis ──────────────────────────────────────────
+
+    if t == "set_variable":
+        result = _sub(cfg.get("value", ""), ctx)
+        _store(result, var, ctx)
+        return result
+
+    if t == "calculate":
+        expr = _sub(cfg.get("expression", "0"), ctx)
+        try:
+            import math
+            safe = {"__builtins__": {}, "math": math, "abs": abs, "round": round,
+                    "len": len, "str": str, "int": int, "float": float, "min": min, "max": max}
+            safe.update(ctx.get("vars", {}))
+            result = str(eval(expr, safe))
+        except Exception as e:
+            raise Exception(f"Erro ao calcular '{expr}': {e}")
+        _store(result, var, ctx)
+        return result
+
+    # ── Arquivos ───────────────────────────────────────────
+
+    if t == "read_file":
+        path = _sub(cfg.get("file_path", ""), ctx)
+        with open(path, "r", encoding="utf-8") as f:
+            result = f.read()
+        _store(result, var, ctx)
+        return result
+
+    if t == "write_file":
+        path = _sub(cfg.get("file_path", ""), ctx)
+        content = _sub(cfg.get("content", "{output}"), ctx)
+        mode = "a" if cfg.get("append") else "w"
+        os.makedirs(os.path.dirname(path), exist_ok=True) if os.path.dirname(path) else None
+        with open(path, mode, encoding="utf-8") as f:
+            f.write(content)
+        result = f"Arquivo {'adicionado' if cfg.get('append') else 'escrito'}: {path}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "list_files":
+        directory = _sub(cfg.get("directory", "."), ctx)
+        pattern = cfg.get("pattern", "*")
+        files = glob_module.glob(os.path.join(directory, pattern))
+        result = json.dumps(files, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "delete_file":
+        path = _sub(cfg.get("file_path", ""), ctx)
+        os.remove(path)
+        result = f"Arquivo deletado: {path}"
+        _store(result, var, ctx)
+        return result
+
+    # ── HTTP & Internet ────────────────────────────────────
+
+    if t == "http_request":
+        method = cfg.get("method", "GET").upper()
+        url = _sub(cfg.get("url", ""), ctx)
+        headers = cfg.get("headers") or {}
+        body = _sub(cfg.get("body", ""), ctx)
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            if method == "GET":
+                resp = await client.get(url, headers=headers)
+            elif method in ("POST", "PUT", "PATCH"):
+                ct = headers.get("Content-Type", "application/json")
+                if "json" in ct:
+                    try:
+                        resp = await client.request(method, url, json=json.loads(body) if body else {}, headers=headers)
+                    except json.JSONDecodeError:
+                        resp = await client.request(method, url, content=body, headers=headers)
+                else:
+                    resp = await client.request(method, url, content=body, headers=headers)
+            elif method == "DELETE":
+                resp = await client.delete(url, headers=headers)
+            else:
+                resp = await client.request(method, url, content=body, headers=headers)
+
+        result = resp.text
+        _store(result[:5000], var, ctx)
+        return f"[{resp.status_code}] {result[:3000]}"
+
+    if t == "parse_json":
+        raw = _sub(cfg.get("json_input", "{output}"), ctx)
+        try:
+            data = json.loads(raw)
+        except Exception as e:
+            raise Exception(f"JSON inválido: {e}")
+        key_path = cfg.get("key_path", "")
+        if key_path:
+            for key in key_path.split("."):
+                if isinstance(data, list):
+                    try: data = data[int(key)]
+                    except: raise Exception(f"Índice inválido '{key}'")
+                elif isinstance(data, dict):
+                    data = data.get(key)
+                    if data is None:
+                        raise Exception(f"Chave '{key}' não encontrada")
+        result = json.dumps(data, ensure_ascii=False) if isinstance(data, (dict, list)) else str(data)
+        _store(result, var, ctx)
+        return result
+
+    # ── Email ──────────────────────────────────────────────
+
+    if t == "send_email":
+        to_addr = _sub(cfg.get("to", ""), ctx)
+        subject = _sub(cfg.get("subject", ""), ctx)
+        body_content = _sub(cfg.get("email_body", ""), ctx)
+        is_html = cfg.get("is_html", False)
+
+        if not to_addr:
+            raise Exception("Destinatário (to) não definido")
+
+        payload = {
+            "sender": {
+                "name": getattr(settings, "brevo_sender_name", "HAC Studio"),
+                "email": getattr(settings, "brevo_sender_email", None) or "no-reply@hacplatform.com",
+            },
+            "to": [{"email": to_addr}],
+            "subject": subject,
+        }
+        if is_html:
+            payload["htmlContent"] = body_content
+        else:
+            payload["textContent"] = body_content
+
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={"api-key": settings.brevo_api_key, "Content-Type": "application/json"},
+                json=payload,
+            )
+        if resp.status_code not in (200, 201):
+            raise Exception(f"Brevo retornou {resp.status_code}: {resp.text}")
+        result = f"Email enviado para {to_addr}"
+        _store(result, var, ctx)
+        return result
+
+    # ── Sistema ────────────────────────────────────────────
+
+    if t == "run_command":
+        command = _sub(cfg.get("command", ""), ctx)
+        proc = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=30)
+        result = proc.stdout + proc.stderr
+        _store(result, var, ctx)
+        return result
+
+    if t == "run_python":
+        code = _sub(cfg.get("code", ""), ctx)
+        old_stdout = sys.stdout
+        sys.stdout = buffer = io.StringIO()
+        exec_globals = dict(__builtins__=__builtins__)
+        exec_globals.update(ctx.get("vars", {}))
+        exec_globals["input_data"] = ctx.get("input", "")
+        exec_globals["output"] = ctx.get("output", "")
+        try:
+            exec(code, exec_globals)  # noqa: S102
+        finally:
+            sys.stdout = old_stdout
+        captured = buffer.getvalue()
+        # If variable_name specified, try to read that variable from exec_globals
+        if var and var in exec_globals:
+            result = str(exec_globals[var])
+        else:
+            result = captured
+        _store(result, var, ctx)
+        return result
+
+    # ── Inteligência Artificial ────────────────────────────
+
+    if t == "call_ai_agent":
+        agent = await ai_agents_col.find_one({"_id": cfg.get("agent_id", "")})
+        if not agent:
+            raise Exception(f"Agente IA '{cfg.get('agent_id')}' não encontrado")
+        template = cfg.get("input_template", "{output}") or "{output}"
+        step_input = _sub(template, ctx)
+        output_text, _ = await call_ai(agent, step_input)
+        _store(output_text, var, ctx)
+        return output_text
+
+    if t == "call_pipeline":
+        pipeline = await pipelines_col.find_one({"_id": cfg.get("pipeline_id", "")})
+        if not pipeline:
+            raise Exception(f"Pipeline '{cfg.get('pipeline_id')}' não encontrada")
+        template = cfg.get("input_template", "{output}") or "{output}"
+        step_input = _sub(template, ctx)
+        pipe_output = step_input
+        for p_step in pipeline.get("steps", []):
+            agent = await ai_agents_col.find_one({"_id": p_step["ai_agent_id"]})
+            if not agent:
+                raise Exception(f"Agente IA '{p_step['ai_agent_id']}' não encontrado")
+            p_tmpl = p_step.get("input_template") or "{output}"
+            p_in = p_tmpl.replace("{input}", step_input).replace("{output}", pipe_output)
+            pipe_output, _ = await call_ai(agent, p_in)
+        _store(pipe_output, var, ctx)
+        return pipe_output
+
+    # ── Dados ──────────────────────────────────────────────
+
+    if t == "text_transform":
+        text = _sub(cfg.get("text_input", "{output}"), ctx)
+        operation = cfg.get("operation", "upper")
+        if operation == "upper":      result = text.upper()
+        elif operation == "lower":    result = text.lower()
+        elif operation == "strip":    result = text.strip()
+        elif operation == "replace":
+            result = text.replace(cfg.get("search", ""), cfg.get("replace_with", ""))
+        elif operation == "count_chars":  result = str(len(text))
+        elif operation == "count_words":  result = str(len(text.split()))
+        elif operation == "split":
+            delim = cfg.get("search", "\n")
+            result = json.dumps(text.split(delim), ensure_ascii=False)
+        elif operation == "regex":
+            pattern = cfg.get("search", "")
+            matches = re.findall(pattern, text)
+            result = json.dumps(matches, ensure_ascii=False)
+        elif operation == "base64_encode":
+            import base64
+            result = base64.b64encode(text.encode()).decode()
+        elif operation == "base64_decode":
+            import base64
+            result = base64.b64decode(text.encode()).decode()
+        else:
+            result = text
+        _store(result, var, ctx)
+        return result
+
+    # ── Navegador ──────────────────────────────────────────
+
+    if t == "browser":
+        actions = cfg.get("browser_actions") or []
+        result = f"[Browser] {len(actions)} ação(ões). Requer worker com Playwright."
+        _store(result, var, ctx)
+        return result
+
+    return f"[{t}] step executado"
 
 
 async def _execute_automation(automation: dict, initial_input: str, trigger_type: str = "manual") -> dict:
@@ -98,7 +384,7 @@ async def _execute_automation(automation: dict, initial_input: str, trigger_type
     await studio_runs_col.insert_one(run_doc)
 
     steps = automation.get("steps", [])
-    current_output = initial_input
+    ctx = {"input": initial_input, "output": initial_input, "vars": {}}
     steps_results = []
     final_status = "success"
 
@@ -121,77 +407,36 @@ async def _execute_automation(automation: dict, initial_input: str, trigger_type
         }
 
         try:
-            if step_type == "pipeline":
-                pipeline = await pipelines_col.find_one({"_id": cfg.get("pipeline_id", "")})
-                if not pipeline:
-                    raise Exception(f"Pipeline não encontrada: {cfg.get('pipeline_id')}")
-
-                template = cfg.get("input_template") or "{output}"
-                step_input = template.replace("{input}", initial_input).replace("{output}", current_output)
-
-                pipe_output = step_input
-                for p_step in pipeline.get("steps", []):
-                    agent = await ai_agents_col.find_one({"_id": p_step["ai_agent_id"]})
-                    if not agent:
-                        raise Exception(f"Agente IA '{p_step['ai_agent_id']}' não encontrado")
-                    p_tmpl = p_step.get("input_template") or "{output}"
-                    p_in = p_tmpl.replace("{input}", step_input).replace("{output}", pipe_output)
-                    pipe_output, _ = await call_ai(agent, p_in)
-
-                current_output = pipe_output
-                result["output"] = current_output
-
-            elif step_type == "http_request":
-                method = cfg.get("method", "GET").upper()
-                url = cfg.get("url", "").replace("{input}", initial_input).replace("{output}", current_output)
-                headers = cfg.get("headers") or {}
-                body = (cfg.get("body") or "").replace("{input}", initial_input).replace("{output}", current_output)
-
-                async with httpx.AsyncClient(timeout=30) as client:
-                    if method == "GET":
-                        resp = await client.get(url, headers=headers)
-                    elif method == "POST":
-                        ct = headers.get("Content-Type", "application/json")
-                        if "json" in ct:
-                            try:
-                                resp = await client.post(url, json=json.loads(body) if body else {}, headers=headers)
-                            except json.JSONDecodeError:
-                                resp = await client.post(url, content=body, headers=headers)
-                        else:
-                            resp = await client.post(url, content=body, headers=headers)
-                    elif method == "PUT":
-                        resp = await client.put(url, content=body, headers=headers)
-                    elif method == "DELETE":
-                        resp = await client.delete(url, headers=headers)
-                    else:
-                        resp = await client.request(method, url, content=body, headers=headers)
-
-                current_output = resp.text
-                result["output"] = f"[{resp.status_code}] {resp.text[:3000]}"
-
-            elif step_type == "condition":
-                operator = cfg.get("operator", "contains")
-                cond_value = cfg.get("condition_value", "")
-                cond_result = _evaluate_condition(current_output, operator, cond_value)
+            if step_type == "condition":
+                cond_result = _eval_condition(ctx["output"], cfg.get("operator", "contains"), cfg.get("condition_value", ""))
                 result["condition_result"] = cond_result
-                result["output"] = f"Condição: {'VERDADEIRO ✓' if cond_result else 'FALSO ✗'} ({operator} '{cond_value}')"
-
+                result["output"] = f"Condição: {'VERDADEIRO ✓' if cond_result else 'FALSO ✗'} ({cfg.get('operator')} '{cfg.get('condition_value')}')"
+                result["duration_ms"] = int((time.time() - step_start) * 1000)
+                steps_results.append(result)
                 if not cond_result:
-                    else_step_id = cfg.get("else_step_id", "")
-                    result["duration_ms"] = int((time.time() - step_start) * 1000)
-                    steps_results.append(result)
-                    if not else_step_id:
+                    else_id = cfg.get("else_step_id", "")
+                    if not else_id:
                         i = len(steps)
                     else:
-                        target = next((idx for idx, s in enumerate(steps) if s["id"] == else_step_id), len(steps))
-                        i = target
-                    continue
+                        i = next((idx for idx, s in enumerate(steps) if s["id"] == else_id), len(steps))
+                else:
+                    i += 1
+                continue
 
-            elif step_type == "browser":
-                actions = cfg.get("browser_actions") or []
-                result["output"] = f"[Browser] {len(actions)} ação(ões) configurada(s). Execução requer worker com Playwright (em breve)."
+            elif step_type == "loop_count":
+                count = int(cfg.get("count", 3))
+                idx_var = cfg.get("index_variable", "loop_index")
+                result["output"] = f"Loop: {count} iterações (variável de índice: {idx_var})"
                 result["status"] = "skipped"
-                current_output = result["output"]
+                result["error"] = "Loop requer suporte a blocos aninhados (em desenvolvimento)"
+                result["duration_ms"] = int((time.time() - step_start) * 1000)
+                steps_results.append(result)
+                i += 1
+                continue
+
+            else:
+                output = await _exec_step(step, ctx)
+                result["output"] = str(output)[:3000]
 
         except Exception as e:
             result["status"] = "failed"
@@ -210,24 +455,23 @@ async def _execute_automation(automation: dict, initial_input: str, trigger_type
 
     await studio_runs_col.update_one({"_id": run_id}, {"$set": {
         "steps_result": steps_results,
-        "output": current_output,
+        "output": ctx["output"],
         "status": final_status,
         "finished_at": finished_at,
         "duration_ms": duration_ms,
     }})
 
-    return {**run_doc, "steps_result": steps_results, "output": current_output,
+    return {**run_doc, "steps_result": steps_results, "output": ctx["output"],
             "status": final_status, "finished_at": finished_at, "duration_ms": duration_ms}
 
 
-# ─── CRUD ────────────────────────────────────────────────────────
+# ─── CRUD ─────────────────────────────────────────────────────────
 
 @router.post("", response_model=AutomationOut, status_code=201)
 async def create_automation(body: AutomationCreate, request: Request, user: dict = Depends(get_current_user)):
     trigger = body.trigger.model_dump()
     if trigger.get("type") == "webhook" and not trigger.get("webhook_token"):
         trigger["webhook_token"] = secrets.token_urlsafe(20)
-
     now = datetime.utcnow()
     doc = {
         "_id": str(ObjectId()),
@@ -264,7 +508,6 @@ async def update_automation(automation_id: str, body: AutomationUpdate, request:
     doc = await studio_automations_col.find_one({"_id": automation_id, "user_id": user["_id"]})
     if not doc:
         raise HTTPException(status_code=404, detail="Automação não encontrada")
-
     data = body.model_dump(exclude_unset=True)
     if "trigger" in data and data["trigger"]:
         t = data["trigger"]
@@ -273,7 +516,6 @@ async def update_automation(automation_id: str, body: AutomationUpdate, request:
     if "steps" in data and data["steps"] is not None:
         data["steps"] = [s if isinstance(s, dict) else s.model_dump() for s in data["steps"]]
     data["updated_at"] = datetime.utcnow()
-
     await studio_automations_col.update_one({"_id": automation_id}, {"$set": data})
     return _doc_to_out({**doc, **data}, str(request.base_url).rstrip("/"))
 
@@ -307,7 +549,7 @@ async def list_runs(automation_id: str, user: dict = Depends(get_current_user)):
     return [_run_doc_to_out(d) async for d in cursor]
 
 
-# ─── WEBHOOK (público, sem auth) ─────────────────────────────────
+# ─── WEBHOOK ──────────────────────────────────────────────────────
 
 @router.post("/webhook/{token}")
 async def webhook_trigger(token: str, request: Request):

@@ -39,12 +39,19 @@ async function initApp() {
 }
 
 function navigate(view) {
+  // Restaura sidebar e topbar ao sair do builder
+  if (view !== 'studio_builder') {
+    document.querySelector('.topbar').style.display = '';
+    document.getElementById('sidebar').style.display = '';
+  }
+
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById(`view-${view}`).classList.add('active');
-  document.getElementById(`nav-${view}`).classList.add('active');
+  const navEl = document.getElementById(`nav-${view}`);
+  if (navEl) navEl.classList.add('active');
 
-  const titles = { dashboard: 'Dashboard', agents: 'Agentes', processes: 'Processos', cronjobs: 'Cron Jobs', instructions: 'Instruções', studio: 'HAC Studio', ai_agents: 'Agentes IA', pipelines: 'Pipelines de IA', oraculo: 'Oráculo' };
+  const titles = { dashboard: 'Dashboard', agents: 'Agentes', processes: 'Processos', cronjobs: 'Cron Jobs', instructions: 'Instruções', studio: 'HAC Studio', studio_builder: 'Builder', ai_agents: 'Agentes IA', pipelines: 'Pipelines de IA', oraculo: 'Oráculo' };
   document.getElementById('topbar-title').textContent = titles[view];
 
   const actions = document.getElementById('topbar-actions');
@@ -70,8 +77,12 @@ function navigate(view) {
     actions.innerHTML = `<button class="btn btn-blue" onclick="openPipelineModal()">+ Nova pipeline</button>`;
     loadPipelines();
   } else if (view === 'studio') {
-    actions.innerHTML = `<button class="btn btn-blue" onclick="openStudioBuilder()">+ Nova automação</button>`;
+    actions.innerHTML = `<button class="btn btn-blue" onclick="openBuilderPage()">+ Nova automação</button>`;
     loadStudio();
+  } else if (view === 'studio_builder') {
+    document.querySelector('.topbar').style.display = 'none';
+    document.getElementById('sidebar').style.display = 'none';
+    initBuilderPage();
   } else if (view === 'oraculo') {
     loadOraculoAgents();
   }
