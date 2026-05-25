@@ -97,6 +97,7 @@ class StepConfig(BaseModel):
     replace_with: str = ""
     # browser
     browser_actions: List[BrowserAction] = Field(default_factory=list)
+    browser_engine: str = "playwright"
 
 
 class AutomationStep(BaseModel):

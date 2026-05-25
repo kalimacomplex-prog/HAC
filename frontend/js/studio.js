@@ -363,7 +363,7 @@ function addBuilderStep(type) {
     agent_id: '', input_template: '{output}',
     pipeline_id: '',
     text_input: '{output}', operation: 'upper', search: '', replace_with: '',
-    browser_actions: [],
+    browser_actions: [], browser_engine: 'playwright',
   };
   _buildSteps.push({ id, type, name: meta.label, config: { ...defaults } });
   _buildSelectedId = id;
@@ -558,7 +558,17 @@ function _renderPropsPanel(step) {
 
     case 'browser': {
       const actions = c.browser_actions || [];
+      const engine = c.browser_engine || 'playwright';
       const actTypes = ['open','click','type','extract','wait','screenshot','close'];
+      html += _field('ENGINE DE AUTOMAÇÃO', `<select onchange="_upCfg('${step.id}','browser_engine',this.value)" ${_sel()}>
+        <option value="playwright" ${engine==='playwright'?'selected':''}>🎭 Playwright</option>
+        <option value="selenium"   ${engine==='selenium'  ?'selected':''}>🔬 Selenium</option>
+      </select>`);
+      const engineHints = {
+        playwright: 'Playwright — async, moderno, suporta Chromium/Firefox/WebKit. Recomendado.',
+        selenium: 'Selenium — compatível com qualquer browser via WebDriver. Requer geckodriver/chromedriver.',
+      };
+      html += `<p style="font-size:.7rem;color:#7c3aed;margin:-.35rem 0 .1rem;line-height:1.5">ℹ️ ${engineHints[engine]}</p>`;
       html += _field('AÇÕES DO NAVEGADOR',
         `<div style="display:flex;flex-direction:column;gap:.4rem" id="ba-${step.id}">
           ${actions.map((a,i) => `
@@ -576,7 +586,6 @@ function _renderPropsPanel(step) {
           ${actions.length === 0 ? `<div style="font-size:.78rem;color:#94a3b8;text-align:center;padding:.5rem">Nenhuma ação. Clique em + Ação.</div>` : ''}
         </div>
         <button onclick="_addBA('${step.id}')" style="margin-top:.4rem;width:100%;padding:.35rem;border:1.5px dashed #94a3b8;border-radius:7px;background:transparent;cursor:pointer;font-size:.78rem;color:#64748b">+ Adicionar ação</button>`);
-      html += `<div style="background:#f5f3ff;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#6d28d9">🌍 Requer worker com Playwright. O builder está disponível para modelar o fluxo.</div>`;
       break;
     }
   }

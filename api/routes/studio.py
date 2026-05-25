@@ -390,7 +390,8 @@ async def _exec_step(step: dict, ctx: dict) -> str:
 
     if t == "browser":
         actions = cfg.get("browser_actions") or []
-        result = f"[Browser] {len(actions)} ação(ões). Requer worker com Playwright."
+        engine = cfg.get("browser_engine", "playwright").capitalize()
+        result = f"[Browser/{engine}] {len(actions)} ação(ões). Requer worker com {engine}."
         _store(result, var, ctx)
         return result
 
