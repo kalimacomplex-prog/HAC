@@ -703,7 +703,7 @@ function openStudioRun(automationId) {
   if (ow) ow.style.display = 'none';
   const btn = document.getElementById('btn-studio-exec');
   btn.disabled = false; btn.textContent = '⚡ Executar';
-  document.getElementById('modal-studio-run').style.display = 'flex';
+  openModal('modal-studio-run');
 }
 
 function openBuilderRun() {
