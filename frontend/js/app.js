@@ -8,21 +8,31 @@ window.addEventListener('load', () => {
   else showAuth();
 });
 
-async function api(method, path, body) {
+async function api(method, path, body, timeoutMs = 180000) {
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), timeoutMs);
   const opts = {
     method,
     headers: { 'Content-Type': 'application/json' },
+    signal: controller.signal,
   };
   if (token) opts.headers['Authorization'] = `Bearer ${token}`;
   if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(`${API}${path}`, opts);
-  if (res.status === 401) { logout(); return null; }
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: 'Erro desconhecido' }));
-    throw new Error(err.detail || 'Erro na requisição');
+  try {
+    const res = await fetch(`${API}${path}`, opts);
+    clearTimeout(tid);
+    if (res.status === 401) { logout(); return null; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Erro desconhecido' }));
+      throw new Error(err.detail || 'Erro na requisição');
+    }
+    if (res.status === 204) return null;
+    return res.json();
+  } catch (e) {
+    clearTimeout(tid);
+    if (e.name === 'AbortError') throw new Error('Tempo esgotado (180s). A execução pode continuar em background.');
+    throw e;
   }
-  if (res.status === 204) return null;
-  return res.json();
 }
 
 async function initApp() {
