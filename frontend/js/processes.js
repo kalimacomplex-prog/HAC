@@ -43,9 +43,16 @@ async function loadProcesses() {
     const agentCell = agent
       ? `<span style="display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem">${agent.connected ? '🟢' : '⚫'} ${agent.name}</span>`
       : `<span style="color:var(--gray-400);font-size:.82rem">Qualquer</span>`;
+    const isStudio = !!p.studio_automation_id;
+    const nameCell = isStudio
+      ? `${p.name} <span style="font-size:.68rem;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:4px;padding:.05rem .35rem;font-weight:600;vertical-align:middle">⚡ Studio</span>`
+      : p.name;
+    const editBtn = isStudio
+      ? `<button class="btn btn-outline btn-xs" onclick="navigate('studio_builder');window._builderAutoId='${p.studio_automation_id}';initBuilderPage()">✏ Editar</button>`
+      : `<button class="btn btn-outline btn-xs" onclick="editProcess('${p.id}')">✏ Editar</button>`;
     return `
     <tr style="cursor:pointer" onclick="openProcessLogs('${p.id}','${p.name.replace(/'/g,"\\'")}')">
-      <td class="agent-name-cell">${p.name}</td>
+      <td class="agent-name-cell">${nameCell}</td>
       <td>${p.description || '–'}</td>
       <td>${agentCell}</td>
       <td>${p.schedule ? `<span class="badge badge-blue" style="font-family:monospace;font-size:.72rem">${p.schedule}</span>` : '<span style="color:var(--gray-400);font-size:.82rem">–</span>'}</td>
@@ -53,7 +60,7 @@ async function loadProcesses() {
         <button class="btn btn-outline btn-xs" onclick="openProcessLogs('${p.id}','${p.name.replace(/'/g,"\\'")}')">📋 Logs</button>
         <button class="btn btn-outline btn-xs" onclick="runNow('${p.id}','${p.name.replace(/'/g,"\\'")}')">⚡ Executar</button>
         <button class="btn btn-outline btn-xs" onclick="openJobModal('${p.id}','${p.name.replace(/'/g,"\\'")}')">▶ Parâmetros</button>
-        <button class="btn btn-outline btn-xs" onclick="editProcess('${p.id}')">✏ Editar</button>
+        ${editBtn}
         <button class="btn btn-danger btn-xs" onclick="stopProcess('${p.id}','${p.name.replace(/'/g,"\\'")}')">⏹ Parar</button>
         <button class="btn btn-danger btn-xs" onclick="deleteProcess('${p.id}')">🗑 Remover</button>
       </td>

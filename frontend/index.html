@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HAC Platform</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=28" />
+  <link rel="stylesheet" href="/static/css/style.css?v=29" />
 </head>
 <body>
 
@@ -515,6 +515,9 @@ print(f"Processando {url} com limite {limit}")</pre>
           <input type="text" id="builder-description" placeholder="Descrição (opcional)" style="flex:2;padding:.38rem .65rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.82rem;outline:none;color:#64748b;min-width:0" />
           <button onclick="toggleBuilderTrigger()" id="btn-builder-trigger" style="padding:.38rem .75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.8rem;background:white;cursor:pointer;white-space:nowrap;color:#475569;flex-shrink:0">⚡ Trigger: Manual</button>
           <span id="builder-step-count" style="font-size:.75rem;color:#94a3b8;flex-shrink:0">0 ações</span>
+          <select id="builder-agent-id" title="Agente de execução" style="padding:.38rem .6rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.8rem;background:white;max-width:160px;cursor:pointer;flex-shrink:0;outline:none;color:#475569">
+            <option value="">⚙ Qualquer agente</option>
+          </select>
           <button onclick="openBuilderRun()" style="padding:.38rem .75rem;border:1.5px solid #3b82f6;border-radius:8px;font-size:.82rem;color:#3b82f6;background:#eff6ff;cursor:pointer;white-space:nowrap;flex-shrink:0">▶ Executar</button>
           <button onclick="saveBuilderAutomation()" style="padding:.38rem .875rem;border:none;border-radius:8px;font-size:.82rem;background:#2563eb;color:white;cursor:pointer;white-space:nowrap;font-weight:600;flex-shrink:0">💾 Salvar</button>
         </div>
@@ -1094,18 +1097,18 @@ print('Concluído!')"></textarea>
 <!-- TOAST -->
 <div class="toast-container" id="toast-container"></div>
 
-<script src="/static/js/helpers.js?v=28"></script>
-<script src="/static/js/app.js?v=28"></script>
-<script src="/static/js/auth.js?v=28"></script>
-<script src="/static/js/dashboard.js?v=28"></script>
-<script src="/static/js/agents.js?v=28"></script>
-<script src="/static/js/processes.js?v=28"></script>
-<script src="/static/js/jobs.js?v=28"></script>
-<script src="/static/js/cronjobs.js?v=28"></script>
-<script src="/static/js/ai_agents.js?v=28"></script>
-<script src="/static/js/pipelines.js?v=28"></script>
-<script src="/static/js/oraculo.js?v=28"></script>
-<script src="/static/js/studio.js?v=28"></script>
+<script src="/static/js/helpers.js?v=29"></script>
+<script src="/static/js/app.js?v=29"></script>
+<script src="/static/js/auth.js?v=29"></script>
+<script src="/static/js/dashboard.js?v=29"></script>
+<script src="/static/js/agents.js?v=29"></script>
+<script src="/static/js/processes.js?v=29"></script>
+<script src="/static/js/jobs.js?v=29"></script>
+<script src="/static/js/cronjobs.js?v=29"></script>
+<script src="/static/js/ai_agents.js?v=29"></script>
+<script src="/static/js/pipelines.js?v=29"></script>
+<script src="/static/js/oraculo.js?v=29"></script>
+<script src="/static/js/studio.js?v=29"></script>
 
 </body>
 </html>

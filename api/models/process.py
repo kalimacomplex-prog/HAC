@@ -32,6 +32,7 @@ class ProcessOut(BaseModel):
     schedule: Optional[str]
     created_at: datetime
     updated_at: datetime
+    studio_automation_id: Optional[str] = None
 
 
 def process_doc_to_out(doc: dict) -> ProcessOut:
@@ -46,4 +47,5 @@ def process_doc_to_out(doc: dict) -> ProcessOut:
         schedule=doc.get("schedule"),
         created_at=doc["created_at"],
         updated_at=doc["updated_at"],
+        studio_automation_id=doc.get("studio_automation_id"),
     )

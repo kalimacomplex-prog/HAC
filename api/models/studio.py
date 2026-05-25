@@ -119,6 +119,7 @@ class AutomationCreate(BaseModel):
     trigger: Trigger = Field(default_factory=Trigger)
     steps: List[AutomationStep] = Field(default_factory=list)
     active: bool = True
+    agent_id: str = ""
 
 
 class AutomationUpdate(BaseModel):
@@ -127,6 +128,7 @@ class AutomationUpdate(BaseModel):
     trigger: Optional[Trigger] = None
     steps: Optional[List[AutomationStep]] = None
     active: Optional[bool] = None
+    agent_id: Optional[str] = None
 
 
 class AutomationOut(BaseModel):
@@ -138,6 +140,7 @@ class AutomationOut(BaseModel):
     active: bool
     created_at: str
     webhook_url: str = ""
+    agent_id: str = ""
 
 
 class StepResult(BaseModel):

@@ -18,7 +18,7 @@ from pydantic import BaseModel
 
 from ..auth import get_current_user
 from ..config import settings
-from ..database import pipelines_col, ai_agents_col, studio_automations_col, studio_runs_col
+from ..database import pipelines_col, ai_agents_col, studio_automations_col, studio_runs_col, processes_col
 from ..models.studio import (
     AutomationCreate, AutomationUpdate, AutomationOut, AutomationRunOut,
     StepResult, TriggerType,
@@ -45,7 +45,41 @@ def _doc_to_out(doc: dict, base_url: str = "") -> AutomationOut:
         active=doc.get("active", True),
         created_at=created.isoformat() if isinstance(created, datetime) else str(created),
         webhook_url=webhook_url,
+        agent_id=doc.get("agent_id", ""),
     )
+
+
+async def _upsert_linked_process(automation_id: str, user_id: str, name: str, description: str, agent_id: str, schedule: str):
+    """Cria ou atualiza o Process vinculado a esta automação Studio."""
+    now = datetime.utcnow()
+    stub_script = f"# HAC Studio Automation\n# ID: {automation_id}\n# Gerenciado pelo HAC Studio Builder"
+    existing = await processes_col.find_one({"studio_automation_id": automation_id, "user_id": user_id})
+    if existing:
+        await processes_col.update_one(
+            {"_id": existing["_id"]},
+            {"$set": {
+                "name": name,
+                "description": description,
+                "agent_id": agent_id or None,
+                "schedule": schedule or None,
+                "updated_at": now,
+            }}
+        )
+    else:
+        doc = {
+            "_id": str(ObjectId()),
+            "user_id": user_id,
+            "name": name,
+            "description": description,
+            "script": stub_script,
+            "timeout_seconds": 300,
+            "agent_id": agent_id or None,
+            "schedule": schedule or None,
+            "studio_automation_id": automation_id,
+            "created_at": now,
+            "updated_at": now,
+        }
+        await processes_col.insert_one(doc)
 
 
 def _run_doc_to_out(doc: dict) -> AutomationRunOut:
@@ -481,10 +515,13 @@ async def create_automation(body: AutomationCreate, request: Request, user: dict
         "trigger": trigger,
         "steps": [s.model_dump() for s in body.steps],
         "active": body.active,
+        "agent_id": body.agent_id,
         "created_at": now,
         "updated_at": now,
     }
     await studio_automations_col.insert_one(doc)
+    schedule = trigger.get("schedule", "") if trigger.get("type") == "cron" else ""
+    await _upsert_linked_process(doc["_id"], user["_id"], body.name, body.description, body.agent_id, schedule)
     return _doc_to_out(doc, str(request.base_url).rstrip("/"))
 
 
@@ -517,7 +554,17 @@ async def update_automation(automation_id: str, body: AutomationUpdate, request:
         data["steps"] = [s if isinstance(s, dict) else s.model_dump() for s in data["steps"]]
     data["updated_at"] = datetime.utcnow()
     await studio_automations_col.update_one({"_id": automation_id}, {"$set": data})
-    return _doc_to_out({**doc, **data}, str(request.base_url).rstrip("/"))
+    merged = {**doc, **data}
+    trigger_merged = merged.get("trigger", {})
+    schedule = trigger_merged.get("schedule", "") if trigger_merged.get("type") == "cron" else ""
+    await _upsert_linked_process(
+        automation_id, user["_id"],
+        merged.get("name", doc["name"]),
+        merged.get("description", doc.get("description", "")),
+        merged.get("agent_id", doc.get("agent_id", "")),
+        schedule,
+    )
+    return _doc_to_out(merged, str(request.base_url).rstrip("/"))
 
 
 @router.delete("/{automation_id}", status_code=204)
@@ -525,6 +572,7 @@ async def delete_automation(automation_id: str, user: dict = Depends(get_current
     result = await studio_automations_col.delete_one({"_id": automation_id, "user_id": user["_id"]})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Automação não encontrada")
+    await processes_col.delete_one({"studio_automation_id": automation_id, "user_id": user["_id"]})
 
 
 class RunRequest(BaseModel):

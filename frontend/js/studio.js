@@ -50,6 +50,7 @@ let _buildEditId = null;
 let _buildSelectedId = null;
 let _buildPipelines = [];
 let _buildAIAgents = [];
+let _buildAgents = [];
 let _collapsedCats = new Set();
 let _studioRunAutoId = null;
 
@@ -112,11 +113,19 @@ async function initBuilderPage() {
 
   // Carrega recursos em paralelo
   try {
-    [_buildPipelines, _buildAIAgents] = await Promise.all([
+    [_buildPipelines, _buildAIAgents, _buildAgents] = await Promise.all([
       api('GET', '/pipelines').catch(() => []),
       api('GET', '/ai-agents').catch(() => []),
+      api('GET', '/agents').catch(() => []),
     ]);
   } catch (_) {}
+
+  // Popula seletor de agente
+  const agentSel = document.getElementById('builder-agent-id');
+  if (agentSel) {
+    agentSel.innerHTML = '<option value="">⚙ Qualquer agente</option>' +
+      (_buildAgents || []).map(a => `<option value="${a.id}">${a.connected ? '🟢' : '⚫'} ${escapeHtml(a.name)}</option>`).join('');
+  }
 
   if (_buildEditId) {
     try {
@@ -126,6 +135,8 @@ async function initBuilderPage() {
       _buildSteps = auto.steps ? JSON.parse(JSON.stringify(auto.steps)) : [];
       _buildTrigger = auto.trigger ? { ...auto.trigger } : _buildTrigger;
       if (auto.webhook_url) document.getElementById('builder-webhook-url').textContent = auto.webhook_url;
+      const agentSel = document.getElementById('builder-agent-id');
+      if (agentSel && auto.agent_id) agentSel.value = auto.agent_id;
     } catch (e) {
       showToast('Erro ao carregar automação: ' + e.message, 'error');
     }
@@ -654,6 +665,7 @@ async function saveBuilderAutomation() {
     trigger: { type: triggerType, schedule, schedule_input, webhook_token: _buildTrigger.webhook_token || '' },
     steps: _buildSteps,
     active: true,
+    agent_id: document.getElementById('builder-agent-id')?.value || '',
   };
 
   try {
