@@ -274,7 +274,9 @@ async def _exec_browser_via_agent(actions: list, engine: str, headless: bool, ct
         if job and job["status"] in ("done", "failed", "cancelled"):
             break
 
+    # Sempre deleta o processo temporário (mesmo em caso de falha/timeout)
     await processes_col.delete_one({"_id": proc_id})
+    await jobs_col.delete_one({"_id": job_id})
 
     if not job or job["status"] != "done":
         err = (job or {}).get("error") or "Timeout — agente não respondeu em 120s"

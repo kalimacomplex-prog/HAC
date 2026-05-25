@@ -30,7 +30,10 @@ async def create_process(body: ProcessCreate, user: dict = Depends(get_current_u
 
 @router.get("", response_model=List[ProcessOut])
 async def list_processes(user: dict = Depends(get_current_user)):
-    cursor = processes_col.find({"user_id": user["_id"]}).sort("created_at", -1)
+    cursor = processes_col.find({
+        "user_id": user["_id"],
+        "name": {"$not": {"$regex": "^__studio_"}},
+    }).sort("created_at", -1)
     return [process_doc_to_out(doc) async for doc in cursor]
 
 
