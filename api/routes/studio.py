@@ -150,7 +150,8 @@ def _gen_browser_script(actions: list, engine: str, headless: bool, ctx: dict) -
 
     if engine == "playwright":
         lines = [
-            "import json",
+            "import sys, json",
+            "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
             "from playwright.sync_api import sync_playwright",
             "_vars = {}",
             "with sync_playwright() as _pw:",
@@ -190,7 +191,8 @@ def _gen_browser_script(actions: list, engine: str, headless: bool, ctx: dict) -
         ]
     else:  # selenium
         lines = [
-            "import json, time",
+            "import sys, json, time",
+            "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
             "from selenium import webdriver",
             "from selenium.webdriver.common.by import By",
             "from selenium.webdriver.chrome.options import Options",
