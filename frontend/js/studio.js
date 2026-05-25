@@ -152,15 +152,92 @@ async function initBuilderPage() {
   _renderPalette();
   _renderBuilderCanvas();
   _renderPropsPanel(null);
+  _clearBuilderLog();
+  _initBuilderLogResize();
 }
 
 function backToStudio() {
-  // Restaura topbar e sidebar
   const topbar = document.querySelector('.topbar');
   const sidebar = document.getElementById('sidebar');
   if (topbar) topbar.style.display = '';
   if (sidebar) sidebar.style.display = '';
   navigate('studio');
+}
+
+// ─── Log Panel ────────────────────────────────────────────────────
+
+function _initBuilderLogResize() {
+  const handle = document.getElementById('builder-log-resize');
+  const panel  = document.getElementById('builder-log-panel');
+  if (!handle || !panel) return;
+  let startY, startH;
+  handle.addEventListener('mousedown', e => {
+    startY = e.clientY;
+    startH = panel.offsetHeight;
+    e.preventDefault();
+    const onMove = mv => {
+      const delta = startY - mv.clientY;
+      const maxH = panel.parentElement.offsetHeight * 0.85;
+      panel.style.height = Math.max(48, Math.min(startH + delta, maxH)) + 'px';
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', () => document.removeEventListener('mousemove', onMove), { once: true });
+  });
+}
+
+function _clearBuilderLog() {
+  const el = document.getElementById('builder-log-output');
+  if (el) el.innerHTML = '<span style="color:#334155">— Log limpo —</span>';
+}
+
+function _appendBuilderLog(html) {
+  const el = document.getElementById('builder-log-output');
+  if (!el) return;
+  if (el.innerHTML.includes('Aguardando') || el.innerHTML.includes('Log limpo')) el.innerHTML = '';
+  el.innerHTML += html;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function _runBuilderInline() {
+  const editId = document.getElementById('builder-edit-id')?.value;
+  if (!editId) { showToast('Salve a automação antes de executar', 'error'); return; }
+  const input = document.getElementById('builder-log-input')?.value || '';
+
+  // Expande o painel se muito pequeno
+  const panel = document.getElementById('builder-log-panel');
+  if (panel && panel.offsetHeight < 120) panel.style.height = '260px';
+
+  _appendBuilderLog(`<span style="color:#64748b">[${new Date().toLocaleTimeString()}] Iniciando execução...</span>\n`);
+
+  try {
+    const run = await api('POST', `/studio/${editId}/run`, { input });
+    const sc = { success: '#22c55e', failed: '#ef4444', skipped: '#f59e0b' };
+    const si = { success: '✓', failed: '✗', skipped: '⚠' };
+    const meta_icon = t => (ACTION_MAP[t] || { icon: '⚙' }).icon;
+
+    run.steps_result.forEach(s => {
+      const color = sc[s.status] || '#94a3b8';
+      const icon  = si[s.status] || '?';
+      _appendBuilderLog(
+        `<span style="color:${color}">${icon} ${meta_icon(s.step_type)} ${escapeHtml(s.step_name)}</span>` +
+        `<span style="color:#475569"> (${s.duration_ms}ms)</span>\n`
+      );
+      if (s.output) _appendBuilderLog(
+        `<span style="color:#64748b">  → ${escapeHtml(s.output.replace(/\n/g,'↵ ').substring(0, 200))}${s.output.length > 200 ? '…' : ''}</span>\n`
+      );
+      if (s.error)  _appendBuilderLog(
+        `<span style="color:#ef4444">  ✗ ${escapeHtml(s.error.substring(0, 200))}</span>\n`
+      );
+    });
+
+    const finalColor = run.status === 'success' ? '#22c55e' : '#ef4444';
+    _appendBuilderLog(`\n<span style="color:${finalColor};font-weight:bold">● Finalizado: ${run.status.toUpperCase()} — ${run.duration_ms}ms</span>\n`);
+    if (run.output) _appendBuilderLog(
+      `<span style="color:#7dd3fc">Output final: ${escapeHtml(run.output.substring(0, 400))}${run.output.length > 400 ? '…' : ''}</span>\n`
+    );
+  } catch (e) {
+    _appendBuilderLog(`<span style="color:#ef4444">✗ Erro: ${escapeHtml(e.message)}</span>\n`);
+  }
 }
 
 // ─── Trigger ──────────────────────────────────────────────────────
@@ -716,10 +793,7 @@ function openStudioRun(automationId) {
 }
 
 function openBuilderRun() {
-  const name = document.getElementById('builder-name')?.value || 'Automação';
-  const editId = document.getElementById('builder-edit-id')?.value;
-  if (!editId) { showToast('Salve a automação antes de executar', 'error'); return; }
-  openStudioRun(editId);
+  _runBuilderInline();
 }
 
 async function executeStudioRun() {

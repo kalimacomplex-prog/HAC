@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HAC Platform</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=30" />
+  <link rel="stylesheet" href="/static/css/style.css?v=31" />
 </head>
 <body>
 
@@ -564,9 +564,33 @@ print(f"Processando {url} com limite {limit}")</pre>
           <!-- Left: Paleta de Ações -->
           <div id="builder-palette" style="width:185px;overflow-y:auto;border-right:1px solid #e2e8f0;flex-shrink:0;background:#f1f5f9"></div>
 
-          <!-- Center: Canvas de Fluxo -->
-          <div style="flex:1;overflow-y:auto;padding:1.5rem 1.75rem;background:#f8fafc;display:flex;flex-direction:column;align-items:center">
-            <div id="builder-canvas" style="width:100%;max-width:540px;display:flex;flex-direction:column;align-items:center"></div>
+          <!-- Center: Canvas de Fluxo + Log Panel -->
+          <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+
+            <!-- Canvas -->
+            <div style="flex:1;overflow-y:auto;padding:1.5rem 1.75rem;background:#f8fafc;display:flex;flex-direction:column;align-items:center">
+              <div id="builder-canvas" style="width:100%;max-width:540px;display:flex;flex-direction:column;align-items:center"></div>
+            </div>
+
+            <!-- Log Panel (expansível para cima) -->
+            <div id="builder-log-panel" style="height:180px;min-height:48px;display:flex;flex-direction:column;flex-shrink:0;border-top:2px solid #1e293b;background:#0f172a">
+              <!-- Resize handle -->
+              <div id="builder-log-resize" title="Arraste para expandir" style="height:8px;background:#1e293b;cursor:ns-resize;flex-shrink:0;display:flex;align-items:center;justify-content:center;user-select:none">
+                <div style="width:36px;height:3px;background:#334155;border-radius:2px"></div>
+              </div>
+              <!-- Header -->
+              <div style="display:flex;align-items:center;gap:.5rem;padding:.3rem .75rem;background:#1e293b;flex-shrink:0">
+                <span style="font-size:.68rem;font-weight:700;color:#64748b;letter-spacing:.06em;flex-shrink:0">⚡ SAÍDA</span>
+                <input id="builder-log-input" type="text" placeholder="Entrada inicial (opcional)..." style="flex:1;background:#0f172a;border:1px solid #334155;border-radius:5px;padding:.2rem .5rem;font-size:.75rem;color:#94a3b8;outline:none;min-width:0" />
+                <button onclick="_runBuilderInline()" style="padding:.2rem .65rem;background:#2563eb;border:none;border-radius:5px;font-size:.75rem;color:white;cursor:pointer;white-space:nowrap;flex-shrink:0">▶ Executar</button>
+                <button onclick="_clearBuilderLog()" style="padding:.2rem .5rem;background:transparent;border:1px solid #334155;border-radius:5px;font-size:.72rem;color:#64748b;cursor:pointer;flex-shrink:0">Limpar</button>
+              </div>
+              <!-- Output -->
+              <div id="builder-log-output" style="flex:1;overflow-y:auto;padding:.5rem .75rem;font-family:monospace;font-size:.76rem;color:#94a3b8;line-height:1.7;white-space:pre-wrap;word-break:break-word">
+                <span style="color:#334155">— Aguardando execução... —</span>
+              </div>
+            </div>
+
           </div>
 
           <!-- Right: Propriedades -->
@@ -1097,18 +1121,18 @@ print('Concluído!')"></textarea>
 <!-- TOAST -->
 <div class="toast-container" id="toast-container"></div>
 
-<script src="/static/js/helpers.js?v=30"></script>
-<script src="/static/js/app.js?v=30"></script>
-<script src="/static/js/auth.js?v=30"></script>
-<script src="/static/js/dashboard.js?v=30"></script>
-<script src="/static/js/agents.js?v=30"></script>
-<script src="/static/js/processes.js?v=30"></script>
-<script src="/static/js/jobs.js?v=30"></script>
-<script src="/static/js/cronjobs.js?v=30"></script>
-<script src="/static/js/ai_agents.js?v=30"></script>
-<script src="/static/js/pipelines.js?v=30"></script>
-<script src="/static/js/oraculo.js?v=30"></script>
-<script src="/static/js/studio.js?v=30"></script>
+<script src="/static/js/helpers.js?v=31"></script>
+<script src="/static/js/app.js?v=31"></script>
+<script src="/static/js/auth.js?v=31"></script>
+<script src="/static/js/dashboard.js?v=31"></script>
+<script src="/static/js/agents.js?v=31"></script>
+<script src="/static/js/processes.js?v=31"></script>
+<script src="/static/js/jobs.js?v=31"></script>
+<script src="/static/js/cronjobs.js?v=31"></script>
+<script src="/static/js/ai_agents.js?v=31"></script>
+<script src="/static/js/pipelines.js?v=31"></script>
+<script src="/static/js/oraculo.js?v=31"></script>
+<script src="/static/js/studio.js?v=31"></script>
 
 </body>
 </html>
