@@ -391,7 +391,9 @@ async def _exec_step(step: dict, ctx: dict) -> str:
     if t == "browser":
         actions = cfg.get("browser_actions") or []
         engine = cfg.get("browser_engine", "playwright").capitalize()
-        result = f"[Browser/{engine}] {len(actions)} ação(ões). Requer worker com {engine}."
+        headless = cfg.get("browser_headless", True)
+        mode = "headless" if headless else "visível"
+        result = f"[Browser/{engine}/{mode}] {len(actions)} ação(ões). Requer worker com {engine}."
         _store(result, var, ctx)
         return result
 

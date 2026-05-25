@@ -98,6 +98,7 @@ class StepConfig(BaseModel):
     # browser
     browser_actions: List[BrowserAction] = Field(default_factory=list)
     browser_engine: str = "playwright"
+    browser_headless: bool = True
 
 
 class AutomationStep(BaseModel):

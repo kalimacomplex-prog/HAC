@@ -440,7 +440,7 @@ function addBuilderStep(type) {
     agent_id: '', input_template: '{output}',
     pipeline_id: '',
     text_input: '{output}', operation: 'upper', search: '', replace_with: '',
-    browser_actions: [], browser_engine: 'playwright',
+    browser_actions: [], browser_engine: 'playwright', browser_headless: true,
   };
   _buildSteps.push({ id, type, name: meta.label, config: { ...defaults } });
   _buildSelectedId = id;
@@ -646,6 +646,16 @@ function _renderPropsPanel(step) {
         selenium: 'Selenium — compatível com qualquer browser via WebDriver. Requer geckodriver/chromedriver.',
       };
       html += `<p style="font-size:.7rem;color:#7c3aed;margin:-.35rem 0 .1rem;line-height:1.5">ℹ️ ${engineHints[engine]}</p>`;
+      const headless = c.browser_headless !== false;
+      html += _field('MODO HEADLESS', `<div style="display:flex;gap:.5rem">
+        <label style="display:flex;align-items:center;gap:.35rem;padding:.38rem .75rem;border:1.5px solid ${headless?'#2563eb':'#e2e8f0'};border-radius:7px;cursor:pointer;font-size:.8rem;background:${headless?'#eff6ff':'white'};flex:1;justify-content:center" onclick="_upCfg('${step.id}','browser_headless',true)">
+          <span style="font-size:.95rem">🖥️</span> <span style="color:${headless?'#2563eb':'#64748b'};font-weight:${headless?'700':'400'}">Headless (true)</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:.35rem;padding:.38rem .75rem;border:1.5px solid ${!headless?'#2563eb':'#e2e8f0'};border-radius:7px;cursor:pointer;font-size:.8rem;background:${!headless?'#eff6ff':'white'};flex:1;justify-content:center" onclick="_upCfg('${step.id}','browser_headless',false)">
+          <span style="font-size:.95rem">👁️</span> <span style="color:${!headless?'#2563eb':'#64748b'};font-weight:${!headless?'700':'400'}">Visível (false)</span>
+        </label>
+      </div>`);
+      html += _hint(`Headless: executa sem abrir janela. Visível: abre o browser na tela.`);
       html += _field('AÇÕES DO NAVEGADOR',
         `<div style="display:flex;flex-direction:column;gap:.4rem" id="ba-${step.id}">
           ${actions.map((a,i) => `
