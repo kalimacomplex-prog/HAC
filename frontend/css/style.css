@@ -384,6 +384,7 @@ body {
 /* Views */
 .view { display: none; }
 .view.active { display: block; }
+#view-studio_builder.active { display: flex; }
 
 /* Stats */
 .stats-grid {
