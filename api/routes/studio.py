@@ -18,7 +18,7 @@ from pydantic import BaseModel
 
 from ..auth import get_current_user
 from ..config import settings
-from ..database import pipelines_col, ai_agents_col, studio_automations_col, studio_runs_col, processes_col
+from ..database import pipelines_col, ai_agents_col, studio_automations_col, studio_runs_col, processes_col, jobs_col
 from ..models.studio import (
     AutomationCreate, AutomationUpdate, AutomationOut, AutomationRunOut,
     StepResult, TriggerType,
@@ -136,128 +136,159 @@ def _eval_condition(output: str, operator: str, value: str) -> bool:
     return False
 
 
-async def _exec_browser_playwright(actions: list, headless: bool, ctx: dict) -> tuple:
-    try:
-        from playwright.async_api import async_playwright
-    except ImportError:
-        raise Exception("Playwright não instalado. Execute: pip install playwright && playwright install chromium")
+def _gen_browser_script(actions: list, engine: str, headless: bool, ctx: dict) -> str:
+    """Gera script Python que será executado no agente."""
+    subbed = [
+        {
+            "type": a.get("type", ""),
+            "target": _sub(a.get("target", ""), ctx).replace("\\", "\\\\").replace('"', '\\"'),
+            "value":  _sub(a.get("value",  ""), ctx).replace("\\", "\\\\").replace('"', '\\"'),
+            "variable": a.get("variable", ""),
+        }
+        for a in actions
+    ]
 
-    results = []
-    var_updates = {}
+    if engine == "playwright":
+        lines = [
+            "import json",
+            "from playwright.sync_api import sync_playwright",
+            "_vars = {}",
+            "with sync_playwright() as _pw:",
+            f'    _br = _pw.chromium.launch(headless={str(headless)})',
+            "    _pg = _br.new_page()",
+            "    try:",
+        ]
+        for a in subbed:
+            t, tgt, val, var = a["type"], a["target"], a["value"], a["variable"]
+            indent = "        "
+            if t == "open":
+                lines += [f'{indent}_pg.goto("{tgt}", timeout=30000)', f'{indent}print("✓ Abriu: {tgt}")']
+            elif t == "click":
+                lines += [f'{indent}_pg.click("{tgt}", timeout=10000)', f'{indent}print("✓ Clicou: {tgt}")']
+            elif t == "type":
+                lines += [f'{indent}_pg.fill("{tgt}", "{val}", timeout=10000)', f'{indent}print("✓ Digitou em: {tgt}")']
+            elif t == "extract":
+                lines.append(f'{indent}_el = _pg.query_selector("{tgt}")')
+                lines.append(f'{indent}_tx = (_el.get_attribute("{val}") if "{val}" else _el.inner_text()) if _el else ""')
+                if var:
+                    lines.append(f'{indent}_vars["{var}"] = str(_tx)')
+                lines.append(f'{indent}print(f"✓ Extraiu: {{_tx}}")')
+            elif t == "wait":
+                ms = int(float(val or 1) * 1000)
+                lines += [f'{indent}_pg.wait_for_timeout({ms})', f'{indent}print("✓ Aguardou {val or 1}s")']
+            elif t == "screenshot":
+                path = tgt or "/tmp/hac_screenshot.png"
+                lines += [f'{indent}_pg.screenshot(path="{path}", full_page=True)', f'{indent}print("✓ Screenshot: {path}")']
+            elif t == "close":
+                lines += [f'{indent}_br.close()', f'{indent}print("✓ Browser fechado")']
+        lines += [
+            '        print("__VARS__:" + json.dumps(_vars))',
+            "    finally:",
+            "        try: _br.close()",
+            "        except: pass",
+        ]
+    else:  # selenium
+        lines = [
+            "import json, time",
+            "from selenium import webdriver",
+            "from selenium.webdriver.common.by import By",
+            "from selenium.webdriver.chrome.options import Options",
+            "_vars = {}",
+            "_opts = Options()",
+        ]
+        if headless:
+            lines.append('_opts.add_argument("--headless=new")')
+        lines += [
+            '_opts.add_argument("--no-sandbox")',
+            '_opts.add_argument("--disable-dev-shm-usage")',
+            '_opts.add_argument("--disable-gpu")',
+            "_dr = webdriver.Chrome(options=_opts)",
+            "try:",
+        ]
+        for a in subbed:
+            t, tgt, val, var = a["type"], a["target"], a["value"], a["variable"]
+            indent = "    "
+            if t == "open":
+                lines += [f'{indent}_dr.get("{tgt}")', f'{indent}print("✓ Abriu: {tgt}")']
+            elif t == "click":
+                lines += [f'{indent}_dr.find_element(By.CSS_SELECTOR, "{tgt}").click()', f'{indent}print("✓ Clicou: {tgt}")']
+            elif t == "type":
+                lines += [f'{indent}_el = _dr.find_element(By.CSS_SELECTOR, "{tgt}")',
+                          f'{indent}_el.clear(); _el.send_keys("{val}")',
+                          f'{indent}print("✓ Digitou em: {tgt}")']
+            elif t == "extract":
+                lines.append(f'{indent}_el = _dr.find_element(By.CSS_SELECTOR, "{tgt}")')
+                lines.append(f'{indent}_tx = _el.get_attribute("{val}") if "{val}" else _el.text')
+                if var:
+                    lines.append(f'{indent}_vars["{var}"] = str(_tx)')
+                lines.append(f'{indent}print(f"✓ Extraiu: {{_tx}}")')
+            elif t == "wait":
+                lines += [f'{indent}time.sleep({float(val or 1)})', f'{indent}print("✓ Aguardou {val or 1}s")']
+            elif t == "screenshot":
+                path = tgt or "/tmp/hac_screenshot.png"
+                lines += [f'{indent}_dr.save_screenshot("{path}")', f'{indent}print("✓ Screenshot: {path}")']
+            elif t == "close":
+                lines += [f'{indent}_dr.quit()', f'{indent}print("✓ Browser fechado")']
+        lines += [
+            '    print("__VARS__:" + json.dumps(_vars))',
+            "finally:",
+            "    try: _dr.quit()",
+            "    except: pass",
+        ]
 
-    async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=headless)
-        page = await browser.new_page()
-        closed = False
-        try:
-            for action in actions:
-                act = action.get("type", "")
-                target = _sub(action.get("target", ""), ctx)
-                value  = _sub(action.get("value",  ""), ctx)
-                variable = action.get("variable", "")
-
-                if act == "open":
-                    await page.goto(target, timeout=30000)
-                    results.append(f"✓ Abriu: {target}")
-                elif act == "click":
-                    await page.click(target, timeout=10000)
-                    results.append(f"✓ Clicou: {target}")
-                elif act == "type":
-                    await page.fill(target, value, timeout=10000)
-                    results.append(f"✓ Digitou '{value}' em: {target}")
-                elif act == "extract":
-                    el = await page.query_selector(target)
-                    if el:
-                        text = await el.get_attribute(value) if value else await el.inner_text()
-                        text = str(text or "")
-                        if variable:
-                            var_updates[variable] = text
-                        results.append(f"✓ Extraiu de '{target}': {text[:120]}")
-                    else:
-                        results.append(f"⚠ Elemento não encontrado: {target}")
-                elif act == "wait":
-                    secs = min(float(value) if value else 1.0, 60.0)
-                    await asyncio.sleep(secs)
-                    results.append(f"✓ Aguardou {secs}s")
-                elif act == "screenshot":
-                    path = target or "/tmp/hac_screenshot.png"
-                    await page.screenshot(path=path, full_page=True)
-                    results.append(f"✓ Screenshot salvo: {path}")
-                elif act == "close":
-                    await browser.close()
-                    closed = True
-                    results.append("✓ Browser fechado")
-                    break
-        finally:
-            if not closed:
-                await browser.close()
-
-    return "\n".join(results), var_updates
+    return "\n".join(lines)
 
 
-def _exec_browser_selenium_sync(actions: list, headless: bool, pre_subbed: list) -> tuple:
-    try:
-        from selenium import webdriver
-        from selenium.webdriver.common.by import By
-        from selenium.webdriver.chrome.options import Options
-    except ImportError:
-        raise Exception("Selenium não instalado. Execute: pip install selenium")
+async def _exec_browser_via_agent(actions: list, engine: str, headless: bool, ctx: dict,
+                                   agent_id: str, user_id: str) -> tuple:
+    """Gera script e despacha como job para o agente, aguarda resultado."""
+    script = _gen_browser_script(actions, engine, headless, ctx)
+    now = datetime.utcnow()
+    proc_id = str(ObjectId())
+    job_id  = str(ObjectId())
 
-    opts = Options()
-    if headless:
-        opts.add_argument("--headless=new")
-    opts.add_argument("--no-sandbox")
-    opts.add_argument("--disable-dev-shm-usage")
-    opts.add_argument("--disable-gpu")
+    await processes_col.insert_one({
+        "_id": proc_id, "user_id": user_id,
+        "name": f"__studio_browser_{job_id[:8]}",
+        "description": "Temporário — Studio Browser Step",
+        "script": script, "timeout_seconds": 120,
+        "agent_id": agent_id or None,
+        "created_at": now, "updated_at": now,
+    })
+    await jobs_col.insert_one({
+        "_id": job_id, "user_id": user_id,
+        "process_id": proc_id, "process_name": "Studio Browser",
+        "agent_id": agent_id or None,
+        "status": "pending", "params": {}, "created_at": now,
+    })
 
-    driver = webdriver.Chrome(options=opts)
-    results = []
-    var_updates = {}
+    # Aguarda conclusão (até 120s)
+    job = None
+    for _ in range(60):
+        await asyncio.sleep(2)
+        job = await jobs_col.find_one({"_id": job_id})
+        if job and job["status"] in ("done", "failed", "cancelled"):
+            break
 
-    try:
-        for action, pre in zip(actions, pre_subbed):
-            act      = action.get("type", "")
-            target   = pre.get("target", "")
-            value    = pre.get("value",  "")
-            variable = action.get("variable", "")
+    await processes_col.delete_one({"_id": proc_id})
 
-            if act == "open":
-                driver.get(target)
-                results.append(f"✓ Abriu: {target}")
-            elif act == "click":
-                driver.find_element(By.CSS_SELECTOR, target).click()
-                results.append(f"✓ Clicou: {target}")
-            elif act == "type":
-                el = driver.find_element(By.CSS_SELECTOR, target)
-                el.clear(); el.send_keys(value)
-                results.append(f"✓ Digitou '{value}' em: {target}")
-            elif act == "extract":
-                el = driver.find_element(By.CSS_SELECTOR, target)
-                text = el.get_attribute(value) if value else el.text
-                text = str(text or "")
-                if variable:
-                    var_updates[variable] = text
-                results.append(f"✓ Extraiu de '{target}': {text[:120]}")
-            elif act == "wait":
-                import time as _t
-                secs = min(float(value) if value else 1.0, 60.0)
-                _t.sleep(secs)
-                results.append(f"✓ Aguardou {secs}s")
-            elif act == "screenshot":
-                path = target or "/tmp/hac_screenshot.png"
-                driver.save_screenshot(path)
-                results.append(f"✓ Screenshot salvo: {path}")
-            elif act == "close":
-                driver.quit()
-                results.append("✓ Browser fechado")
-                return "\n".join(results), var_updates
-    finally:
-        try:
-            driver.quit()
-        except Exception:
-            pass
+    if not job or job["status"] != "done":
+        err = (job or {}).get("error") or "Timeout — agente não respondeu em 120s"
+        raise Exception(f"Browser no agente falhou: {err}")
 
-    return "\n".join(results), var_updates
+    raw_output = job.get("output") or ""
+    var_updates: dict = {}
+    clean_lines = []
+    for line in raw_output.splitlines():
+        if line.startswith("__VARS__:"):
+            try:
+                var_updates = json.loads(line[9:])
+            except Exception:
+                pass
+        else:
+            clean_lines.append(line)
+
+    return "\n".join(clean_lines), var_updates
 
 
 async def _exec_step(step: dict, ctx: dict) -> str:
@@ -513,20 +544,21 @@ async def _exec_step(step: dict, ctx: dict) -> str:
     # ── Navegador ──────────────────────────────────────────
 
     if t == "browser":
-        actions = cfg.get("browser_actions") or []
-        engine = cfg.get("browser_engine", "playwright")
+        actions  = cfg.get("browser_actions") or []
+        engine   = cfg.get("browser_engine", "playwright")
         headless = cfg.get("browser_headless", True)
         if not actions:
             result = "Nenhuma ação de navegador configurada."
             _store(result, var, ctx)
             return result
-        if engine == "playwright":
-            result_str, var_updates = await _exec_browser_playwright(actions, headless, ctx)
-        else:
-            pre = [{"target": _sub(a.get("target", ""), ctx), "value": _sub(a.get("value", ""), ctx)} for a in actions]
-            result_str, var_updates = await asyncio.get_event_loop().run_in_executor(
-                None, _exec_browser_selenium_sync, actions, headless, pre
+        agent_id = ctx.get("agent_id", "")
+        user_id  = ctx.get("user_id", "")
+        if not agent_id:
+            raise Exception(
+                "Step Browser requer um agente selecionado. "
+                "Escolha um agente no seletor ao lado do botão Executar antes de salvar."
             )
+        result_str, var_updates = await _exec_browser_via_agent(actions, engine, headless, ctx, agent_id, user_id)
         ctx["vars"].update(var_updates)
         _store(result_str, var, ctx)
         return result_str
@@ -555,7 +587,11 @@ async def _execute_automation(automation: dict, initial_input: str, trigger_type
     await studio_runs_col.insert_one(run_doc)
 
     steps = automation.get("steps", [])
-    ctx = {"input": initial_input, "output": initial_input, "vars": {}}
+    ctx = {
+        "input": initial_input, "output": initial_input, "vars": {},
+        "agent_id": automation.get("agent_id", ""),
+        "user_id": str(automation.get("user_id", "")),
+    }
     steps_results = []
     final_status = "success"
 
