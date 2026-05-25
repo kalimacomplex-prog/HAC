@@ -50,6 +50,9 @@ async function loadProcesses() {
     const editBtn = isStudio
       ? `<button class="btn btn-outline btn-xs" onclick="navigate('studio_builder');window._builderAutoId='${p.studio_automation_id}';initBuilderPage()">✏ Editar</button>`
       : `<button class="btn btn-outline btn-xs" onclick="editProcess('${p.id}')">✏ Editar</button>`;
+    const runBtn = isStudio
+      ? `<button class="btn btn-outline btn-xs" onclick="runStudioProcess('${p.studio_automation_id}','${p.name.replace(/'/g,"\\'")}')">⚡ Executar</button>`
+      : `<button class="btn btn-outline btn-xs" onclick="runNow('${p.id}','${p.name.replace(/'/g,"\\'")}')">⚡ Executar</button>`;
     return `
     <tr style="cursor:pointer" onclick="openProcessLogs('${p.id}','${p.name.replace(/'/g,"\\'")}')">
       <td class="agent-name-cell">${nameCell}</td>
@@ -58,8 +61,8 @@ async function loadProcesses() {
       <td>${p.schedule ? `<span class="badge badge-blue" style="font-family:monospace;font-size:.72rem">${p.schedule}</span>` : '<span style="color:var(--gray-400);font-size:.82rem">–</span>'}</td>
       <td class="actions-cell" onclick="event.stopPropagation()">
         <button class="btn btn-outline btn-xs" onclick="openProcessLogs('${p.id}','${p.name.replace(/'/g,"\\'")}')">📋 Logs</button>
-        <button class="btn btn-outline btn-xs" onclick="runNow('${p.id}','${p.name.replace(/'/g,"\\'")}')">⚡ Executar</button>
-        <button class="btn btn-outline btn-xs" onclick="openJobModal('${p.id}','${p.name.replace(/'/g,"\\'")}')">▶ Parâmetros</button>
+        ${runBtn}
+        ${!isStudio ? `<button class="btn btn-outline btn-xs" onclick="openJobModal('${p.id}','${p.name.replace(/'/g,"\\'")}')">▶ Parâmetros</button>` : ''}
         ${editBtn}
         <button class="btn btn-danger btn-xs" onclick="stopProcess('${p.id}','${p.name.replace(/'/g,"\\'")}')">⏹ Parar</button>
         <button class="btn btn-danger btn-xs" onclick="deleteProcess('${p.id}')">🗑 Remover</button>
@@ -218,4 +221,18 @@ async function openProcessLogs(processId, processName) {
       ${!j.output && !j.error && j.status === 'running' ? `<span style="font-size:.8rem;color:var(--blue-600)">Executando...</span>` : ''}
     </div>
   `).join('');
+}
+
+function runStudioProcess(automationId, name) {
+  // Abre o modal de execução do Studio reutilizando a lógica existente
+  document.getElementById('studio-run-name').textContent = name || 'Automação';
+  document.getElementById('studio-run-id').value = automationId;
+  document.getElementById('studio-run-input').value = '';
+  document.getElementById('studio-run-result').style.display = 'none';
+  document.getElementById('studio-run-steps').innerHTML = '';
+  const ow = document.getElementById('studio-run-output-wrap');
+  if (ow) ow.style.display = 'none';
+  const btn = document.getElementById('btn-studio-exec');
+  btn.disabled = false; btn.textContent = '⚡ Executar';
+  openModal('modal-studio-run');
 }
