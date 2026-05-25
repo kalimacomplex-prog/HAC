@@ -226,7 +226,7 @@ async function _runBuilderInline() {
         `<span style="color:#64748b">  → ${escapeHtml(s.output.replace(/\n/g,'↵ ').substring(0, 200))}${s.output.length > 200 ? '…' : ''}</span>\n`
       );
       if (s.error)  _appendBuilderLog(
-        `<span style="color:#ef4444">  ✗ ${escapeHtml(s.error.substring(0, 200))}</span>\n`
+        `<span style="color:#ef4444">  ✗ ${escapeHtml(s.error.substring(0, 800))}</span>\n`
       );
     });
 

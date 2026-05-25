@@ -162,7 +162,8 @@ def _gen_browser_script(actions: list, engine: str, headless: bool, ctx: dict) -
             t, tgt, val, var = a["type"], a["target"], a["value"], a["variable"]
             indent = "        "
             if t == "open":
-                lines += [f'{indent}_pg.goto("{tgt}", timeout=30000)', f'{indent}print("✓ Abriu: {tgt}")']
+                url = tgt if tgt.startswith(("http://", "https://")) else f"https://{tgt}"
+                lines += [f'{indent}_pg.goto("{url}", timeout=30000)', f'{indent}print("✓ Abriu: {url}")']
             elif t == "click":
                 lines += [f'{indent}_pg.click("{tgt}", timeout=10000)', f'{indent}print("✓ Clicou: {tgt}")']
             elif t == "type":
@@ -209,7 +210,8 @@ def _gen_browser_script(actions: list, engine: str, headless: bool, ctx: dict) -
             t, tgt, val, var = a["type"], a["target"], a["value"], a["variable"]
             indent = "    "
             if t == "open":
-                lines += [f'{indent}_dr.get("{tgt}")', f'{indent}print("✓ Abriu: {tgt}")']
+                url = tgt if tgt.startswith(("http://", "https://")) else f"https://{tgt}"
+                lines += [f'{indent}_dr.get("{url}")', f'{indent}print("✓ Abriu: {url}")']
             elif t == "click":
                 lines += [f'{indent}_dr.find_element(By.CSS_SELECTOR, "{tgt}").click()', f'{indent}print("✓ Clicou: {tgt}")']
             elif t == "type":
