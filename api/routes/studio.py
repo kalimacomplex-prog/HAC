@@ -136,6 +136,130 @@ def _eval_condition(output: str, operator: str, value: str) -> bool:
     return False
 
 
+async def _exec_browser_playwright(actions: list, headless: bool, ctx: dict) -> tuple:
+    try:
+        from playwright.async_api import async_playwright
+    except ImportError:
+        raise Exception("Playwright não instalado. Execute: pip install playwright && playwright install chromium")
+
+    results = []
+    var_updates = {}
+
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch(headless=headless)
+        page = await browser.new_page()
+        closed = False
+        try:
+            for action in actions:
+                act = action.get("type", "")
+                target = _sub(action.get("target", ""), ctx)
+                value  = _sub(action.get("value",  ""), ctx)
+                variable = action.get("variable", "")
+
+                if act == "open":
+                    await page.goto(target, timeout=30000)
+                    results.append(f"✓ Abriu: {target}")
+                elif act == "click":
+                    await page.click(target, timeout=10000)
+                    results.append(f"✓ Clicou: {target}")
+                elif act == "type":
+                    await page.fill(target, value, timeout=10000)
+                    results.append(f"✓ Digitou '{value}' em: {target}")
+                elif act == "extract":
+                    el = await page.query_selector(target)
+                    if el:
+                        text = await el.get_attribute(value) if value else await el.inner_text()
+                        text = str(text or "")
+                        if variable:
+                            var_updates[variable] = text
+                        results.append(f"✓ Extraiu de '{target}': {text[:120]}")
+                    else:
+                        results.append(f"⚠ Elemento não encontrado: {target}")
+                elif act == "wait":
+                    secs = min(float(value) if value else 1.0, 60.0)
+                    await asyncio.sleep(secs)
+                    results.append(f"✓ Aguardou {secs}s")
+                elif act == "screenshot":
+                    path = target or "/tmp/hac_screenshot.png"
+                    await page.screenshot(path=path, full_page=True)
+                    results.append(f"✓ Screenshot salvo: {path}")
+                elif act == "close":
+                    await browser.close()
+                    closed = True
+                    results.append("✓ Browser fechado")
+                    break
+        finally:
+            if not closed:
+                await browser.close()
+
+    return "\n".join(results), var_updates
+
+
+def _exec_browser_selenium_sync(actions: list, headless: bool, pre_subbed: list) -> tuple:
+    try:
+        from selenium import webdriver
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.chrome.options import Options
+    except ImportError:
+        raise Exception("Selenium não instalado. Execute: pip install selenium")
+
+    opts = Options()
+    if headless:
+        opts.add_argument("--headless=new")
+    opts.add_argument("--no-sandbox")
+    opts.add_argument("--disable-dev-shm-usage")
+    opts.add_argument("--disable-gpu")
+
+    driver = webdriver.Chrome(options=opts)
+    results = []
+    var_updates = {}
+
+    try:
+        for action, pre in zip(actions, pre_subbed):
+            act      = action.get("type", "")
+            target   = pre.get("target", "")
+            value    = pre.get("value",  "")
+            variable = action.get("variable", "")
+
+            if act == "open":
+                driver.get(target)
+                results.append(f"✓ Abriu: {target}")
+            elif act == "click":
+                driver.find_element(By.CSS_SELECTOR, target).click()
+                results.append(f"✓ Clicou: {target}")
+            elif act == "type":
+                el = driver.find_element(By.CSS_SELECTOR, target)
+                el.clear(); el.send_keys(value)
+                results.append(f"✓ Digitou '{value}' em: {target}")
+            elif act == "extract":
+                el = driver.find_element(By.CSS_SELECTOR, target)
+                text = el.get_attribute(value) if value else el.text
+                text = str(text or "")
+                if variable:
+                    var_updates[variable] = text
+                results.append(f"✓ Extraiu de '{target}': {text[:120]}")
+            elif act == "wait":
+                import time as _t
+                secs = min(float(value) if value else 1.0, 60.0)
+                _t.sleep(secs)
+                results.append(f"✓ Aguardou {secs}s")
+            elif act == "screenshot":
+                path = target or "/tmp/hac_screenshot.png"
+                driver.save_screenshot(path)
+                results.append(f"✓ Screenshot salvo: {path}")
+            elif act == "close":
+                driver.quit()
+                results.append("✓ Browser fechado")
+                return "\n".join(results), var_updates
+    finally:
+        try:
+            driver.quit()
+        except Exception:
+            pass
+
+    return "\n".join(results), var_updates
+
+
 async def _exec_step(step: dict, ctx: dict) -> str:
     """Executa um step e retorna o output. Atualiza ctx em tempo real."""
     t = step["type"]
@@ -390,12 +514,22 @@ async def _exec_step(step: dict, ctx: dict) -> str:
 
     if t == "browser":
         actions = cfg.get("browser_actions") or []
-        engine = cfg.get("browser_engine", "playwright").capitalize()
+        engine = cfg.get("browser_engine", "playwright")
         headless = cfg.get("browser_headless", True)
-        mode = "headless" if headless else "visível"
-        result = f"[Browser/{engine}/{mode}] {len(actions)} ação(ões). Requer worker com {engine}."
-        _store(result, var, ctx)
-        return result
+        if not actions:
+            result = "Nenhuma ação de navegador configurada."
+            _store(result, var, ctx)
+            return result
+        if engine == "playwright":
+            result_str, var_updates = await _exec_browser_playwright(actions, headless, ctx)
+        else:
+            pre = [{"target": _sub(a.get("target", ""), ctx), "value": _sub(a.get("value", ""), ctx)} for a in actions]
+            result_str, var_updates = await asyncio.get_event_loop().run_in_executor(
+                None, _exec_browser_selenium_sync, actions, headless, pre
+            )
+        ctx["vars"].update(var_updates)
+        _store(result_str, var, ctx)
+        return result_str
 
     return f"[{t}] step executado"
 
