@@ -572,6 +572,108 @@ async def _exec_step(step: dict, ctx: dict) -> str:
     return f"[{t}] step executado"
 
 
+async def _exec_step_list(steps: list, ctx: dict) -> tuple:
+    """Executa recursivamente uma lista de steps. Retorna (results, failed)."""
+    results = []
+    i = 0
+    while i < len(steps):
+        step = steps[i]
+        step_type = step.get("type", "") if isinstance(step, dict) else step.type
+        cfg = (step.get("config", {}) if isinstance(step, dict) else step.config.__dict__) or {}
+        step_id = step.get("id", "") if isinstance(step, dict) else step.id
+        step_name = (step.get("name") if isinstance(step, dict) else step.name) or f"Passo {i + 1}"
+        step_start = time.time()
+
+        result = {
+            "step_id": step_id,
+            "step_name": step_name,
+            "step_type": step_type,
+            "status": "success",
+            "output": "",
+            "error": "",
+            "duration_ms": 0,
+            "condition_result": None,
+        }
+
+        try:
+            if step_type == "condition":
+                cond_result = _eval_condition(
+                    ctx["output"],
+                    cfg.get("operator", "contains"),
+                    cfg.get("condition_value", ""),
+                )
+                result["condition_result"] = cond_result
+                result["output"] = f"Condição: {'VERDADEIRO ✓' if cond_result else 'FALSO ✗'} ({cfg.get('operator')} '{cfg.get('condition_value')}')"
+                result["duration_ms"] = int((time.time() - step_start) * 1000)
+                results.append(result)
+
+                has_children = (
+                    "children_true" in (step if isinstance(step, dict) else {})
+                    or "children_false" in (step if isinstance(step, dict) else {})
+                    or (not isinstance(step, dict) and (step.children_true or step.children_false))
+                )
+                if has_children:
+                    # New children-based branching
+                    if isinstance(step, dict):
+                        branch = step.get("children_true", []) if cond_result else step.get("children_false", [])
+                    else:
+                        branch = step.children_true if cond_result else step.children_false
+                    branch_results, branch_failed = await _exec_step_list(branch, ctx)
+                    results.extend(branch_results)
+                    if branch_failed:
+                        return results, True
+                    i += 1
+                else:
+                    # Legacy else_step_id jump logic
+                    if not cond_result:
+                        else_id = cfg.get("else_step_id", "")
+                        if not else_id:
+                            return results, False
+                        else:
+                            i = next((idx for idx, s in enumerate(steps)
+                                      if (s.get("id") if isinstance(s, dict) else s.id) == else_id),
+                                     len(steps))
+                    else:
+                        i += 1
+                continue
+
+            elif step_type == "loop_count":
+                count = int(cfg.get("count", 3))
+                idx_var = cfg.get("index_variable", "loop_index")
+                children = (step.get("children", []) if isinstance(step, dict) else step.children) or []
+                result["output"] = f"Loop: {count} iteração(ões), variável '{idx_var}'"
+                result["duration_ms"] = int((time.time() - step_start) * 1000)
+                results.append(result)
+
+                for iter_i in range(count):
+                    ctx["vars"][idx_var] = str(iter_i)
+                    iter_results, iter_failed = await _exec_step_list(children, ctx)
+                    for r in iter_results:
+                        r = {**r, "step_name": f"[{iter_i + 1}/{count}] {r['step_name']}"}
+                        results.append(r)
+                    if iter_failed:
+                        return results, True
+                i += 1
+                continue
+
+            else:
+                output = await _exec_step(step if isinstance(step, dict) else step.model_dump(), ctx)
+                result["output"] = str(output)[:3000]
+
+        except Exception as e:
+            result["status"] = "failed"
+            result["error"] = str(e)
+            result["duration_ms"] = int((time.time() - step_start) * 1000)
+            results.append(result)
+            return results, True
+
+        result["duration_ms"] = int((time.time() - step_start) * 1000)
+        results.append(result)
+        i += 1
+
+    return results, False
+
+
 async def _execute_automation(automation: dict, initial_input: str, trigger_type: str = "manual") -> dict:
     run_id = str(ObjectId())
     started_at = datetime.utcnow()
@@ -598,70 +700,9 @@ async def _execute_automation(automation: dict, initial_input: str, trigger_type
         "agent_id": automation.get("agent_id", ""),
         "user_id": str(automation.get("user_id", "")),
     }
-    steps_results = []
-    final_status = "success"
 
-    i = 0
-    while i < len(steps):
-        step = steps[i]
-        step_start = time.time()
-        step_type = step["type"]
-        cfg = step.get("config", {})
-
-        result = {
-            "step_id": step["id"],
-            "step_name": step.get("name", f"Passo {i + 1}"),
-            "step_type": step_type,
-            "status": "success",
-            "output": "",
-            "error": "",
-            "duration_ms": 0,
-            "condition_result": None,
-        }
-
-        try:
-            if step_type == "condition":
-                cond_result = _eval_condition(ctx["output"], cfg.get("operator", "contains"), cfg.get("condition_value", ""))
-                result["condition_result"] = cond_result
-                result["output"] = f"Condição: {'VERDADEIRO ✓' if cond_result else 'FALSO ✗'} ({cfg.get('operator')} '{cfg.get('condition_value')}')"
-                result["duration_ms"] = int((time.time() - step_start) * 1000)
-                steps_results.append(result)
-                if not cond_result:
-                    else_id = cfg.get("else_step_id", "")
-                    if not else_id:
-                        i = len(steps)
-                    else:
-                        i = next((idx for idx, s in enumerate(steps) if s["id"] == else_id), len(steps))
-                else:
-                    i += 1
-                continue
-
-            elif step_type == "loop_count":
-                count = int(cfg.get("count", 3))
-                idx_var = cfg.get("index_variable", "loop_index")
-                result["output"] = f"Loop: {count} iterações (variável de índice: {idx_var})"
-                result["status"] = "skipped"
-                result["error"] = "Loop requer suporte a blocos aninhados (em desenvolvimento)"
-                result["duration_ms"] = int((time.time() - step_start) * 1000)
-                steps_results.append(result)
-                i += 1
-                continue
-
-            else:
-                output = await _exec_step(step, ctx)
-                result["output"] = str(output)[:3000]
-
-        except Exception as e:
-            result["status"] = "failed"
-            result["error"] = str(e)
-            final_status = "failed"
-            result["duration_ms"] = int((time.time() - step_start) * 1000)
-            steps_results.append(result)
-            break
-
-        result["duration_ms"] = int((time.time() - step_start) * 1000)
-        steps_results.append(result)
-        i += 1
+    steps_results, failed = await _exec_step_list(steps, ctx)
+    final_status = "failed" if failed else "success"
 
     finished_at = datetime.utcnow()
     duration_ms = int((finished_at - started_at).total_seconds() * 1000)

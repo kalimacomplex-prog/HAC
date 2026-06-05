@@ -106,6 +106,12 @@ class AutomationStep(BaseModel):
     type: StepType
     name: str
     config: StepConfig = Field(default_factory=StepConfig)
+    children: List["AutomationStep"] = Field(default_factory=list)
+    children_true: List["AutomationStep"] = Field(default_factory=list)
+    children_false: List["AutomationStep"] = Field(default_factory=list)
+
+
+AutomationStep.model_rebuild()
 
 
 class Trigger(BaseModel):
