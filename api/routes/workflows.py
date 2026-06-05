@@ -29,6 +29,7 @@ async def create_workflow(body: WorkflowCreate, user: dict = Depends(get_current
         "_id": str(ObjectId()),
         "user_id": user["_id"],
         "name": body.name,
+        "agent_id": body.agent_id or None,
         "variables": [v.model_dump() for v in body.variables],
         "nodes": [n.model_dump() for n in body.nodes],
         "edges": [e.model_dump() for e in body.edges],
@@ -59,13 +60,14 @@ async def update_workflow(wf_id: str, body: WorkflowCreate, user: dict = Depends
         {"_id": wf_id},
         {"$set": {
             "name": body.name,
+            "agent_id": body.agent_id or None,
             "variables": variables,
             "nodes": nodes,
             "edges": edges,
             "updated_at": datetime.utcnow(),
         }},
     )
-    return wf_doc_to_out({**doc, "name": body.name, "variables": variables, "nodes": nodes, "edges": edges})
+    return wf_doc_to_out({**doc, "name": body.name, "agent_id": body.agent_id or None, "variables": variables, "nodes": nodes, "edges": edges})
 
 
 @router.delete("/{wf_id}", status_code=204)
@@ -108,7 +110,7 @@ async def run_workflow(
             "user_id": user["_id"],
             "process_id": process["_id"],
             "process_name": process["name"],
-            "agent_id": process.get("agent_id"),
+            "agent_id": doc.get("agent_id") or process.get("agent_id"),
             "status": "pending",
             "priority": 0,
             "params": resolved_params,

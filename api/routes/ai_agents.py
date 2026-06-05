@@ -65,6 +65,22 @@ async def call_ai(agent: dict, user_input: str) -> tuple[str, dict]:
             meta["tokens_remaining"] = int(remaining)
         return completion.choices[0].message.content, meta
 
+    elif provider == "gemini":
+        import google.generativeai as genai
+        genai.configure(api_key=api_key)
+        cfg = genai.types.GenerationConfig(
+            temperature=temperature,
+            max_output_tokens=max_tokens,
+        )
+        model_kwargs: dict = {"model_name": model, "generation_config": cfg}
+        if system_prompt:
+            model_kwargs["system_instruction"] = system_prompt
+        m = genai.GenerativeModel(**model_kwargs)
+        response = await m.generate_content_async(user_input)
+        if hasattr(response, "usage_metadata") and response.usage_metadata:
+            meta["tokens_used"] = response.usage_metadata.total_token_count
+        return response.text, meta
+
     else:
         raise ValueError(f"Provider desconhecido: {provider}")
 

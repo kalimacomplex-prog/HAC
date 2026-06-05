@@ -111,6 +111,7 @@ const WF_CONFIGS = {
 let _wfMode = 'list';
 let _wfWorkflowsList = [];
 let _wfProcesses = [];
+let _wfAgents = [];
 let _wfCurrent = null;
 let _wfNodes = [];
 let _wfEdges = [];
@@ -129,7 +130,9 @@ async function loadWorkflows() {
   _wfMode = 'list';
   _wfRenderList();
   try {
-    _wfWorkflowsList = await api('GET', '/workflows') || [];
+    const [wfs, ags] = await Promise.all([api('GET', '/workflows'), api('GET', '/agents')]);
+    _wfWorkflowsList = wfs || [];
+    _wfAgents = ags || [];
     _wfRenderList();
   } catch (e) { showToast(e.message, 'error'); }
 }
@@ -139,15 +142,21 @@ function _wfRenderList() {
   if (!c) return;
   const rows = _wfWorkflowsList.length === 0
     ? '<tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:2rem">Nenhum workflow criado</td></tr>'
-    : _wfWorkflowsList.map(w => `<tr>
-        <td><strong>${escapeHtml(w.name)}</strong></td>
-        <td style="color:var(--gray-500)">${w.node_count}</td>
-        <td style="color:var(--gray-500);font-size:.82rem">${formatDate(w.created_at)}</td>
-        <td style="display:flex;gap:.4rem">
-          <button class="btn btn-outline btn-sm" onclick="_wfOpenEditor('${w.id}')">✏ Editar</button>
-          <button class="btn btn-blue btn-sm" onclick="_wfRunById('${w.id}','${escapeHtml(w.name).replace(/'/g,"\\'")}')">▶ Executar</button>
-          <button class="btn btn-danger btn-sm" onclick="_wfDeleteWorkflow('${w.id}')">✕</button>
-        </td></tr>`).join('');
+    : _wfWorkflowsList.map(w => {
+        const agentName = w.agent_id ? (_wfAgents.find(a=>a.id===w.agent_id)?.name || '—') : null;
+        return `<tr>
+          <td>
+            <strong>${escapeHtml(w.name)}</strong>
+            ${agentName ? `<div style="font-size:.73rem;color:var(--gray-400);margin-top:.1rem">🤖 ${escapeHtml(agentName)}</div>` : ''}
+          </td>
+          <td style="color:var(--gray-500)">${w.node_count}</td>
+          <td style="color:var(--gray-500);font-size:.82rem">${formatDate(w.created_at)}</td>
+          <td style="display:flex;gap:.4rem">
+            <button class="btn btn-outline btn-sm" onclick="_wfOpenEditor('${w.id}')">✏ Editar</button>
+            <button class="btn btn-blue btn-sm" onclick="_wfRunById('${w.id}','${escapeHtml(w.name).replace(/'/g,"\\'")}')">▶ Executar</button>
+            <button class="btn btn-danger btn-sm" onclick="_wfDeleteWorkflow('${w.id}')">✕</button>
+          </td></tr>`;
+      }).join('');
   c.innerHTML = `<div class="card">
     <div class="card-header"><h3>Meus Workflows</h3>
       <button class="btn btn-outline btn-sm" onclick="loadWorkflows()">↻ Atualizar</button></div>
@@ -164,16 +173,18 @@ function _wfRenderList() {
 // ============================================================
 async function _wfOpenEditor(id) {
   try {
-    _wfProcesses = await api('GET', '/processes') || [];
+    const [procs, ags] = await Promise.all([api('GET', '/processes'), api('GET', '/agents')]);
+    _wfProcesses = procs || [];
+    _wfAgents = ags || [];
     if (id) {
       const wf = await api('GET', `/workflows/${id}`);
       if (!wf) return;
-      _wfCurrent = {id: wf.id, name: wf.name};
+      _wfCurrent = {id: wf.id, name: wf.name, agent_id: wf.agent_id || ''};
       _wfNodes = wf.nodes || [];
       _wfEdges = wf.edges || [];
       _wfVariables = wf.variables || [];
     } else {
-      _wfCurrent = {id:null, name:'Novo Workflow'};
+      _wfCurrent = {id:null, name:'Novo Workflow', agent_id:''};
       _wfNodes = []; _wfEdges = []; _wfVariables = [];
     }
     _wfSelected = null; _wfSelectedType = null;
@@ -188,6 +199,9 @@ function openWorkflowEditor() { _wfOpenEditor(null); }
 function _wfRenderEditor() {
   const c = document.getElementById('wf-container');
   if (!c) return;
+  const agentOpts = _wfAgents.map(a =>
+    `<option value="${a.id}" ${a.id===(_wfCurrent.agent_id||'')?'selected':''}>${escapeHtml(a.name)}</option>`
+  ).join('');
   c.innerHTML = `
     <div style="display:flex;flex-direction:column;height:100%;overflow:hidden">
       <!-- Toolbar -->
@@ -196,6 +210,12 @@ function _wfRenderEditor() {
         <input id="wf-name-input" type="text" value="${escapeHtml(_wfCurrent.name)}"
           style="flex:1;font-size:.93rem;font-weight:600;border:1px solid #e2e8f0;border-radius:6px;padding:.26rem .5rem;outline:none;color:var(--gray-700)"
           oninput="_wfCurrent.name=this.value"/>
+        <select id="wf-agent-select"
+          style="font-size:.81rem;padding:.26rem .5rem;border:1px solid #e2e8f0;border-radius:6px;color:var(--gray-700);max-width:148px;flex-shrink:0"
+          onchange="_wfCurrent.agent_id=this.value">
+          <option value="">🤖 Qualquer agente</option>
+          ${agentOpts}
+        </select>
         <button class="btn btn-outline btn-sm" onclick="_wfOpenVarsModal()">
           📋 Variáveis <span id="wf-var-badge" style="background:#3b82f6;color:white;border-radius:10px;padding:.05rem .4rem;font-size:.68rem;margin-left:.2rem">${_wfVariables.length}</span>
         </button>
@@ -206,7 +226,7 @@ function _wfRenderEditor() {
       <!-- Body -->
       <div style="display:flex;flex:1;min-height:0;overflow:hidden">
         <!-- Palette -->
-        <div style="width:158px;background:#f8fafc;border-right:1px solid #e2e8f0;padding:.6rem .55rem;display:flex;flex-direction:column;gap:.28rem;flex-shrink:0;overflow-y:auto">
+        <div style="width:158px;background:#f8fafc;border-right:1px solid #e2e8f0;padding:.6rem .55rem;flex-shrink:0;overflow-y:auto">
           ${_wfPaletteSection('Básico', ['start','end','task'])}
           ${_wfPaletteSection('Controle de Fluxo', ['xor_gateway','and_gateway','evaluation','wait','result'])}
           ${_wfPaletteSection('Eventos', ['schedule','keyboard'])}
@@ -260,7 +280,7 @@ function _wfPaletteSection(title, types) {
       const m = WF_TYPE_META[t];
       if (!m) return '';
       return `<div draggable="true" ondragstart="_wfPaletteDragStart(event,'${t}')" ondragend="_wfPaletteDragEnd()"
-        style="display:flex;align-items:center;gap:.4rem;padding:.35rem .5rem;background:white;border:1px solid #e2e8f0;border-radius:5px;cursor:grab;user-select:none;transition:box-shadow .1s"
+        style="display:flex;align-items:center;gap:.4rem;padding:.35rem .5rem;background:white;border:1px solid #e2e8f0;border-radius:5px;cursor:grab;user-select:none;transition:box-shadow .1s;margin-bottom:.28rem"
         onmouseenter="this.style.boxShadow='0 2px 6px rgba(0,0,0,.09)'" onmouseleave="this.style.boxShadow=''">
         <span style="color:${m.color};font-size:.8rem;flex-shrink:0">${m.palIcon}</span>
         <span style="font-size:.77rem;color:var(--gray-700)">${m.palLabel}</span>
@@ -780,7 +800,9 @@ async function _wfSave() {
     const node = _wfNodes.find(n=>n.id===ta.dataset.paramsFor);
     if (node) { try { node.params=JSON.parse(ta.value); } catch {} }
   });
-  const payload = {name, variables:_wfVariables, nodes:_wfNodes, edges:_wfEdges};
+  const agentEl = document.getElementById('wf-agent-select');
+  if (agentEl) _wfCurrent.agent_id = agentEl.value;
+  const payload = {name, agent_id: _wfCurrent.agent_id || null, variables:_wfVariables, nodes:_wfNodes, edges:_wfEdges};
   try {
     let r;
     if (_wfCurrent.id) { r = await api('PUT', `/workflows/${_wfCurrent.id}`, payload); }

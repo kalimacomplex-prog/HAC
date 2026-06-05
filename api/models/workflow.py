@@ -31,6 +31,7 @@ class WfEdge(BaseModel):
 
 class WorkflowCreate(BaseModel):
     name: str
+    agent_id: Optional[str] = None
     variables: List[WfVariable] = []
     nodes: List[WfNode] = []
     edges: List[WfEdge] = []
@@ -43,6 +44,7 @@ class WorkflowRunRequest(BaseModel):
 class WorkflowOut(BaseModel):
     id: str
     name: str
+    agent_id: Optional[str] = None
     variables: List[WfVariable]
     nodes: List[WfNode]
     edges: List[WfEdge]
@@ -67,6 +69,7 @@ def wf_doc_to_out(doc: dict) -> WorkflowOut:
     return WorkflowOut(
         id=doc["_id"],
         name=doc["name"],
+        agent_id=doc.get("agent_id"),
         variables=variables,
         nodes=nodes,
         edges=edges,

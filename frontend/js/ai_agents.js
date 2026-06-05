@@ -45,8 +45,9 @@ function providerBadge(provider) {
     anthropic: 'background:#d9770615;color:#d97706;border:1px solid #d9770640',
     openai:    'background:#16a34a15;color:#16a34a;border:1px solid #16a34a40',
     groq:      'background:#7c3aed15;color:#7c3aed;border:1px solid #7c3aed40',
+    gemini:    'background:#1a73e815;color:#1a73e8;border:1px solid #1a73e840',
   };
-  const labels = { anthropic: 'Anthropic', openai: 'OpenAI', groq: 'Groq' };
+  const labels = { anthropic: 'Anthropic', openai: 'OpenAI', groq: 'Groq', gemini: 'Google' };
   const style = styles[provider] || 'background:var(--gray-100);color:var(--gray-600)';
   return `<span style="${style};border-radius:999px;padding:.15rem .6rem;font-size:.75rem;font-weight:600">${labels[provider] || provider}</span>`;
 }
@@ -68,6 +69,13 @@ const AI_MODELS = {
     { value: 'llama-3.1-8b-instant',    label: 'Llama 3.1 8B (rápido)' },
     { value: 'gemma2-9b-it',            label: 'Gemma 2 9B' },
     { value: 'mixtral-8x7b-32768',      label: 'Mixtral 8x7B' },
+  ],
+  gemini: [
+    { value: 'gemini-2.5-pro',          label: 'Gemini 2.5 Pro' },
+    { value: 'gemini-2.5-flash',        label: 'Gemini 2.5 Flash (recomendado)' },
+    { value: 'gemini-2.0-flash',        label: 'Gemini 2.0 Flash' },
+    { value: 'gemini-1.5-pro',          label: 'Gemini 1.5 Pro' },
+    { value: 'gemini-1.5-flash',        label: 'Gemini 1.5 Flash' },
   ],
 };
 
