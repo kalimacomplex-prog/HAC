@@ -489,11 +489,17 @@ function _onStepDragStart(e, id, el) {
 }
 
 function _onStepDragOver(e, id, el) {
-  if (!_draggedStepId || _draggedStepId === id) return;
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  el.style.outline = '2px dashed #3b82f6';
-  el.style.outlineOffset = '2px';
+  if (_draggedStepId && _draggedStepId !== id) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    el.style.outline = '2px dashed #3b82f6';
+    el.style.outlineOffset = '2px';
+  } else if (_draggedActionType) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    el.style.outline = '2px dashed #16a34a';
+    el.style.outlineOffset = '2px';
+  }
 }
 
 function _onStepDragLeave(e, el) {
@@ -505,15 +511,20 @@ function _onStepDrop(e, targetId, el) {
   e.preventDefault();
   el.style.outline = '';
   el.style.outlineOffset = '';
-  if (!_draggedStepId || _draggedStepId === targetId) { _draggedStepId = null; return; }
-  const fromIdx = _buildSteps.findIndex(s => s.id === _draggedStepId);
-  const toIdx   = _buildSteps.findIndex(s => s.id === targetId);
-  if (fromIdx !== -1 && toIdx !== -1) {
-    const [moved] = _buildSteps.splice(fromIdx, 1);
-    _buildSteps.splice(toIdx, 0, moved);
+  if (_draggedStepId && _draggedStepId !== targetId) {
+    const fromIdx = _buildSteps.findIndex(s => s.id === _draggedStepId);
+    const toIdx   = _buildSteps.findIndex(s => s.id === targetId);
+    if (fromIdx !== -1 && toIdx !== -1) {
+      const [moved] = _buildSteps.splice(fromIdx, 1);
+      _buildSteps.splice(toIdx, 0, moved);
+    }
+    _draggedStepId = null;
+    _renderBuilderCanvas();
+  } else if (_draggedActionType) {
+    const toIdx = _buildSteps.findIndex(s => s.id === targetId);
+    if (toIdx !== -1) _insertBuilderStepAt(_draggedActionType, toIdx);
+    _draggedActionType = null;
   }
-  _draggedStepId = null;
-  _renderBuilderCanvas();
 }
 
 function _onStepDragEnd(e, el) {
