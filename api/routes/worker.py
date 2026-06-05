@@ -31,7 +31,7 @@ async def claim_job(body: ClaimRequest, user: dict = Depends(get_current_user)):
     job = await jobs_col.find_one_and_update(
         query,
         {"$set": {"status": "running", "started_at": datetime.utcnow()}},
-        sort=[("created_at", 1)],
+        sort=[("priority", -1), ("created_at", 1)],
         return_document=ReturnDocument.AFTER,
     )
     if not job:

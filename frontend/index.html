@@ -69,6 +69,9 @@
       <button class="nav-item active" onclick="navigate('dashboard')" id="nav-dashboard">
         <span class="icon">🏠</span> Dashboard
       </button>
+      <button class="nav-item" onclick="navigate('queue')" id="nav-queue">
+        <span class="icon">⏳</span> Fila de Execução
+      </button>
       <button class="nav-item" onclick="navigate('agents')" id="nav-agents">
         <span class="icon">🤖</span> Agentes
       </button>
@@ -167,6 +170,74 @@
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- FILA DE EXECUÇÃO -->
+      <div class="view" id="view-queue">
+        <div style="display:flex;flex-direction:column;gap:1.25rem">
+
+          <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+            <div class="stat-card">
+              <div class="stat-label">Na fila</div>
+              <div class="stat-value" style="color:var(--blue-600)" id="queue-stat-pending">–</div>
+              <div class="stat-sub">aguardando execução</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Em execução</div>
+              <div class="stat-value" style="color:#d97706" id="queue-stat-running">–</div>
+              <div class="stat-sub">rodando agora</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Última atualização</div>
+              <div class="stat-value" style="font-size:.95rem;color:var(--gray-400)" id="queue-stat-updated">–</div>
+              <div class="stat-sub">auto-refresh 5s</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>⏳ Aguardando execução</h3>
+              <button class="btn btn-outline btn-sm" onclick="loadQueue()">↻ Atualizar</button>
+            </div>
+            <div class="card-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width:64px;text-align:center">Prio.</th>
+                    <th>Processo</th>
+                    <th>Agente</th>
+                    <th>Adicionado</th>
+                    <th style="width:110px">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="queue-pending-body">
+                  <tr class="loading-row"><td colspan="5"><div class="spinner"></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>⚡ Em execução</h3>
+            </div>
+            <div class="card-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Processo</th>
+                    <th>Agente</th>
+                    <th>Iniciado em</th>
+                  </tr>
+                </thead>
+                <tbody id="queue-running-body">
+                  <tr class="loading-row"><td colspan="3"><div class="spinner"></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -1134,7 +1205,7 @@ print('Concluído!')"></textarea>
 <div class="toast-container" id="toast-container"></div>
 
 <script src="/static/js/helpers.js?v=33"></script>
-<script src="/static/js/app.js?v=33"></script>
+<script src="/static/js/app.js?v=34"></script>
 <script src="/static/js/auth.js?v=33"></script>
 <script src="/static/js/dashboard.js?v=33"></script>
 <script src="/static/js/agents.js?v=33"></script>
@@ -1144,6 +1215,7 @@ print('Concluído!')"></textarea>
 <script src="/static/js/ai_agents.js?v=33"></script>
 <script src="/static/js/pipelines.js?v=33"></script>
 <script src="/static/js/oraculo.js?v=34"></script>
+<script src="/static/js/queue.js?v=34"></script>
 <script src="/static/js/studio.js?v=33"></script>
 
 </body>

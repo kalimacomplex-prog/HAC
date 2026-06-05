@@ -15,6 +15,7 @@ class JobOut(BaseModel):
     process_name: str
     agent_id: Optional[str] = None
     status: str  # pending | running | done | failed | cancelled
+    priority: int = 0
     params: Dict[str, Any]
     output: Optional[str] = None
     error: Optional[str] = None
@@ -31,6 +32,7 @@ def job_doc_to_out(doc: dict) -> JobOut:
         process_name=doc.get("process_name") or "",
         agent_id=doc.get("agent_id") or None,
         status=doc.get("status", "pending"),
+        priority=doc.get("priority", 0),
         params=doc.get("params") or {},
         output=doc.get("output") or None,
         error=doc.get("error") or None,

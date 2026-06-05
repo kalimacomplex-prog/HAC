@@ -61,7 +61,9 @@ function navigate(view) {
   const navEl = document.getElementById(`nav-${view}`);
   if (navEl) navEl.classList.add('active');
 
-  const titles = { dashboard: 'Dashboard', agents: 'Agentes', processes: 'Processos', cronjobs: 'Cron Jobs', instructions: 'Instruções', studio: 'HAC Studio', studio_builder: 'Builder', ai_agents: 'Agentes IA', pipelines: 'Pipelines de IA', oraculo: 'Oráculo' };
+  stopQueueAutoRefresh();
+
+  const titles = { dashboard: 'Dashboard', queue: 'Fila de Execução', agents: 'Agentes', processes: 'Processos', cronjobs: 'Cron Jobs', instructions: 'Instruções', studio: 'HAC Studio', studio_builder: 'Builder', ai_agents: 'Agentes IA', pipelines: 'Pipelines de IA', oraculo: 'Oráculo' };
   document.getElementById('topbar-title').textContent = titles[view];
 
   const actions = document.getElementById('topbar-actions');
@@ -93,6 +95,9 @@ function navigate(view) {
     document.querySelector('.topbar').style.display = 'none';
     document.getElementById('sidebar').style.display = 'none';
     initBuilderPage();
+  } else if (view === 'queue') {
+    loadQueue();
+    startQueueAutoRefresh();
   } else if (view === 'oraculo') {
     loadOraculoAgents();
   }

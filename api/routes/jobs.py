@@ -3,6 +3,7 @@ from typing import List
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 from ..auth import get_current_user
 from ..database import processes_col, jobs_col
@@ -24,6 +25,7 @@ async def create_job(body: JobCreate, user: dict = Depends(get_current_user)):
         "process_name": process["name"],
         "agent_id": process.get("agent_id"),
         "status": "pending",
+        "priority": 0,
         "params": body.params,
         "output": None,
         "error": None,
@@ -61,6 +63,22 @@ async def get_job(job_id: str, user: dict = Depends(get_current_user)):
     if not doc:
         raise HTTPException(status_code=404, detail="Job não encontrado")
     return job_doc_to_out(doc)
+
+
+class PriorityUpdate(BaseModel):
+    priority: int
+
+
+@router.patch("/{job_id}/priority", response_model=JobOut)
+async def set_job_priority(job_id: str, body: PriorityUpdate, user: dict = Depends(get_current_user)):
+    doc = await jobs_col.find_one({"_id": job_id, "user_id": user["_id"]})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Job não encontrado")
+    if doc["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Só é possível alterar prioridade de jobs pendentes")
+    priority = max(-100, min(100, body.priority))
+    await jobs_col.update_one({"_id": job_id}, {"$set": {"priority": priority}})
+    return job_doc_to_out({**doc, "priority": priority})
 
 
 @router.delete("/{job_id}", status_code=204)
