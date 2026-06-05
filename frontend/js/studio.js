@@ -53,6 +53,7 @@ let _buildAIAgents = [];
 let _buildAgents = [];
 let _collapsedCats = new Set();
 let _studioRunAutoId = null;
+let _draggedStepId = null;
 
 // ─── Lista de Automações ──────────────────────────────────────────
 
@@ -360,17 +361,20 @@ function _renderBuilderCanvas() {
       const meta = ACTION_MAP[step.type] || { icon: '⚙', color: '#64748b', bg: '#f8fafc' };
       const sel = step.id === _buildSelectedId;
       html += `<div onclick="selectBuilderStep('${step.id}')"
-        style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:${sel ? meta.bg : 'white'};border:2px solid ${sel ? meta.color : '#e2e8f0'};border-radius:12px;cursor:pointer;width:100%;box-sizing:border-box;transition:all .12s;box-shadow:${sel ? `0 0 0 3px ${meta.color}33` : '0 1px 3px rgba(0,0,0,.06)'}">
+        draggable="true"
+        ondragstart="_onStepDragStart(event,'${step.id}',this)"
+        ondragover="_onStepDragOver(event,'${step.id}',this)"
+        ondragleave="_onStepDragLeave(event,this)"
+        ondrop="_onStepDrop(event,'${step.id}',this)"
+        ondragend="_onStepDragEnd(event,this)"
+        style="display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:${sel ? meta.bg : 'white'};border:2px solid ${sel ? meta.color : '#e2e8f0'};border-radius:12px;cursor:grab;width:100%;box-sizing:border-box;transition:border-color .12s,box-shadow .12s;box-shadow:${sel ? `0 0 0 3px ${meta.color}33` : '0 1px 3px rgba(0,0,0,.06)'}">
+        <div style="color:#cbd5e1;font-size:1.1rem;flex-shrink:0;user-select:none;line-height:1" title="Arrastar para reordenar">⠿</div>
         <div style="width:36px;height:36px;border-radius:9px;background:${meta.bg};border:1.5px solid ${meta.color}44;display:flex;align-items:center;justify-content:center;font-size:1.15rem;flex-shrink:0">${meta.icon}</div>
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:.82rem;color:${meta.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(step.name)}</div>
           <div style="font-size:.72rem;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_stepBrief(step)}</div>
         </div>
         <div style="display:flex;gap:.2rem;flex-shrink:0">
-          <button onclick="event.stopPropagation();moveBuilderStep('${step.id}',-1)" ${idx===0?'disabled':''} title="Mover para cima"
-            style="width:24px;height:24px;border:1px solid #e2e8f0;border-radius:5px;background:white;font-size:.72rem;display:flex;align-items:center;justify-content:center;color:#64748b;cursor:${idx===0?'default':'pointer'};opacity:${idx===0?.3:1}">↑</button>
-          <button onclick="event.stopPropagation();moveBuilderStep('${step.id}',1)" ${idx===_buildSteps.length-1?'disabled':''} title="Mover para baixo"
-            style="width:24px;height:24px;border:1px solid #e2e8f0;border-radius:5px;background:white;font-size:.72rem;display:flex;align-items:center;justify-content:center;color:#64748b;cursor:${idx===_buildSteps.length-1?'default':'pointer'};opacity:${idx===_buildSteps.length-1?.3:1}">↓</button>
           <button onclick="event.stopPropagation();removeBuilderStep('${step.id}')" title="Remover"
             style="width:24px;height:24px;border:1px solid #fca5a5;border-radius:5px;background:white;cursor:pointer;font-size:.72rem;display:flex;align-items:center;justify-content:center;color:#ef4444">✕</button>
         </div>
@@ -462,6 +466,50 @@ function moveBuilderStep(id, dir) {
   if (to < 0 || to >= _buildSteps.length) return;
   [_buildSteps[idx], _buildSteps[to]] = [_buildSteps[to], _buildSteps[idx]];
   _renderBuilderCanvas();
+}
+
+// ─── Drag and Drop ────────────────────────────────────────────────
+
+function _onStepDragStart(e, id, el) {
+  _draggedStepId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', id);
+  requestAnimationFrame(() => { el.style.opacity = '0.35'; });
+}
+
+function _onStepDragOver(e, id, el) {
+  if (!_draggedStepId || _draggedStepId === id) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  el.style.outline = '2px dashed #3b82f6';
+  el.style.outlineOffset = '2px';
+}
+
+function _onStepDragLeave(e, el) {
+  el.style.outline = '';
+  el.style.outlineOffset = '';
+}
+
+function _onStepDrop(e, targetId, el) {
+  e.preventDefault();
+  el.style.outline = '';
+  el.style.outlineOffset = '';
+  if (!_draggedStepId || _draggedStepId === targetId) { _draggedStepId = null; return; }
+  const fromIdx = _buildSteps.findIndex(s => s.id === _draggedStepId);
+  const toIdx   = _buildSteps.findIndex(s => s.id === targetId);
+  if (fromIdx !== -1 && toIdx !== -1) {
+    const [moved] = _buildSteps.splice(fromIdx, 1);
+    _buildSteps.splice(toIdx, 0, moved);
+  }
+  _draggedStepId = null;
+  _renderBuilderCanvas();
+}
+
+function _onStepDragEnd(e, el) {
+  el.style.opacity = '';
+  el.style.outline = '';
+  el.style.outlineOffset = '';
+  _draggedStepId = null;
 }
 
 function selectBuilderStep(id) {
