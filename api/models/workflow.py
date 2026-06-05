@@ -11,13 +11,14 @@ class WfVariable(BaseModel):
 
 class WfNode(BaseModel):
     id: str
-    type: str  # start | end | task | xor_gateway | and_gateway
+    type: str
     x: float
     y: float
     label: str
     process_id: Optional[str] = None
-    params: Optional[Dict[str, Any]] = None  # task params; values may use {variable} syntax
-    output_var: Optional[str] = None         # variable name to store task output
+    params: Optional[Dict[str, Any]] = None
+    output_var: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None  # type-specific configuration
 
 
 class WfEdge(BaseModel):
