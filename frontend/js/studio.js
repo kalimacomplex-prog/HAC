@@ -54,6 +54,7 @@ let _buildAgents = [];
 let _collapsedCats = new Set();
 let _studioRunAutoId = null;
 let _draggedStepId = null;
+let _draggedActionType = null;
 
 // ─── Lista de Automações ──────────────────────────────────────────
 
@@ -325,7 +326,10 @@ function _renderPalette() {
       </div>
       ${collapsed ? '' : cat.actions.map(a => `
         <div onclick="addBuilderStep('${a.type}')"
-          style="padding:.42rem .75rem .42rem 1.1rem;font-size:.8rem;cursor:pointer;display:flex;align-items:center;gap:.4rem;color:#1e293b;transition:background .1s;border-bottom:1px solid #f1f5f9"
+          draggable="true"
+          ondragstart="_onPaletteDragStart(event,'${a.type}')"
+          ondragend="_onPaletteDragEnd(event)"
+          style="padding:.42rem .75rem .42rem 1.1rem;font-size:.8rem;cursor:grab;display:flex;align-items:center;gap:.4rem;color:#1e293b;transition:background .1s;border-bottom:1px solid #f1f5f9"
           onmouseover="this.style.background='#dde3eb'" onmouseout="this.style.background='transparent'">
           <span style="font-size:.95rem">${a.icon}</span>
           <span style="line-height:1.3">${a.label}</span>
@@ -350,11 +354,11 @@ function _renderBuilderCanvas() {
 
   let html = `<div style="display:flex;flex-direction:column;align-items:center;gap:0;width:100%;max-width:520px">`;
   html += _flowBubble('INÍCIO', '#22c55e', '#f0fdf4');
-  html += _flowArrow();
+  html += _flowArrow(0);
 
   if (_buildSteps.length === 0) {
     html += `<div style="border:2px dashed #cbd5e1;border-radius:12px;padding:1.75rem;color:#94a3b8;font-size:.85rem;text-align:center;background:white;width:100%;box-sizing:border-box">
-      Selecione uma ação na paleta à esquerda para adicionar ao fluxo
+      Selecione ou arraste uma ação da paleta à esquerda para adicionar ao fluxo
     </div>`;
   } else {
     _buildSteps.forEach((step, idx) => {
@@ -375,15 +379,19 @@ function _renderBuilderCanvas() {
           <div style="font-size:.72rem;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_stepBrief(step)}</div>
         </div>
         <div style="display:flex;gap:.2rem;flex-shrink:0">
+          <button onclick="event.stopPropagation();moveBuilderStep('${step.id}',-1)" ${idx===0?'disabled':''} title="Mover para cima"
+            style="width:24px;height:24px;border:1px solid #e2e8f0;border-radius:5px;background:white;font-size:.72rem;display:flex;align-items:center;justify-content:center;color:#64748b;cursor:${idx===0?'default':'pointer'};opacity:${idx===0?.3:1}">↑</button>
+          <button onclick="event.stopPropagation();moveBuilderStep('${step.id}',1)" ${idx===_buildSteps.length-1?'disabled':''} title="Mover para baixo"
+            style="width:24px;height:24px;border:1px solid #e2e8f0;border-radius:5px;background:white;font-size:.72rem;display:flex;align-items:center;justify-content:center;color:#64748b;cursor:${idx===_buildSteps.length-1?'default':'pointer'};opacity:${idx===_buildSteps.length-1?.3:1}">↓</button>
           <button onclick="event.stopPropagation();removeBuilderStep('${step.id}')" title="Remover"
             style="width:24px;height:24px;border:1px solid #fca5a5;border-radius:5px;background:white;cursor:pointer;font-size:.72rem;display:flex;align-items:center;justify-content:center;color:#ef4444">✕</button>
         </div>
       </div>`;
-      if (idx < _buildSteps.length - 1) html += _flowArrow();
+      if (idx < _buildSteps.length - 1) html += _flowArrow(idx + 1);
     });
   }
 
-  html += _flowArrow();
+  html += _flowArrow(_buildSteps.length);
   html += _flowBubble('FIM', '#64748b', '#f8fafc');
   html += `</div>`;
   canvas.innerHTML = html;
@@ -393,10 +401,13 @@ function _flowBubble(label, color, bg) {
   return `<div style="padding:.35rem .875rem;background:${bg};border:2px solid ${color};border-radius:20px;font-size:.72rem;font-weight:700;color:${color};display:inline-block">${label}</div>`;
 }
 
-function _flowArrow() {
-  return `<div style="display:flex;flex-direction:column;align-items:center;height:26px;flex-shrink:0">
-    <div style="width:2px;flex:1;background:#cbd5e1"></div>
-    <div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid #cbd5e1"></div>
+function _flowArrow(insertIdx = null) {
+  const h = insertIdx !== null
+    ? `ondragover="_onArrowDragOver(event,${insertIdx},this)" ondragleave="_onArrowDragLeave(event,this)" ondrop="_onArrowDrop(event,${insertIdx},this)"`
+    : '';
+  return `<div ${h} style="display:flex;flex-direction:column;align-items:center;height:30px;flex-shrink:0;padding:0 32px;box-sizing:border-box;border-radius:6px;transition:background .1s">
+    <div style="width:2px;flex:1;background:#cbd5e1;pointer-events:none"></div>
+    <div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid #cbd5e1;pointer-events:none"></div>
   </div>`;
 }
 
@@ -510,6 +521,63 @@ function _onStepDragEnd(e, el) {
   el.style.outline = '';
   el.style.outlineOffset = '';
   _draggedStepId = null;
+}
+
+// ─── Drag da Paleta → Canvas ──────────────────────────────────────
+
+function _onPaletteDragStart(e, type) {
+  _draggedActionType = type;
+  _draggedStepId = null;
+  e.dataTransfer.effectAllowed = 'copy';
+  e.dataTransfer.setData('text/plain', type);
+}
+
+function _onPaletteDragEnd(e) {
+  _draggedActionType = null;
+}
+
+function _onArrowDragOver(e, insertIdx, el) {
+  if (!_draggedActionType) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+  el.style.background = '#dbeafe';
+}
+
+function _onArrowDragLeave(e, el) {
+  el.style.background = '';
+}
+
+function _onArrowDrop(e, insertIdx, el) {
+  e.preventDefault();
+  el.style.background = '';
+  if (!_draggedActionType) return;
+  _insertBuilderStepAt(_draggedActionType, insertIdx);
+  _draggedActionType = null;
+}
+
+function _insertBuilderStepAt(type, idx) {
+  const meta = ACTION_MAP[type] || { label: type };
+  const id = 'step_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  const defaults = {
+    operator: 'contains', condition_value: '', else_step_id: '',
+    count: 3, index_variable: 'loop_index',
+    seconds: 1, text: '',
+    variable_name: '', value: '', expression: '',
+    file_path: '', content: '{output}', append: false, directory: '.', pattern: '*',
+    method: 'GET', url: '', headers: {}, body: '',
+    json_input: '{output}', key_path: '',
+    to: '', subject: '', email_body: '', is_html: false,
+    command: '', code: '',
+    agent_id: '', input_template: '{output}',
+    pipeline_id: '',
+    text_input: '{output}', operation: 'upper', search: '', replace_with: '',
+    browser_actions: [], browser_engine: 'playwright', browser_headless: true,
+  };
+  const step = { id, type, name: meta.label, config: { ...defaults } };
+  _buildSteps.splice(idx, 0, step);
+  _buildSelectedId = id;
+  _renderBuilderCanvas();
+  _renderPropsPanel(_buildSteps.find(s => s.id === id));
 }
 
 function selectBuilderStep(id) {
