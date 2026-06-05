@@ -217,11 +217,11 @@ function _wfRenderEditor() {
           </div>
         </div>
         <!-- Canvas -->
-        <div style="flex:1;position:relative;overflow:hidden;background:#eef2f7">
-          <svg id="wf-canvas" width="100%" height="100%"
+        <div id="wf-canvas-wrap" style="flex:1;overflow:auto;background:#eef2f7">
+          <svg id="wf-canvas" width="4000" height="3000"
             onmousedown="_wfOnMouseDown(event)" onmousemove="_wfOnMouseMove(event)"
             onmouseup="_wfOnMouseUp(event)" ondragover="_wfCanvasDragOver(event)"
-            ondrop="_wfCanvasDrop(event)" style="display:block">
+            ondrop="_wfCanvasDrop(event)" style="display:block;cursor:default">
             <defs>
               <marker id="wf-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
                 <path d="M0 0 L10 5 L0 10 z" fill="#94a3b8"/></marker>
@@ -230,9 +230,6 @@ function _wfRenderEditor() {
             </defs>
             <g id="wf-g"></g>
           </svg>
-          <div id="wf-canvas-hint" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;text-align:center;color:#94a3b8;font-size:.85rem">
-            ${_wfNodes.length===0 ? 'Arraste elementos da palette para começar' : ''}
-          </div>
         </div>
         <!-- Props -->
         <div id="wf-props" style="width:215px;background:#f8fafc;border-left:1px solid #e2e8f0;padding:.7rem;overflow-y:auto;flex-shrink:0;font-size:.82rem">
@@ -242,6 +239,19 @@ function _wfRenderEditor() {
     </div>`;
   _wfRender();
   _wfSetupKb();
+  requestAnimationFrame(_wfScrollToNodes);
+}
+
+function _wfScrollToNodes() {
+  const wrap = document.getElementById('wf-canvas-wrap');
+  if (!wrap) return;
+  if (_wfNodes.length === 0) {
+    wrap.scrollLeft = 1880; wrap.scrollTop = 1420; return;
+  }
+  const xs = _wfNodes.map(n => n.x);
+  const ys = _wfNodes.map(n => n.y);
+  wrap.scrollLeft = Math.max(0, Math.min(...xs) - 120);
+  wrap.scrollTop  = Math.max(0, Math.min(...ys) - 100);
 }
 
 function _wfPaletteSection(title, types) {
@@ -272,12 +282,13 @@ function _wfRender() {
   const g = document.getElementById('wf-g');
   if (!g) return;
   let html = '';
+  if (_wfNodes.length === 0) {
+    html += `<text x="2000" y="1490" text-anchor="middle" font-size="18" fill="#cbd5e1" pointer-events="none">Arraste elementos da palette para começar</text>`;
+  }
   for (const e of _wfEdges) html += _wfRenderEdge(e);
   if (_wfConnecting) html += _wfRenderTempLine();
   for (const n of _wfNodes) html += _wfRenderNode(n);
   g.innerHTML = html;
-  const h = document.getElementById('wf-canvas-hint');
-  if (h) h.textContent = _wfNodes.length===0 ? 'Arraste elementos da palette para começar' : '';
 }
 
 function _wfRenderNode(node) {
