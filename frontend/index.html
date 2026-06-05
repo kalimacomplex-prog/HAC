@@ -87,6 +87,9 @@
       <button class="nav-item" onclick="navigate('studio')" id="nav-studio">
         <span class="icon">⚡</span> HAC Studio
       </button>
+      <button class="nav-item" onclick="navigate('workflows')" id="nav-workflows">
+        <span class="icon">🔀</span> Modelador
+      </button>
       <span class="nav-label" style="margin-top:.75rem">Inteligência Artificial</span>
       <button class="nav-item" onclick="navigate('ai_agents')" id="nav-ai_agents">
         <span class="icon">🧠</span> Agentes IA
@@ -583,6 +586,11 @@ print(f"Processando {url} com limite {limit}")</pre>
             </table>
           </div>
         </div>
+      </div>
+
+      <!-- MODELADOR DE WORKFLOWS -->
+      <div class="view" id="view-workflows" style="height:100%;padding:0;overflow:hidden">
+        <div id="wf-container" style="height:100%"></div>
       </div>
 
       <!-- HAC STUDIO BUILDER PAGE -->
@@ -1205,7 +1213,7 @@ print('Concluído!')"></textarea>
 <div class="toast-container" id="toast-container"></div>
 
 <script src="/static/js/helpers.js?v=33"></script>
-<script src="/static/js/app.js?v=34"></script>
+<script src="/static/js/app.js?v=36"></script>
 <script src="/static/js/auth.js?v=33"></script>
 <script src="/static/js/dashboard.js?v=33"></script>
 <script src="/static/js/agents.js?v=33"></script>
@@ -1217,6 +1225,7 @@ print('Concluído!')"></textarea>
 <script src="/static/js/oraculo.js?v=34"></script>
 <script src="/static/js/queue.js?v=34"></script>
 <script src="/static/js/studio.js?v=35"></script>
+<script src="/static/js/workflows.js?v=36"></script>
 
 </body>
 </html>

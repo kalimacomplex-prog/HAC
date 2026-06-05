@@ -54,6 +54,13 @@ function navigate(view) {
     document.querySelector('.topbar').style.display = '';
     document.getElementById('sidebar').style.display = '';
   }
+  // Restaura padding do content ao sair do modelador
+  const contentEl = document.querySelector('.content');
+  if (view !== 'workflows') {
+    contentEl.style.padding = '';
+    contentEl.style.overflow = '';
+    contentEl.style.height = '';
+  }
 
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -63,7 +70,7 @@ function navigate(view) {
 
   stopQueueAutoRefresh();
 
-  const titles = { dashboard: 'Dashboard', queue: 'Fila de Execução', agents: 'Agentes', processes: 'Processos', cronjobs: 'Cron Jobs', instructions: 'Instruções', studio: 'HAC Studio', studio_builder: 'Builder', ai_agents: 'Agentes IA', pipelines: 'Pipelines de IA', oraculo: 'Oráculo' };
+  const titles = { dashboard: 'Dashboard', queue: 'Fila de Execução', agents: 'Agentes', processes: 'Processos', cronjobs: 'Cron Jobs', instructions: 'Instruções', studio: 'HAC Studio', studio_builder: 'Builder', ai_agents: 'Agentes IA', pipelines: 'Pipelines de IA', oraculo: 'Oráculo', workflows: 'Modelador de Workflows' };
   document.getElementById('topbar-title').textContent = titles[view];
 
   const actions = document.getElementById('topbar-actions');
@@ -100,5 +107,12 @@ function navigate(view) {
     startQueueAutoRefresh();
   } else if (view === 'oraculo') {
     loadOraculoAgents();
+  } else if (view === 'workflows') {
+    const topbarH = document.querySelector('.topbar').getBoundingClientRect().height;
+    contentEl.style.padding = '0';
+    contentEl.style.overflow = 'hidden';
+    contentEl.style.height = `calc(100vh - ${topbarH}px)`;
+    actions.innerHTML = `<button class="btn btn-blue" onclick="openWorkflowEditor()">+ Novo workflow</button>`;
+    loadWorkflows();
   }
 }
