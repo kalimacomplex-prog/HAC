@@ -1,12 +1,15 @@
+import re
 from datetime import datetime
-from typing import List
+from typing import Any, Dict, List
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import get_current_user
 from ..database import db, jobs_col, processes_col
-from ..models.workflow import WorkflowCreate, WorkflowOut, WorkflowRunOut, wf_doc_to_out
+from ..models.workflow import (
+    WorkflowCreate, WorkflowOut, WorkflowRunOut, WorkflowRunRequest, wf_doc_to_out
+)
 
 workflows_col = db.workflows
 workflow_runs_col = db.workflow_runs
@@ -26,6 +29,7 @@ async def create_workflow(body: WorkflowCreate, user: dict = Depends(get_current
         "_id": str(ObjectId()),
         "user_id": user["_id"],
         "name": body.name,
+        "variables": [v.model_dump() for v in body.variables],
         "nodes": [n.model_dump() for n in body.nodes],
         "edges": [e.model_dump() for e in body.edges],
         "created_at": datetime.utcnow(),
@@ -48,18 +52,20 @@ async def update_workflow(wf_id: str, body: WorkflowCreate, user: dict = Depends
     doc = await workflows_col.find_one({"_id": wf_id, "user_id": user["_id"]})
     if not doc:
         raise HTTPException(status_code=404, detail="Workflow não encontrado")
+    variables = [v.model_dump() for v in body.variables]
     nodes = [n.model_dump() for n in body.nodes]
     edges = [e.model_dump() for e in body.edges]
     await workflows_col.update_one(
         {"_id": wf_id},
         {"$set": {
             "name": body.name,
+            "variables": variables,
             "nodes": nodes,
             "edges": edges,
             "updated_at": datetime.utcnow(),
         }},
     )
-    return wf_doc_to_out({**doc, "name": body.name, "nodes": nodes, "edges": edges})
+    return wf_doc_to_out({**doc, "name": body.name, "variables": variables, "nodes": nodes, "edges": edges})
 
 
 @router.delete("/{wf_id}", status_code=204)
@@ -71,13 +77,18 @@ async def delete_workflow(wf_id: str, user: dict = Depends(get_current_user)):
 
 
 @router.post("/{wf_id}/run", response_model=WorkflowRunOut)
-async def run_workflow(wf_id: str, user: dict = Depends(get_current_user)):
+async def run_workflow(
+    wf_id: str,
+    body: WorkflowRunRequest,
+    user: dict = Depends(get_current_user),
+):
     doc = await workflows_col.find_one({"_id": wf_id, "user_id": user["_id"]})
     if not doc:
         raise HTTPException(status_code=404, detail="Workflow não encontrado")
 
     nodes = doc.get("nodes") or []
     edges = doc.get("edges") or []
+    variables: Dict[str, str] = body.variables or {}
 
     task_ids = _traverse_workflow(nodes, edges)
     if not task_ids:
@@ -91,6 +102,7 @@ async def run_workflow(wf_id: str, user: dict = Depends(get_current_user)):
         process = await processes_col.find_one({"_id": node["process_id"], "user_id": user["_id"]})
         if not process:
             continue
+        resolved_params = _resolve_params(node.get("params") or {}, variables)
         job_doc = {
             "_id": str(ObjectId()),
             "user_id": user["_id"],
@@ -99,11 +111,12 @@ async def run_workflow(wf_id: str, user: dict = Depends(get_current_user)):
             "agent_id": process.get("agent_id"),
             "status": "pending",
             "priority": 0,
-            "params": {},
+            "params": resolved_params,
             "output": None,
             "error": None,
             "workflow_id": wf_id,
             "workflow_name": doc["name"],
+            "output_var": node.get("output_var"),
             "created_at": datetime.utcnow(),
             "started_at": None,
             "finished_at": None,
@@ -117,6 +130,7 @@ async def run_workflow(wf_id: str, user: dict = Depends(get_current_user)):
         "workflow_id": wf_id,
         "workflow_name": doc["name"],
         "status": "running",
+        "variables": variables,
         "job_ids": job_ids,
         "jobs_created": len(job_ids),
         "created_at": datetime.utcnow(),
@@ -131,6 +145,21 @@ async def run_workflow(wf_id: str, user: dict = Depends(get_current_user)):
         jobs_created=len(job_ids),
         created_at=run_doc["created_at"],
     )
+
+
+def _resolve_params(params: Dict[str, Any], variables: Dict[str, str]) -> Dict[str, Any]:
+    """Replace {variable} placeholders in string param values."""
+    result: Dict[str, Any] = {}
+    for key, value in params.items():
+        if isinstance(value, str):
+            result[key] = re.sub(
+                r'\{(\w+)\}',
+                lambda m: variables.get(m.group(1), m.group(0)),
+                value,
+            )
+        else:
+            result[key] = value
+    return result
 
 
 def _traverse_workflow(nodes: list, edges: list) -> list:

@@ -1,6 +1,12 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 from pydantic import BaseModel
+
+
+class WfVariable(BaseModel):
+    name: str
+    default_value: str = ''
+    description: str = ''
 
 
 class WfNode(BaseModel):
@@ -10,6 +16,8 @@ class WfNode(BaseModel):
     y: float
     label: str
     process_id: Optional[str] = None
+    params: Optional[Dict[str, Any]] = None  # task params; values may use {variable} syntax
+    output_var: Optional[str] = None         # variable name to store task output
 
 
 class WfEdge(BaseModel):
@@ -22,13 +30,19 @@ class WfEdge(BaseModel):
 
 class WorkflowCreate(BaseModel):
     name: str
+    variables: List[WfVariable] = []
     nodes: List[WfNode] = []
     edges: List[WfEdge] = []
+
+
+class WorkflowRunRequest(BaseModel):
+    variables: Dict[str, str] = {}
 
 
 class WorkflowOut(BaseModel):
     id: str
     name: str
+    variables: List[WfVariable]
     nodes: List[WfNode]
     edges: List[WfEdge]
     node_count: int
@@ -48,9 +62,11 @@ class WorkflowRunOut(BaseModel):
 def wf_doc_to_out(doc: dict) -> WorkflowOut:
     nodes = [WfNode(**n) for n in (doc.get("nodes") or [])]
     edges = [WfEdge(**e) for e in (doc.get("edges") or [])]
+    variables = [WfVariable(**v) for v in (doc.get("variables") or [])]
     return WorkflowOut(
         id=doc["_id"],
         name=doc["name"],
+        variables=variables,
         nodes=nodes,
         edges=edges,
         node_count=len(nodes),
