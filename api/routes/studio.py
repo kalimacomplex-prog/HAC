@@ -494,33 +494,49 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
 
     if engine == "selenium":
         lines = [
-            "import sys, time",
+            "import sys, time, re",
             "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
             "from selenium import webdriver",
             "from selenium.webdriver.common.by import By",
             "from selenium.webdriver.support.ui import WebDriverWait",
             "from selenium.webdriver.support import expected_conditions as EC",
+            "",
+            "# Detecta o tipo do seletor: prefixo explícito (xpath=/css=/id=/name=/class=/tag=/link=/partial_link=)",
+            "# ou heurística (// , .. , ( -> XPath; caso contrário, CSS) — assim o mesmo campo aceita XPath,",
+            "# CSS e os demais localizadores clássicos do Selenium.",
+            "_BY_PREFIXES = {'xpath': By.XPATH, 'css': By.CSS_SELECTOR, 'id': By.ID, 'name': By.NAME,",
+            "                'class': By.CLASS_NAME, 'tag': By.TAG_NAME, 'link': By.LINK_TEXT,",
+            "                'partial_link': By.PARTIAL_LINK_TEXT}",
+            "def _sel_locator(raw):",
+            "    s = raw.strip()",
+            "    m = re.match(r'^([a-zA-Z_]+)=(.*)$', s, re.S)",
+            "    if m and m.group(1).lower() in _BY_PREFIXES:",
+            "        return (_BY_PREFIXES[m.group(1).lower()], m.group(2).strip())",
+            "    if s.startswith(('//', '..', '(')):",
+            "        return (By.XPATH, s)",
+            "    return (By.CSS_SELECTOR, s)",
+            "",
             "_opts = webdriver.ChromeOptions()",
             f"_opts.add_experimental_option('debuggerAddress', '127.0.0.1:{port}')",
             "_dr = webdriver.Chrome(options=_opts)",
             "try:",
         ]
         if action_type == "click":
-            lines += [f'{indent}_dr.find_element(By.CSS_SELECTOR, "{tgt}").click()',
+            lines += [f'{indent}_dr.find_element(*_sel_locator("{tgt}")).click()',
                       f'{indent}print("Clicou em: {tgt}")']
         elif action_type == "type":
-            lines += [f'{indent}_el = _dr.find_element(By.CSS_SELECTOR, "{tgt}")',
+            lines += [f'{indent}_el = _dr.find_element(*_sel_locator("{tgt}"))',
                       f'{indent}_el.clear(); _el.send_keys("{val}")',
                       f'{indent}print("Digitou em: {tgt}")']
         elif action_type == "extract":
             lines += [
-                f'{indent}_el = _dr.find_element(By.CSS_SELECTOR, "{tgt}")',
+                f'{indent}_el = _dr.find_element(*_sel_locator("{tgt}"))',
                 f'{indent}_tx = _el.get_attribute("{val}") if "{val}" else _el.text',
                 f'{indent}print(_tx)',
             ]
         elif action_type == "wait":
             if tgt:
-                lines += [f'{indent}WebDriverWait(_dr, 30).until(EC.presence_of_element_located((By.CSS_SELECTOR, "{tgt}")))',
+                lines += [f'{indent}WebDriverWait(_dr, 30).until(EC.presence_of_element_located(_sel_locator("{tgt}")))',
                           f'{indent}print("Elemento apareceu: {tgt}")']
             else:
                 lines += [f'{indent}time.sleep({float(val or 1)})', f'{indent}print("Aguardou {val or 1}s")']

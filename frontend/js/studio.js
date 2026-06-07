@@ -952,20 +952,23 @@ function _renderPropsPanel(step) {
 
     case 'browser_click': {
       html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
-      html += _field('SELETOR CSS', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="seletor CSS ou #id" onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SELETOR (CSS, XPATH OU OUTRO)', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="#id, .classe, //button[text()='Entrar'] ou xpath=..." onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _SELECTOR_HINT;
       break;
     }
 
     case 'browser_type': {
       html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
-      html += _field('SELETOR CSS', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="seletor CSS ou #id" onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SELETOR (CSS, XPATH OU OUTRO)', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="#id, .classe, //input[@name='user'] ou xpath=..." onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _SELECTOR_HINT;
       html += _field('TEXTO A DIGITAR', `<input type="text" value="${escapeHtml(c.value||'')}" placeholder="texto ou {variavel}" onchange="_upCfg('${step.id}','value',this.value)" ${_inp()} />`);
       break;
     }
 
     case 'browser_extract': {
       html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
-      html += _field('SELETOR CSS', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="seletor CSS ou #id" onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SELETOR (CSS, XPATH OU OUTRO)', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="#id, .classe, //span[@class='preco'] ou xpath=..." onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _SELECTOR_HINT;
       html += _field('ATRIBUTO (opcional)', `<input type="text" value="${escapeHtml(c.value||'')}" placeholder="vazio = texto do elemento" onchange="_upCfg('${step.id}','value',this.value)" ${_inp()} />`);
       html += _field('SALVAR RESPOSTA EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="texto_extraido (vazio = output)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
       break;
@@ -973,7 +976,8 @@ function _renderPropsPanel(step) {
 
     case 'browser_wait': {
       html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
-      html += _field('SELETOR A AGUARDAR (opcional)', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="seletor CSS ou #id" onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SELETOR A AGUARDAR (opcional, CSS/XPATH/OUTRO)', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="#id, .classe, //div[@id='pronto'] ou xpath=..." onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _SELECTOR_HINT;
       html += _field('SEGUNDOS (se seletor vazio)', `<input type="text" value="${escapeHtml(c.value||'')}" placeholder="ex: 2" onchange="_upCfg('${step.id}','value',this.value)" ${_inp()} />`);
       html += _hint('Se um seletor for informado, aguarda o elemento aparecer; caso contrário, aguarda o número de segundos indicado.');
       break;
@@ -1003,6 +1007,7 @@ const _sel = (extra='') => `style="width:100%;padding:.38rem .6rem;border:1.5px 
 const _ta  = (extra='') => `style="width:100%;padding:.38rem .6rem;border:1.5px solid #e2e8f0;border-radius:7px;font-size:.8rem;resize:vertical;outline:none;box-sizing:border-box;font-family:inherit;${extra}"`;
 const _field = (label, input) => `<div><label style="font-size:.68rem;font-weight:700;color:#64748b;display:block;margin-bottom:.25rem;letter-spacing:.03em">${label}</label>${input}</div>`;
 const _hint  = (text) => `<p style="font-size:.7rem;color:#94a3b8;margin:-.25rem 0 0;line-height:1.5">${text}</p>`;
+const _SELECTOR_HINT = _hint('Aceita CSS (<code>#id</code>, <code>.classe</code>), XPath (comece com <code>//</code>, <code>..</code> ou <code>(</code> — detectado automaticamente) ou prefixos explícitos como <code>xpath=</code>, <code>css=</code>, <code>id=</code>, <code>name=</code>, <code>class=</code>, <code>tag=</code>, <code>link=</code>, <code>partial_link=</code> (estes últimos válidos em sessões Selenium).');
 
 function _headersToText(headers) {
   if (!headers || typeof headers !== 'object') return '';
