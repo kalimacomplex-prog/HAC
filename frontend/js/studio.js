@@ -1007,7 +1007,7 @@ const _sel = (extra='') => `style="width:100%;padding:.38rem .6rem;border:1.5px 
 const _ta  = (extra='') => `style="width:100%;padding:.38rem .6rem;border:1.5px solid #e2e8f0;border-radius:7px;font-size:.8rem;resize:vertical;outline:none;box-sizing:border-box;font-family:inherit;${extra}"`;
 const _field = (label, input) => `<div><label style="font-size:.68rem;font-weight:700;color:#64748b;display:block;margin-bottom:.25rem;letter-spacing:.03em">${label}</label>${input}</div>`;
 const _hint  = (text) => `<p style="font-size:.7rem;color:#94a3b8;margin:-.25rem 0 0;line-height:1.5">${text}</p>`;
-const _SELECTOR_HINT = _hint('Aceita CSS (<code>#id</code>, <code>.classe</code>), XPath (comece com <code>//</code>, <code>..</code> ou <code>(</code> — detectado automaticamente) ou prefixos explícitos como <code>xpath=</code>, <code>css=</code>, <code>id=</code>, <code>name=</code>, <code>class=</code>, <code>tag=</code>, <code>link=</code>, <code>partial_link=</code> (estes últimos válidos em sessões Selenium).');
+const _SELECTOR_HINT = _hint('Aceita CSS (<code>#id</code>, <code>.classe</code>), XPath — detectado automaticamente quando começa com <code>/</code> (inclusive o caminho absoluto do "Copiar XPath" do navegador, ex: <code>/html/body/div[2]/...</code>), <code>//</code>, <code>..</code> ou <code>(</code> — ou prefixos explícitos como <code>xpath=</code>, <code>css=</code>, <code>id=</code>, <code>name=</code>, <code>class=</code>, <code>tag=</code>, <code>link=</code>, <code>partial_link=</code> (estes últimos válidos em sessões Selenium).');
 
 function _headersToText(headers) {
   if (!headers || typeof headers !== 'object') return '';

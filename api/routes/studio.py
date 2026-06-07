@@ -512,7 +512,7 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
             "    m = re.match(r'^([a-zA-Z_]+)=(.*)$', s, re.S)",
             "    if m and m.group(1).lower() in _BY_PREFIXES:",
             "        return (_BY_PREFIXES[m.group(1).lower()], m.group(2).strip())",
-            "    if s.startswith(('//', '..', '(')):",
+            "    if s.startswith(('/', '..', '(')):",
             "        return (By.XPATH, s)",
             "    return (By.CSS_SELECTOR, s)",
             "",
@@ -554,27 +554,40 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
         return "\n".join(lines)
 
     lines = [
-        "import sys",
+        "import sys, re",
         "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
         "from playwright.sync_api import sync_playwright",
+        "",
+        "# Playwright já detecta XPath nativamente quando o seletor começa com '//' ou '..',",
+        "# e suporta prefixos explícitos de engine (css=, xpath=, text=, role= etc). A única",
+        "# lacuna é o XPath absoluto de barra única (ex: /html/body/...), comum ao copiar",
+        "# 'Copy XPath' do DevTools — então normalizamos esse caso para 'xpath=...'.",
+        "def _sel(raw):",
+        "    s = raw.strip()",
+        "    if re.match(r'^[a-zA-Z_]+=', s):",
+        "        return s",
+        "    if s.startswith('/') and not s.startswith('//'):",
+        "        return 'xpath=' + s",
+        "    return s",
+        "",
         "with sync_playwright() as _pw:",
         f"    _br = _pw.chromium.connect_over_cdp('http://127.0.0.1:{port}')",
         "    _bc = _br.contexts[0] if _br.contexts else _br.new_context()",
         "    _pg = _bc.pages[0] if _bc.pages else _bc.new_page()",
     ]
     if action_type == "click":
-        lines += [f'{indent}_pg.click("{tgt}", timeout=15000)', f'{indent}print("Clicou em: {tgt}")']
+        lines += [f'{indent}_pg.click(_sel("{tgt}"), timeout=15000)', f'{indent}print("Clicou em: {tgt}")']
     elif action_type == "type":
-        lines += [f'{indent}_pg.fill("{tgt}", "{val}", timeout=15000)', f'{indent}print("Digitou em: {tgt}")']
+        lines += [f'{indent}_pg.fill(_sel("{tgt}"), "{val}", timeout=15000)', f'{indent}print("Digitou em: {tgt}")']
     elif action_type == "extract":
         lines += [
-            f'{indent}_el = _pg.query_selector("{tgt}")',
+            f'{indent}_el = _pg.query_selector(_sel("{tgt}"))',
             f'{indent}_tx = (_el.get_attribute("{val}") if "{val}" else _el.inner_text()) if _el else ""',
             f'{indent}print(_tx)',
         ]
     elif action_type == "wait":
         if tgt:
-            lines += [f'{indent}_pg.wait_for_selector("{tgt}", timeout=30000)', f'{indent}print("Elemento apareceu: {tgt}")']
+            lines += [f'{indent}_pg.wait_for_selector(_sel("{tgt}"), timeout=30000)', f'{indent}print("Elemento apareceu: {tgt}")']
         else:
             ms = int(float(val or 1) * 1000)
             lines += [f'{indent}_pg.wait_for_timeout({ms})', f'{indent}print("Aguardou {val or 1}s")']
