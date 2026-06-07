@@ -413,12 +413,59 @@ def _gen_session_open_script(session_name: str, target: str, headless: bool, ctx
     return "\n".join(lines)
 
 
-def _gen_session_action_script(action_type: str, port: int, target: str, value: str, ctx: dict) -> str:
-    """Gera script pequeno que se RECONECTA (via CDP) numa sessão já aberta,
-    executa uma única ação e se desconecta — sem encerrar o navegador remoto."""
+def _gen_session_action_script(action_type: str, port: int, target: str, value: str, ctx: dict,
+                               engine: str = "playwright") -> str:
+    """Gera script pequeno que se RECONECTA numa sessão já aberta — via CDP
+    (Playwright) ou via `debuggerAddress` (Selenium) —, executa uma única ação
+    e se desconecta SEM encerrar o navegador remoto (a sessão continua viva)."""
     tgt = _sub(target, ctx).replace("\\", "\\\\").replace('"', '\\"')
     val = _sub(value, ctx).replace("\\", "\\\\").replace('"', '\\"')
     indent = "    "
+
+    if engine == "selenium":
+        lines = [
+            "import sys, time",
+            "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
+            "from selenium import webdriver",
+            "from selenium.webdriver.common.by import By",
+            "from selenium.webdriver.support.ui import WebDriverWait",
+            "from selenium.webdriver.support import expected_conditions as EC",
+            "_opts = webdriver.ChromeOptions()",
+            f"_opts.add_experimental_option('debuggerAddress', '127.0.0.1:{port}')",
+            "_dr = webdriver.Chrome(options=_opts)",
+            "try:",
+        ]
+        if action_type == "click":
+            lines += [f'{indent}_dr.find_element(By.CSS_SELECTOR, "{tgt}").click()',
+                      f'{indent}print("Clicou em: {tgt}")']
+        elif action_type == "type":
+            lines += [f'{indent}_el = _dr.find_element(By.CSS_SELECTOR, "{tgt}")',
+                      f'{indent}_el.clear(); _el.send_keys("{val}")',
+                      f'{indent}print("Digitou em: {tgt}")']
+        elif action_type == "extract":
+            lines += [
+                f'{indent}_el = _dr.find_element(By.CSS_SELECTOR, "{tgt}")',
+                f'{indent}_tx = _el.get_attribute("{val}") if "{val}" else _el.text',
+                f'{indent}print(_tx)',
+            ]
+        elif action_type == "wait":
+            if tgt:
+                lines += [f'{indent}WebDriverWait(_dr, 30).until(EC.presence_of_element_located((By.CSS_SELECTOR, "{tgt}")))',
+                          f'{indent}print("Elemento apareceu: {tgt}")']
+            else:
+                lines += [f'{indent}time.sleep({float(val or 1)})', f'{indent}print("Aguardou {val or 1}s")']
+        elif action_type == "screenshot":
+            path = tgt or "hac_screenshot.png"
+            lines += [f'{indent}_dr.save_screenshot("{path}")', f'{indent}print("Screenshot salvo em: {path}")']
+        lines += [
+            "finally:",
+            # Importante: NUNCA chamar _dr.quit() aqui — numa sessão anexada via
+            # debuggerAddress isso fecharia o navegador remoto. service.stop()
+            # apenas encerra o processo local do chromedriver (desconecta).
+            f"{indent}try: _dr.service.stop()",
+            f"{indent}except Exception: pass",
+        ]
+        return "\n".join(lines)
 
     lines = [
         "import sys",
@@ -776,6 +823,9 @@ async def _exec_step(step: dict, ctx: dict) -> str:
                 _store(result, var, ctx)
                 return result
             headless = cfg.get("browser_headless", True)
+            engine = cfg.get("browser_engine", "playwright")
+            if engine not in ("playwright", "selenium"):
+                engine = "playwright"
             script = _gen_session_open_script(session_name, cfg.get("target", ""), headless, ctx)
             raw = await _run_agent_script(
                 script, agent_id, user_id, timeout_seconds=90,
@@ -792,8 +842,8 @@ async def _exec_step(step: dict, ctx: dict) -> str:
                     raise Exception(line[len("__SESSION_ERROR__:"):].strip())
             if not info:
                 raise Exception("Não foi possível abrir a sessão do navegador no agente.")
-            sessions[session_name] = {**info, "agent_id": agent_id}
-            result = f"Sessão '{session_name}' aberta."
+            sessions[session_name] = {**info, "agent_id": agent_id, "engine": engine}
+            result = f"Sessão '{session_name}' aberta ({engine})."
             _store(result, var, ctx)
             return result
 
@@ -817,7 +867,8 @@ async def _exec_step(step: dict, ctx: dict) -> str:
             return result
 
         action_type = t[len("browser_"):]  # click | type | extract | wait | screenshot
-        script = _gen_session_action_script(action_type, session["port"], cfg.get("target", ""), cfg.get("value", ""), ctx)
+        script = _gen_session_action_script(action_type, session["port"], cfg.get("target", ""), cfg.get("value", ""),
+                                             ctx, engine=session.get("engine", "playwright"))
         raw = await _run_agent_script(
             script, session.get("agent_id", agent_id), user_id, timeout_seconds=60,
             name_prefix="__studio_session_act_", process_label="Studio: ação na sessão",

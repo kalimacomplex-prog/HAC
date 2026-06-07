@@ -593,7 +593,7 @@ function _stepBrief(step) {
     case 'call_pipeline':{ const p = _buildPipelines.find(x => x.id === c.pipeline_id); return p ? p.name : 'Pipeline não selecionada'; }
     case 'text_transform': return `${c.operation || 'upper'} em: ${(c.text_input || '{output}').substring(0, 30)}`;
     case 'browser':      return `${(c.browser_actions || []).length} ação(ões)`;
-    case 'browser_open':       return `Abrir "${c.session_name || '...'}" ${c.target ? '→ ' + c.target.substring(0, 30) : ''}`;
+    case 'browser_open':       return `Abrir "${c.session_name || '...'}" (${c.browser_engine || 'playwright'}) ${c.target ? '→ ' + c.target.substring(0, 25) : ''}`;
     case 'browser_click':      return `Clicar em "${(c.target || '...').substring(0, 30)}" — sessão "${c.session_name || '...'}"`;
     case 'browser_type':       return `Digitar "${(c.value || '...').substring(0, 20)}" em "${(c.target || '...').substring(0, 20)}" — "${c.session_name || '...'}"`;
     case 'browser_extract':    return `Extrair "${(c.target || '...').substring(0, 25)}" → ${c.variable_name || 'output'} — "${c.session_name || '...'}"`;
@@ -927,6 +927,16 @@ function _renderPropsPanel(step) {
     case 'browser_open': {
       html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
       html += _hint('Escolha um nome único para esta sessão — use o mesmo nome nos próximos passos do navegador para reaproveitar o mesmo navegador.');
+      const sessEngine = c.browser_engine || 'playwright';
+      html += _field('ENGINE PARA AS AÇÕES DESTA SESSÃO', `<select onchange="_upCfg('${step.id}','browser_engine',this.value)" ${_sel()}>
+        <option value="playwright" ${sessEngine==='playwright'?'selected':''}>🎭 Playwright</option>
+        <option value="selenium"   ${sessEngine==='selenium'  ?'selected':''}>🔬 Selenium</option>
+      </select>`);
+      const sessEngineHints = {
+        playwright: 'Playwright reconecta à sessão via CDP (connect_over_cdp) — mais robusto e é o padrão recomendado.',
+        selenium: 'Selenium reconecta à sessão via debuggerAddress do Chrome. O Playwright continua sendo necessário no agente para abrir o navegador — o Selenium só assume o controle das ações seguintes.',
+      };
+      html += `<p style="font-size:.7rem;color:#7c3aed;margin:-.35rem 0 .1rem;line-height:1.5">ℹ️ ${sessEngineHints[sessEngine]}</p>`;
       html += _field('URL INICIAL (opcional)', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="https://exemplo.com" onchange="_upCfg('${step.id}','target',this.value)" ${_inp()} />`);
       const headlessOpen = c.browser_headless !== false;
       html += _field('MODO HEADLESS', `<div style="display:flex;gap:.5rem">
