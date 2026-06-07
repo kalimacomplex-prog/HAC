@@ -933,8 +933,8 @@ function _renderPropsPanel(step) {
         <option value="selenium"   ${sessEngine==='selenium'  ?'selected':''}>🔬 Selenium</option>
       </select>`);
       const sessEngineHints = {
-        playwright: 'Playwright reconecta à sessão via CDP (connect_over_cdp) — mais robusto e é o padrão recomendado.',
-        selenium: 'Selenium reconecta à sessão via debuggerAddress do Chrome. O Playwright continua sendo necessário no agente para abrir o navegador — o Selenium só assume o controle das ações seguintes.',
+        playwright: 'Usa o Chromium instalado pelo Playwright no agente (playwright install chromium) e reconecta via CDP em cada ação. Padrão recomendado.',
+        selenium: 'Usa o Google Chrome instalado no sistema do agente e reconecta via debuggerAddress do Chrome em cada ação. Totalmente independente do Playwright — requer apenas Chrome + biblioteca selenium no agente.',
       };
       html += `<p style="font-size:.7rem;color:#7c3aed;margin:-.35rem 0 .1rem;line-height:1.5">ℹ️ ${sessEngineHints[sessEngine]}</p>`;
       html += _field('URL INICIAL (opcional)', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="https://exemplo.com" onchange="_upCfg('${step.id}','target',this.value)" ${_inp()} />`);

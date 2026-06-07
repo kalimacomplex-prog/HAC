@@ -331,28 +331,81 @@ async def _exec_browser_via_agent(actions: list, engine: str, headless: bool, ct
 _SESSION_LIFETIME_SECONDS = 30 * 60  # watchdog mata o navegador sozinho após esse tempo
 
 
-def _gen_session_open_script(session_name: str, target: str, headless: bool, ctx: dict) -> str:
-    """Gera script que lança um Chromium 'destacado' (sobrevive ao fim do processo
-    que o lançou) escutando numa porta de depuração remota (CDP), e imprime
-    `__SESSION__:{json com port/pid/user_data_dir}` para a API capturar."""
+_SELENIUM_CHROME_FINDER = """
+def _find_chrome_browser():
+    import shutil
+    _names = ('chrome', 'google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'chrome.exe')
+    _cands = [shutil.which(_n) for _n in _names]
+    if sys.platform == 'win32':
+        for _base in (os.environ.get('PROGRAMFILES', ''), os.environ.get('PROGRAMFILES(X86)', ''), os.environ.get('LOCALAPPDATA', '')):
+            if _base:
+                _cands.append(os.path.join(_base, 'Google', 'Chrome', 'Application', 'chrome.exe'))
+                _cands.append(os.path.join(_base, 'Chromium', 'Application', 'chrome.exe'))
+        try:
+            import winreg
+            for _hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+                try:
+                    with winreg.OpenKey(_hive, r'SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\chrome.exe') as _k:
+                        _cands.append(winreg.QueryValue(_k, None))
+                except OSError:
+                    pass
+        except Exception:
+            pass
+    elif sys.platform == 'darwin':
+        _cands += ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+                   '/Applications/Chromium.app/Contents/MacOS/Chromium']
+    else:
+        _cands += ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable',
+                   '/usr/bin/chromium', '/usr/bin/chromium-browser', '/snap/bin/chromium']
+    for _c in _cands:
+        if _c and os.path.exists(_c):
+            return _c
+    return None
+
+"""
+
+
+def _gen_session_open_script(session_name: str, target: str, headless: bool, ctx: dict,
+                             engine: str = "playwright") -> str:
+    """Gera script que lança um Chrome/Chromium 'destacado' (sobrevive ao fim do
+    processo que o lançou) escutando numa porta de depuração remota (CDP), e
+    imprime `__SESSION__:{json com port/pid/user_data_dir}` para a API capturar.
+
+    As duas engines ficam INDEPENDENTES: cada uma localiza e controla o navegador
+    com sua própria biblioteca — Playwright nunca é importado para sessões Selenium
+    e vice-versa."""
     url = _sub(target, ctx).strip()
     url_lit = json.dumps(url)
     name_lit = json.dumps(session_name)
 
-    lines = [
-        "import sys, os, json, socket, subprocess, tempfile, time, urllib.request",
-        "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
-        "from playwright.sync_api import sync_playwright",
-        "",
-        "with sync_playwright() as _pw:",
-        "    _exe = _pw.chromium.executable_path",
-        "",
-        "if not _exe or not os.path.exists(_exe):",
-        "    print('__SESSION_ERROR__: Navegador Chromium do Playwright não encontrado em \"%s\". '",
-        "          'Rode \"playwright install chromium\" (ou \"python -m playwright install chromium\") '",
-        "          'no mesmo ambiente Python usado pelo agente e tente novamente.' % _exe)",
-        "    sys.exit(1)",
-        "",
+    lines = ["import sys, os, json, socket, subprocess, tempfile, time, urllib.request",
+             "sys.stdout.reconfigure(encoding='utf-8', errors='replace')", ""]
+
+    if engine == "selenium":
+        lines += [_SELENIUM_CHROME_FINDER.strip("\n")]
+        lines += [
+            "_exe = _find_chrome_browser()",
+            "if not _exe:",
+            "    print('__SESSION_ERROR__: Não foi possível localizar um navegador Chrome/Chromium instalado nesta máquina. '",
+            "          'Instale o Google Chrome no agente e tente novamente.')",
+            "    sys.exit(1)",
+            "",
+        ]
+    else:
+        lines += [
+            "from playwright.sync_api import sync_playwright",
+            "with sync_playwright() as _pw:",
+            "    _exe = _pw.chromium.executable_path",
+            "",
+            "if not _exe or not os.path.exists(_exe):",
+            "    print('__SESSION_ERROR__: Navegador Chromium do Playwright não encontrado em \"%s\". '",
+            "          'Rode \"playwright install chromium\" (ou \"python -m playwright install chromium\") '",
+            "          'no mesmo ambiente Python usado pelo agente e tente novamente.' % _exe)",
+            "    sys.exit(1)",
+            "",
+        ]
+
+    lines += [
         "_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)",
         "_sock.bind(('127.0.0.1', 0))",
         "_port = _sock.getsockname()[1]",
@@ -400,11 +453,28 @@ def _gen_session_open_script(session_name: str, target: str, headless: bool, ctx
         "if _url:",
         "    _full = _url if _url.startswith(('http://', 'https://')) else 'https://' + _url",
         "    try:",
-        "        with sync_playwright() as _pw2:",
-        "            _br = _pw2.chromium.connect_over_cdp('http://127.0.0.1:%d' % _port)",
-        "            _bc = _br.contexts[0] if _br.contexts else _br.new_context()",
-        "            _pg = _bc.pages[0] if _bc.pages else _bc.new_page()",
-        "            _pg.goto(_full, timeout=30000)",
+    ]
+    if engine == "selenium":
+        lines += [
+            "        from selenium import webdriver",
+            "        _opts = webdriver.ChromeOptions()",
+            "        _opts.add_experimental_option('debuggerAddress', '127.0.0.1:%d' % _port)",
+            "        _dr = webdriver.Chrome(options=_opts)",
+            "        try:",
+            "            _dr.get(_full)",
+            "        finally:",
+            "            try: _dr.service.stop()",
+            "            except Exception: pass",
+        ]
+    else:
+        lines += [
+            "        with sync_playwright() as _pw2:",
+            "            _br = _pw2.chromium.connect_over_cdp('http://127.0.0.1:%d' % _port)",
+            "            _bc = _br.contexts[0] if _br.contexts else _br.new_context()",
+            "            _pg = _bc.pages[0] if _bc.pages else _bc.new_page()",
+            "            _pg.goto(_full, timeout=30000)",
+        ]
+    lines += [
         "    except Exception as _e:",
         "        print('aviso: falha ao abrir URL inicial: ' + str(_e))",
         "",
@@ -499,24 +569,34 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
     return "\n".join(lines)
 
 
-def _gen_session_close_script(pid: int, port: int, user_data_dir: str) -> str:
-    """Gera script que fecha as páginas da sessão (via CDP, melhor esforço) e então
-    mata o processo do navegador pelo PID e remove o diretório temporário de perfil."""
+def _gen_session_close_script(pid: int, port: int, user_data_dir: str, engine: str = "playwright") -> str:
+    """Gera script que tenta fechar as páginas da sessão (melhor esforço, usando a
+    MESMA biblioteca da engine escolhida — sem depender da outra) e então mata o
+    processo do navegador pelo PID e remove o diretório temporário de perfil."""
     udd = user_data_dir.replace("\\", "\\\\").replace('"', '\\"')
-    lines = [
-        "import sys, subprocess, shutil",
-        "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
-        "try:",
-        "    from playwright.sync_api import sync_playwright",
-        "    with sync_playwright() as _pw:",
-        f"        _br = _pw.chromium.connect_over_cdp('http://127.0.0.1:{port}')",
-        "        for _ctx in list(_br.contexts):",
-        "            for _pg in list(_ctx.pages):",
-        "                try: _pg.close()",
-        "                except Exception: pass",
-        "        _br.close()",
-        "except Exception:",
-        "    pass",
+    lines = ["import sys, subprocess, shutil", "sys.stdout.reconfigure(encoding='utf-8', errors='replace')"]
+
+    if engine == "selenium":
+        # Nada de melhor-esforço aqui: anexar via Selenium só para desconectar não
+        # fecha nenhuma página, então vamos direto para o kill pelo PID abaixo —
+        # mantém a engine Selenium livre de qualquer dependência do Playwright.
+        pass
+    else:
+        lines += [
+            "try:",
+            "    from playwright.sync_api import sync_playwright",
+            "    with sync_playwright() as _pw:",
+            f"        _br = _pw.chromium.connect_over_cdp('http://127.0.0.1:{port}')",
+            "        for _ctx in list(_br.contexts):",
+            "            for _pg in list(_ctx.pages):",
+            "                try: _pg.close()",
+            "                except Exception: pass",
+            "        _br.close()",
+            "except Exception:",
+            "    pass",
+        ]
+
+    lines += [
         "if sys.platform == 'win32':",
         f"    subprocess.run(['taskkill', '/F', '/T', '/PID', '{pid}'])",
         "else:",
@@ -826,7 +906,7 @@ async def _exec_step(step: dict, ctx: dict) -> str:
             engine = cfg.get("browser_engine", "playwright")
             if engine not in ("playwright", "selenium"):
                 engine = "playwright"
-            script = _gen_session_open_script(session_name, cfg.get("target", ""), headless, ctx)
+            script = _gen_session_open_script(session_name, cfg.get("target", ""), headless, ctx, engine=engine)
             raw = await _run_agent_script(
                 script, agent_id, user_id, timeout_seconds=90,
                 name_prefix="__studio_session_open_", process_label="Studio: abrir sessão",
@@ -856,7 +936,8 @@ async def _exec_step(step: dict, ctx: dict) -> str:
             )
 
         if t == "browser_close":
-            script = _gen_session_close_script(session["pid"], session["port"], session["user_data_dir"])
+            script = _gen_session_close_script(session["pid"], session["port"], session["user_data_dir"],
+                                                engine=session.get("engine", "playwright"))
             await _run_agent_script(
                 script, session.get("agent_id", agent_id), user_id, timeout_seconds=60,
                 name_prefix="__studio_session_close_", process_label="Studio: fechar sessão",
@@ -993,7 +1074,8 @@ async def _close_remaining_sessions(ctx: dict):
     user_id = ctx.get("user_id", "")
     for name, session in list(sessions.items()):
         try:
-            script = _gen_session_close_script(session["pid"], session["port"], session["user_data_dir"])
+            script = _gen_session_close_script(session["pid"], session["port"], session["user_data_dir"],
+                                                engine=session.get("engine", "playwright"))
             await _run_agent_script(
                 script, session.get("agent_id", ctx.get("agent_id", "")), user_id, timeout_seconds=60,
                 name_prefix="__studio_session_close_", process_label="Studio: fechar sessão (limpeza)",
