@@ -35,7 +35,13 @@ const ACTION_CATEGORIES = [
     { type: 'text_transform', icon: '✂️', label: 'Transformar Texto', color: '#0891b2', bg: '#f0f9ff' },
   ]},
   { key: 'browser', label: 'Navegador Web', icon: '🌍', actions: [
-    { type: 'browser', icon: '🌍', label: 'Ações de Navegador', color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'browser_open',       icon: '🌐', label: 'Abrir sessão',       color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'browser_click',      icon: '👆', label: 'Clicar',             color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'browser_type',       icon: '⌨️', label: 'Digitar',            color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'browser_extract',    icon: '📋', label: 'Extrair texto',      color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'browser_wait',       icon: '⏳', label: 'Aguardar elemento',  color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'browser_screenshot', icon: '📸', label: 'Screenshot',         color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'browser_close',      icon: '⛔', label: 'Fechar sessão',      color: '#7c3aed', bg: '#f5f3ff' },
   ]},
 ];
 
@@ -71,6 +77,7 @@ const STEP_DEFAULTS = {
   pipeline_id: '',
   text_input: '{output}', operation: 'upper', search: '', replace_with: '',
   browser_actions: [], browser_engine: 'playwright', browser_headless: true,
+  session_name: '', target: '',
 };
 
 // ─── Container helpers ────────────────────────────────────────────
@@ -586,6 +593,13 @@ function _stepBrief(step) {
     case 'call_pipeline':{ const p = _buildPipelines.find(x => x.id === c.pipeline_id); return p ? p.name : 'Pipeline não selecionada'; }
     case 'text_transform': return `${c.operation || 'upper'} em: ${(c.text_input || '{output}').substring(0, 30)}`;
     case 'browser':      return `${(c.browser_actions || []).length} ação(ões)`;
+    case 'browser_open':       return `Abrir "${c.session_name || '...'}" ${c.target ? '→ ' + c.target.substring(0, 30) : ''}`;
+    case 'browser_click':      return `Clicar em "${(c.target || '...').substring(0, 30)}" — sessão "${c.session_name || '...'}"`;
+    case 'browser_type':       return `Digitar "${(c.value || '...').substring(0, 20)}" em "${(c.target || '...').substring(0, 20)}" — "${c.session_name || '...'}"`;
+    case 'browser_extract':    return `Extrair "${(c.target || '...').substring(0, 25)}" → ${c.variable_name || 'output'} — "${c.session_name || '...'}"`;
+    case 'browser_wait':       return c.target ? `Aguardar "${c.target.substring(0, 30)}" — "${c.session_name || '...'}"` : `Aguardar ${c.value || 1}s — "${c.session_name || '...'}"`;
+    case 'browser_screenshot': return `Screenshot → ${c.target || 'caminho não definido'} — "${c.session_name || '...'}"`;
+    case 'browser_close':      return `Fechar sessão "${c.session_name || '...'}"`;
     default: return '';
   }
 }
@@ -907,6 +921,63 @@ function _renderPropsPanel(step) {
           ${actions.length === 0 ? `<div style="font-size:.78rem;color:#94a3b8;text-align:center;padding:.5rem">Nenhuma ação. Clique em + Ação.</div>` : ''}
         </div>
         <button onclick="_addBA('${step.id}')" style="margin-top:.4rem;width:100%;padding:.35rem;border:1.5px dashed #94a3b8;border-radius:7px;background:transparent;cursor:pointer;font-size:.78rem;color:#64748b">+ Adicionar ação</button>`);
+      break;
+    }
+
+    case 'browser_open': {
+      html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
+      html += _hint('Escolha um nome único para esta sessão — use o mesmo nome nos próximos passos do navegador para reaproveitar o mesmo navegador.');
+      html += _field('URL INICIAL (opcional)', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="https://exemplo.com" onchange="_upCfg('${step.id}','target',this.value)" ${_inp()} />`);
+      const headlessOpen = c.browser_headless !== false;
+      html += _field('MODO HEADLESS', `<div style="display:flex;gap:.5rem">
+        <label style="display:flex;align-items:center;gap:.35rem;padding:.38rem .75rem;border:1.5px solid ${headlessOpen?'#2563eb':'#e2e8f0'};border-radius:7px;cursor:pointer;font-size:.8rem;background:${headlessOpen?'#eff6ff':'white'};flex:1;justify-content:center" onclick="_upCfg('${step.id}','browser_headless',true)">
+          <span style="font-size:.95rem">🖥️</span> <span style="color:${headlessOpen?'#2563eb':'#64748b'};font-weight:${headlessOpen?'700':'400'}">Headless (true)</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:.35rem;padding:.38rem .75rem;border:1.5px solid ${!headlessOpen?'#2563eb':'#e2e8f0'};border-radius:7px;cursor:pointer;font-size:.8rem;background:${!headlessOpen?'#eff6ff':'white'};flex:1;justify-content:center" onclick="_upCfg('${step.id}','browser_headless',false)">
+          <span style="font-size:.95rem">👁️</span> <span style="color:${!headlessOpen?'#2563eb':'#64748b'};font-weight:${!headlessOpen?'700':'400'}">Visível (false)</span>
+        </label>
+      </div>`);
+      break;
+    }
+
+    case 'browser_click': {
+      html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
+      html += _field('SELETOR CSS', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="seletor CSS ou #id" onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
+      break;
+    }
+
+    case 'browser_type': {
+      html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
+      html += _field('SELETOR CSS', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="seletor CSS ou #id" onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('TEXTO A DIGITAR', `<input type="text" value="${escapeHtml(c.value||'')}" placeholder="texto ou {variavel}" onchange="_upCfg('${step.id}','value',this.value)" ${_inp()} />`);
+      break;
+    }
+
+    case 'browser_extract': {
+      html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
+      html += _field('SELETOR CSS', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="seletor CSS ou #id" onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('ATRIBUTO (opcional)', `<input type="text" value="${escapeHtml(c.value||'')}" placeholder="vazio = texto do elemento" onchange="_upCfg('${step.id}','value',this.value)" ${_inp()} />`);
+      html += _field('SALVAR RESPOSTA EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="texto_extraido (vazio = output)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+    }
+
+    case 'browser_wait': {
+      html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
+      html += _field('SELETOR A AGUARDAR (opcional)', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="seletor CSS ou #id" onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SEGUNDOS (se seletor vazio)', `<input type="text" value="${escapeHtml(c.value||'')}" placeholder="ex: 2" onchange="_upCfg('${step.id}','value',this.value)" ${_inp()} />`);
+      html += _hint('Se um seletor for informado, aguarda o elemento aparecer; caso contrário, aguarda o número de segundos indicado.');
+      break;
+    }
+
+    case 'browser_screenshot': {
+      html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
+      html += _field('CAMINHO DO ARQUIVO', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="ex: screenshot.png" onchange="_upCfg('${step.id}','target',this.value)" ${_inp()} />`);
+      break;
+    }
+
+    case 'browser_close': {
+      html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
+      html += _hint('Encerra o navegador e libera os recursos da sessão. Use ao final do fluxo ou quando não precisar mais dela.');
       break;
     }
   }

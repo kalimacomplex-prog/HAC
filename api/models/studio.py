@@ -36,8 +36,16 @@ class StepType(str, Enum):
     call_pipeline = "call_pipeline"
     # Dados
     text_transform = "text_transform"
-    # Navegador
+    # Navegador (legado — composto)
     browser = "browser"
+    # Navegador (sessão persistente — ações individuais)
+    browser_open = "browser_open"
+    browser_click = "browser_click"
+    browser_type = "browser_type"
+    browser_extract = "browser_extract"
+    browser_wait = "browser_wait"
+    browser_screenshot = "browser_screenshot"
+    browser_close = "browser_close"
 
 
 class BrowserAction(BaseModel):
@@ -95,10 +103,13 @@ class StepConfig(BaseModel):
     operation: str = "upper"
     search: str = ""
     replace_with: str = ""
-    # browser
+    # browser (legado — composto)
     browser_actions: List[BrowserAction] = Field(default_factory=list)
     browser_engine: str = "playwright"
     browser_headless: bool = True
+    # browser (sessão persistente)
+    session_name: str = ""
+    target: str = ""
 
 
 class AutomationStep(BaseModel):

@@ -243,46 +243,61 @@ def _gen_browser_script(actions: list, engine: str, headless: bool, ctx: dict) -
     return "\n".join(lines)
 
 
-async def _exec_browser_via_agent(actions: list, engine: str, headless: bool, ctx: dict,
-                                   agent_id: str, user_id: str) -> tuple:
-    """Gera script e despacha como job para o agente, aguarda resultado."""
-    script = _gen_browser_script(actions, engine, headless, ctx)
+async def _run_agent_script(script: str, agent_id: str, user_id: str,
+                            timeout_seconds: int = 120, poll_seconds: int = 2,
+                            name_prefix: str = "__studio_job_",
+                            process_label: str = "Studio Step") -> str:
+    """Despacha um script Python como job temporário (__studio_*) para o agente,
+    aguarda a conclusão fazendo polling, sempre limpa o processo/job temporários
+    (mesmo em falha/timeout) e retorna a saída bruta (stdout) do job."""
     now = datetime.utcnow()
     proc_id = str(ObjectId())
     job_id  = str(ObjectId())
 
     await processes_col.insert_one({
         "_id": proc_id, "user_id": user_id,
-        "name": f"__studio_browser_{job_id[:8]}",
-        "description": "Temporário — Studio Browser Step",
-        "script": script, "timeout_seconds": 120,
+        "name": f"{name_prefix}{job_id[:8]}",
+        "description": "Temporário — Studio Step",
+        "script": script, "timeout_seconds": timeout_seconds,
         "agent_id": agent_id or None,
         "created_at": now, "updated_at": now,
     })
     await jobs_col.insert_one({
         "_id": job_id, "user_id": user_id,
-        "process_id": proc_id, "process_name": "Studio Browser",
+        "process_id": proc_id, "process_name": process_label,
         "agent_id": agent_id or None,
         "status": "pending", "params": {}, "created_at": now,
     })
 
-    # Aguarda conclusão (até 120s)
+    # Aguarda conclusão (até timeout_seconds)
     job = None
-    for _ in range(60):
-        await asyncio.sleep(2)
+    iterations = max(1, int(timeout_seconds / poll_seconds))
+    for _ in range(iterations):
+        await asyncio.sleep(poll_seconds)
         job = await jobs_col.find_one({"_id": job_id})
         if job and job["status"] in ("done", "failed", "cancelled"):
             break
 
-    # Sempre deleta o processo temporário (mesmo em caso de falha/timeout)
+    # Sempre deleta o processo/job temporários (mesmo em caso de falha/timeout)
     await processes_col.delete_one({"_id": proc_id})
     await jobs_col.delete_one({"_id": job_id})
 
     if not job or job["status"] != "done":
-        err = (job or {}).get("error") or "Timeout — agente não respondeu em 120s"
-        raise Exception(f"Browser no agente falhou: {err}")
+        err = (job or {}).get("error") or f"Timeout — agente não respondeu em {timeout_seconds}s"
+        raise Exception(f"Execução no agente falhou: {err}")
 
-    raw_output = job.get("output") or ""
+    return job.get("output") or ""
+
+
+async def _exec_browser_via_agent(actions: list, engine: str, headless: bool, ctx: dict,
+                                   agent_id: str, user_id: str) -> tuple:
+    """Gera script combinado e despacha como job para o agente, aguarda resultado."""
+    script = _gen_browser_script(actions, engine, headless, ctx)
+    raw_output = await _run_agent_script(
+        script, agent_id, user_id, timeout_seconds=120,
+        name_prefix="__studio_browser_", process_label="Studio Browser",
+    )
+
     var_updates: dict = {}
     clean_lines = []
     for line in raw_output.splitlines():
@@ -295,6 +310,168 @@ async def _exec_browser_via_agent(actions: list, engine: str, headless: bool, ct
             clean_lines.append(line)
 
     return "\n".join(clean_lines), var_updates
+
+
+# ── Sessões persistentes de navegador (CDP) ────────────────────────────────
+#
+# Em vez de despachar um único script combinado (modelo do step legado `browser`),
+# cada ação vira um job pequeno e independente:
+#   • "Abrir sessão" lança o Chromium real (binário do Playwright) como processo
+#     DESTACADO, escutando numa porta de depuração remota (CDP) — esse processo
+#     sobrevive ao fim do script que o lançou, ficando vivo na máquina do agente.
+#   • As próximas ações (clicar, digitar, extrair, aguardar, screenshot) são scripts
+#     curtos que se RECONECTAM nesse navegador via `connect_over_cdp`, fazem uma
+#     única coisa e se desconectam — sem encerrar o processo remoto.
+#   • "Fechar sessão" conecta, fecha as páginas, e então mata o processo pelo PID.
+#
+# Isso dá sessão persistente de verdade (sobrevive a steps não-navegador no meio
+# do fluxo) sem precisar de NENHUMA mudança no worker — ele continua só recebendo
+# e rodando scripts Python isolados, exatamente como já faz hoje.
+
+_SESSION_LIFETIME_SECONDS = 30 * 60  # watchdog mata o navegador sozinho após esse tempo
+
+
+def _gen_session_open_script(session_name: str, target: str, headless: bool, ctx: dict) -> str:
+    """Gera script que lança um Chromium 'destacado' (sobrevive ao fim do processo
+    que o lançou) escutando numa porta de depuração remota (CDP), e imprime
+    `__SESSION__:{json com port/pid/user_data_dir}` para a API capturar."""
+    url = _sub(target, ctx).strip()
+    url_lit = json.dumps(url)
+    name_lit = json.dumps(session_name)
+
+    lines = [
+        "import sys, os, json, socket, subprocess, tempfile, time, urllib.request",
+        "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
+        "from playwright.sync_api import sync_playwright",
+        "",
+        "with sync_playwright() as _pw:",
+        "    _exe = _pw.chromium.executable_path",
+        "",
+        "_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)",
+        "_sock.bind(('127.0.0.1', 0))",
+        "_port = _sock.getsockname()[1]",
+        "_sock.close()",
+        "",
+        "_udd = tempfile.mkdtemp(prefix='hac_session_')",
+        "_args = [_exe, '--remote-debugging-port=%d' % _port, '--user-data-dir=' + _udd,",
+        "         '--no-first-run', '--no-default-browser-check']",
+        f"if {bool(headless)}:",
+        "    _args.append('--headless=new')",
+        "",
+        "_kw = {'stdout': subprocess.DEVNULL, 'stderr': subprocess.DEVNULL, 'stdin': subprocess.DEVNULL}",
+        "if sys.platform == 'win32':",
+        "    _kw['creationflags'] = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP",
+        "else:",
+        "    _kw['start_new_session'] = True",
+        "_proc = subprocess.Popen(_args, **_kw)",
+        "",
+        "# watchdog destacado: garante que o navegador morre sozinho mesmo se a sessão nunca for fechada",
+        "_wd = (",
+        "    \"import time,sys,subprocess,shutil\\n\"",
+        "    \"time.sleep(%d)\\n\"",
+        "    \"if sys.platform == 'win32':\\n\"",
+        "    \"    subprocess.run(['taskkill','/F','/T','/PID','%d'])\\n\"",
+        "    \"else:\\n\"",
+        "    \"    subprocess.run(['kill','-9','%d'])\\n\"",
+        "    \"shutil.rmtree(r'%s', ignore_errors=True)\\n\"",
+        f") % ({_SESSION_LIFETIME_SECONDS}, _proc.pid, _proc.pid, _udd)",
+        "subprocess.Popen([sys.executable, '-c', _wd], **_kw)",
+        "",
+        "# espera o endpoint de depuração remota (CDP) responder",
+        "_ready = False",
+        "for _ in range(60):",
+        "    try:",
+        "        urllib.request.urlopen('http://127.0.0.1:%d/json/version' % _port, timeout=1)",
+        "        _ready = True",
+        "        break",
+        "    except Exception:",
+        "        time.sleep(0.5)",
+        "if not _ready:",
+        "    print('__SESSION_ERROR__: navegador não respondeu na porta de depuração a tempo')",
+        "    sys.exit(1)",
+        "",
+        f"_url = {url_lit}",
+        "if _url:",
+        "    _full = _url if _url.startswith(('http://', 'https://')) else 'https://' + _url",
+        "    try:",
+        "        with sync_playwright() as _pw2:",
+        "            _br = _pw2.chromium.connect_over_cdp('http://127.0.0.1:%d' % _port)",
+        "            _bc = _br.contexts[0] if _br.contexts else _br.new_context()",
+        "            _pg = _bc.pages[0] if _bc.pages else _bc.new_page()",
+        "            _pg.goto(_full, timeout=30000)",
+        "    except Exception as _e:",
+        "        print('aviso: falha ao abrir URL inicial: ' + str(_e))",
+        "",
+        f"print('__SESSION__:' + json.dumps({{'port': _port, 'pid': _proc.pid, 'user_data_dir': _udd, 'session_name': {name_lit}}}))",
+    ]
+    return "\n".join(lines)
+
+
+def _gen_session_action_script(action_type: str, port: int, target: str, value: str, ctx: dict) -> str:
+    """Gera script pequeno que se RECONECTA (via CDP) numa sessão já aberta,
+    executa uma única ação e se desconecta — sem encerrar o navegador remoto."""
+    tgt = _sub(target, ctx).replace("\\", "\\\\").replace('"', '\\"')
+    val = _sub(value, ctx).replace("\\", "\\\\").replace('"', '\\"')
+    indent = "    "
+
+    lines = [
+        "import sys",
+        "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
+        "from playwright.sync_api import sync_playwright",
+        "with sync_playwright() as _pw:",
+        f"    _br = _pw.chromium.connect_over_cdp('http://127.0.0.1:{port}')",
+        "    _bc = _br.contexts[0] if _br.contexts else _br.new_context()",
+        "    _pg = _bc.pages[0] if _bc.pages else _bc.new_page()",
+    ]
+    if action_type == "click":
+        lines += [f'{indent}_pg.click("{tgt}", timeout=15000)', f'{indent}print("Clicou em: {tgt}")']
+    elif action_type == "type":
+        lines += [f'{indent}_pg.fill("{tgt}", "{val}", timeout=15000)', f'{indent}print("Digitou em: {tgt}")']
+    elif action_type == "extract":
+        lines += [
+            f'{indent}_el = _pg.query_selector("{tgt}")',
+            f'{indent}_tx = (_el.get_attribute("{val}") if "{val}" else _el.inner_text()) if _el else ""',
+            f'{indent}print(_tx)',
+        ]
+    elif action_type == "wait":
+        if tgt:
+            lines += [f'{indent}_pg.wait_for_selector("{tgt}", timeout=30000)', f'{indent}print("Elemento apareceu: {tgt}")']
+        else:
+            ms = int(float(val or 1) * 1000)
+            lines += [f'{indent}_pg.wait_for_timeout({ms})', f'{indent}print("Aguardou {val or 1}s")']
+    elif action_type == "screenshot":
+        path = tgt or "hac_screenshot.png"
+        lines += [f'{indent}_pg.screenshot(path="{path}", full_page=True)', f'{indent}print("Screenshot salvo em: {path}")']
+    lines.append(f"{indent}_br.close()")
+    return "\n".join(lines)
+
+
+def _gen_session_close_script(pid: int, port: int, user_data_dir: str) -> str:
+    """Gera script que fecha as páginas da sessão (via CDP, melhor esforço) e então
+    mata o processo do navegador pelo PID e remove o diretório temporário de perfil."""
+    udd = user_data_dir.replace("\\", "\\\\").replace('"', '\\"')
+    lines = [
+        "import sys, subprocess, shutil",
+        "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
+        "try:",
+        "    from playwright.sync_api import sync_playwright",
+        "    with sync_playwright() as _pw:",
+        f"        _br = _pw.chromium.connect_over_cdp('http://127.0.0.1:{port}')",
+        "        for _ctx in list(_br.contexts):",
+        "            for _pg in list(_ctx.pages):",
+        "                try: _pg.close()",
+        "                except Exception: pass",
+        "        _br.close()",
+        "except Exception:",
+        "    pass",
+        "if sys.platform == 'win32':",
+        f"    subprocess.run(['taskkill', '/F', '/T', '/PID', '{pid}'])",
+        "else:",
+        f"    subprocess.run(['kill', '-9', '{pid}'])",
+        f'shutil.rmtree("{udd}", ignore_errors=True)',
+        'print("Sessão encerrada")',
+    ]
+    return "\n".join(lines)
 
 
 async def _exec_step(step: dict, ctx: dict) -> str:
@@ -569,6 +746,80 @@ async def _exec_step(step: dict, ctx: dict) -> str:
         _store(result_str, var, ctx)
         return result_str
 
+    # ── Navegador (sessão persistente) ─────────────────────
+
+    if t in ("browser_open", "browser_click", "browser_type", "browser_extract",
+             "browser_wait", "browser_screenshot", "browser_close"):
+        session_name = _sub(cfg.get("session_name", ""), ctx).strip()
+        if not session_name:
+            raise Exception("Informe um nome para a sessão no campo 'Nome da sessão'.")
+
+        agent_id = ctx.get("agent_id", "")
+        user_id  = ctx.get("user_id", "")
+        if not agent_id:
+            raise Exception(
+                "Esta etapa requer um agente selecionado. "
+                "Escolha um agente no seletor ao lado do botão Executar antes de salvar."
+            )
+
+        sessions = ctx.setdefault("sessions", {})
+
+        if t == "browser_open":
+            if session_name in sessions:
+                result = f"Sessão '{session_name}' já está aberta — reaproveitando."
+                _store(result, var, ctx)
+                return result
+            headless = cfg.get("browser_headless", True)
+            script = _gen_session_open_script(session_name, cfg.get("target", ""), headless, ctx)
+            raw = await _run_agent_script(
+                script, agent_id, user_id, timeout_seconds=90,
+                name_prefix="__studio_session_open_", process_label="Studio: abrir sessão",
+            )
+            info = None
+            for line in raw.splitlines():
+                if line.startswith("__SESSION__:"):
+                    try:
+                        info = json.loads(line[len("__SESSION__:"):])
+                    except Exception:
+                        pass
+                elif line.startswith("__SESSION_ERROR__:"):
+                    raise Exception(line[len("__SESSION_ERROR__:"):].strip())
+            if not info:
+                raise Exception("Não foi possível abrir a sessão do navegador no agente.")
+            sessions[session_name] = {**info, "agent_id": agent_id}
+            result = f"Sessão '{session_name}' aberta."
+            _store(result, var, ctx)
+            return result
+
+        # demais ações exigem que a sessão já esteja aberta
+        session = sessions.get(session_name)
+        if not session:
+            raise Exception(
+                f"Sessão '{session_name}' não encontrada. "
+                f"Adicione um passo 'Abrir sessão' com esse nome antes deste."
+            )
+
+        if t == "browser_close":
+            script = _gen_session_close_script(session["pid"], session["port"], session["user_data_dir"])
+            await _run_agent_script(
+                script, session.get("agent_id", agent_id), user_id, timeout_seconds=60,
+                name_prefix="__studio_session_close_", process_label="Studio: fechar sessão",
+            )
+            sessions.pop(session_name, None)
+            result = f"Sessão '{session_name}' encerrada."
+            _store(result, var, ctx)
+            return result
+
+        action_type = t[len("browser_"):]  # click | type | extract | wait | screenshot
+        script = _gen_session_action_script(action_type, session["port"], cfg.get("target", ""), cfg.get("value", ""), ctx)
+        raw = await _run_agent_script(
+            script, session.get("agent_id", agent_id), user_id, timeout_seconds=60,
+            name_prefix="__studio_session_act_", process_label="Studio: ação na sessão",
+        )
+        result = raw.strip()
+        _store(result, var, ctx)
+        return result
+
     return f"[{t}] step executado"
 
 
@@ -674,6 +925,27 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
     return results, False
 
 
+async def _close_remaining_sessions(ctx: dict):
+    """Rede de segurança: ao final de uma execução (sucesso, falha ou exceção),
+    fecha qualquer sessão de navegador que ainda esteja registrada em ctx['sessions']
+    — evita deixar processos de navegador órfãos na máquina do agente quando o
+    fluxo termina sem passar por um passo 'Fechar sessão' (ex: erro no meio)."""
+    sessions = ctx.get("sessions") or {}
+    if not sessions:
+        return
+    user_id = ctx.get("user_id", "")
+    for name, session in list(sessions.items()):
+        try:
+            script = _gen_session_close_script(session["pid"], session["port"], session["user_data_dir"])
+            await _run_agent_script(
+                script, session.get("agent_id", ctx.get("agent_id", "")), user_id, timeout_seconds=60,
+                name_prefix="__studio_session_close_", process_label="Studio: fechar sessão (limpeza)",
+            )
+        except Exception:
+            pass
+        sessions.pop(name, None)
+
+
 async def _execute_automation(automation: dict, initial_input: str, trigger_type: str = "manual") -> dict:
     run_id = str(ObjectId())
     started_at = datetime.utcnow()
@@ -696,12 +968,15 @@ async def _execute_automation(automation: dict, initial_input: str, trigger_type
 
     steps = automation.get("steps", [])
     ctx = {
-        "input": initial_input, "output": initial_input, "vars": {},
+        "input": initial_input, "output": initial_input, "vars": {}, "sessions": {},
         "agent_id": automation.get("agent_id", ""),
         "user_id": str(automation.get("user_id", "")),
     }
 
-    steps_results, failed = await _exec_step_list(steps, ctx)
+    try:
+        steps_results, failed = await _exec_step_list(steps, ctx)
+    finally:
+        await _close_remaining_sessions(ctx)
     final_status = "failed" if failed else "success"
 
     finished_at = datetime.utcnow()
