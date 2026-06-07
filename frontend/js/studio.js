@@ -96,6 +96,39 @@ function _findStep(id, arr) {
   return null;
 }
 
+// Procura, em todo o fluxo, um passo "Abrir sessão" com o session_name informado
+// e retorna a engine configurada nele — assim os passos de ação (Clicar, Digitar
+// etc.) podem mostrar/seguir automaticamente a mesma biblioteca da sessão.
+function _findSessionEngine(name, arr) {
+  if (!name) return null;
+  for (const s of arr) {
+    const cfg = s.config || {};
+    if (s.type === 'browser_open' && (cfg.session_name || '').trim() === name) {
+      return cfg.browser_engine || 'playwright';
+    }
+    if (CONTAINER_TYPES.has(s.type))
+      for (const b of _branches(s)) {
+        const found = _findSessionEngine(name, s[b] || []);
+        if (found) return found;
+      }
+  }
+  return null;
+}
+
+// Aviso exibido nos passos de ação de sessão (Clicar, Digitar, Extrair, Aguardar,
+// Screenshot, Fechar): identifica — pelo nome — o passo "Abrir sessão" correspondente
+// no fluxo e deixa claro que esta ação herda automaticamente a MESMA biblioteca
+// (Playwright ou Selenium) escolhida ali, sem precisar (nem permitir) escolher de novo.
+function _sessionEngineNotice(sessionName) {
+  const name = (sessionName || '').trim();
+  const eng = _findSessionEngine(name, _buildSteps);
+  if (!eng) {
+    return _hint(`⚠ Nenhum passo "Abrir sessão" chamado "${escapeHtml(name || '...')}" foi encontrado neste fluxo ainda. Assim que você adicionar um (antes deste passo), esta ação passará a usar automaticamente a mesma engine escolhida nele.`);
+  }
+  const label = eng === 'selenium' ? '🔬 Selenium' : '🎭 Playwright';
+  return _hint(`Esta ação roda na sessão "<strong>${escapeHtml(name)}</strong>" e usa automaticamente a mesma biblioteca configurada no passo "Abrir sessão": <strong>${label}</strong>.`);
+}
+
 function _removeStep(id, arr) {
   const i = arr.findIndex(s => s.id === id);
   if (i !== -1) return arr.splice(i, 1)[0];
@@ -952,6 +985,7 @@ function _renderPropsPanel(step) {
 
     case 'browser_click': {
       html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
+      html += _sessionEngineNotice(c.session_name);
       html += _field('SELETOR (CSS, XPATH OU OUTRO)', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="#id, .classe, //button[text()='Entrar'] ou xpath=..." onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
       html += _SELECTOR_HINT;
       break;
@@ -959,6 +993,7 @@ function _renderPropsPanel(step) {
 
     case 'browser_type': {
       html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
+      html += _sessionEngineNotice(c.session_name);
       html += _field('SELETOR (CSS, XPATH OU OUTRO)', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="#id, .classe, //input[@name='user'] ou xpath=..." onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
       html += _SELECTOR_HINT;
       html += _field('TEXTO A DIGITAR', `<input type="text" value="${escapeHtml(c.value||'')}" placeholder="texto ou {variavel}" onchange="_upCfg('${step.id}','value',this.value)" ${_inp()} />`);
@@ -967,6 +1002,7 @@ function _renderPropsPanel(step) {
 
     case 'browser_extract': {
       html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
+      html += _sessionEngineNotice(c.session_name);
       html += _field('SELETOR (CSS, XPATH OU OUTRO)', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="#id, .classe, //span[@class='preco'] ou xpath=..." onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
       html += _SELECTOR_HINT;
       html += _field('ATRIBUTO (opcional)', `<input type="text" value="${escapeHtml(c.value||'')}" placeholder="vazio = texto do elemento" onchange="_upCfg('${step.id}','value',this.value)" ${_inp()} />`);
@@ -976,6 +1012,7 @@ function _renderPropsPanel(step) {
 
     case 'browser_wait': {
       html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
+      html += _sessionEngineNotice(c.session_name);
       html += _field('SELETOR A AGUARDAR (opcional, CSS/XPATH/OUTRO)', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="#id, .classe, //div[@id='pronto'] ou xpath=..." onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
       html += _SELECTOR_HINT;
       html += _field('SEGUNDOS (se seletor vazio)', `<input type="text" value="${escapeHtml(c.value||'')}" placeholder="ex: 2" onchange="_upCfg('${step.id}','value',this.value)" ${_inp()} />`);
@@ -985,12 +1022,14 @@ function _renderPropsPanel(step) {
 
     case 'browser_screenshot': {
       html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
+      html += _sessionEngineNotice(c.session_name);
       html += _field('CAMINHO DO ARQUIVO', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="ex: screenshot.png" onchange="_upCfg('${step.id}','target',this.value)" ${_inp()} />`);
       break;
     }
 
     case 'browser_close': {
       html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
+      html += _sessionEngineNotice(c.session_name);
       html += _hint('Encerra o navegador e libera os recursos da sessão. Use ao final do fluxo ou quando não precisar mais dela.');
       break;
     }
