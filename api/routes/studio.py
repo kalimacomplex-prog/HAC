@@ -522,8 +522,18 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
             "try:",
         ]
         if action_type == "click":
-            lines += [f'{indent}_dr.find_element(*_sel_locator("{tgt}")).click()',
-                      f'{indent}print("Clicou em: {tgt}")']
+            # Tenta o clique normal; se outro elemento estiver por cima (ex: dropdown
+            # de autocomplete cobrindo um botão de busca) ou o elemento não estiver
+            # "interagível" pelas regras do WebDriver, cai para um clique via
+            # JavaScript — que ignora essas checagens de sobreposição/visibilidade.
+            lines += [
+                f'{indent}_el = _dr.find_element(*_sel_locator("{tgt}"))',
+                f'{indent}try:',
+                f'{indent}    _el.click()',
+                f'{indent}except Exception:',
+                f'{indent}    _dr.execute_script("arguments[0].scrollIntoView({{block: \'center\'}}); arguments[0].click();", _el)',
+                f'{indent}print("Clicou em: {tgt}")',
+            ]
         elif action_type == "type":
             lines += [f'{indent}_el = _dr.find_element(*_sel_locator("{tgt}"))',
                       f'{indent}_el.clear(); _el.send_keys("{val}")',
@@ -576,7 +586,17 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
         "    _pg = _bc.pages[0] if _bc.pages else _bc.new_page()",
     ]
     if action_type == "click":
-        lines += [f'{indent}_pg.click(_sel("{tgt}"), timeout=15000)', f'{indent}print("Clicou em: {tgt}")']
+        # Tenta o clique normal (com as checagens de actionability do Playwright);
+        # se algo cobrir o elemento de forma persistente (ex: dropdown de
+        # autocomplete sobre um botão de busca), tenta de novo com force=True,
+        # que ignora a checagem de "recebe eventos de ponteiro".
+        lines += [
+            f'{indent}try:',
+            f'{indent}    _pg.click(_sel("{tgt}"), timeout=15000)',
+            f'{indent}except Exception:',
+            f'{indent}    _pg.click(_sel("{tgt}"), timeout=5000, force=True)',
+            f'{indent}print("Clicou em: {tgt}")',
+        ]
     elif action_type == "type":
         lines += [f'{indent}_pg.fill(_sel("{tgt}"), "{val}", timeout=15000)', f'{indent}print("Digitou em: {tgt}")']
     elif action_type == "extract":
