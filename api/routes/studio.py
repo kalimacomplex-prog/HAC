@@ -120,6 +120,51 @@ def _store(result: str, variable_name: str, ctx: dict):
         ctx["vars"][variable_name] = result
 
 
+# Nome do módulo Python (o que aparece em "No module named 'X'") -> nome do pacote pip,
+# só para os casos em que os dois divergem. Usado pelo auto-instalador abaixo.
+_MODULE_TO_PACKAGE = {
+    "PIL": "Pillow",
+    "cv2": "opencv-python-headless<5.0.0",
+    "bs4": "beautifulsoup4",
+    "yaml": "pyyaml",
+    "dns": "dnspython",
+    "jose": "python-jose[cryptography]",
+    "docx": "python-docx",
+    "pptx": "python-pptx",
+    "whois": "python-whois",
+    "slugify": "python-slugify",
+    "validate_docbr": "validate-docbr",
+    "Crypto": "pycryptodome",
+}
+
+# Módulos cuja falta NÃO deve disparar auto-instalação (dependências internas do
+# projeto, stdlib mal detectada, etc.) — proteção contra tentar "pip install" algo
+# que não existe no PyPI com esse nome.
+_NO_AUTO_INSTALL = {"api", "worker", "bson", "fastapi", "pydantic", "starlette"}
+
+
+def _pip_package_for_module(module_name: str) -> str:
+    root = (module_name or "").split(".")[0]
+    return _MODULE_TO_PACKAGE.get(root, root)
+
+
+async def _try_pip_install(package: str) -> tuple:
+    """Tenta instalar um pacote pip em runtime. Retorna (sucesso, mensagem)."""
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", package,
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+        if proc.returncode == 0:
+            return True, "instalado com sucesso"
+        return False, (stderr or stdout).decode(errors="replace")[-800:]
+    except asyncio.TimeoutError:
+        return False, "timeout (mais de 120s) tentando instalar"
+    except Exception as e:
+        return False, str(e)
+
+
 def _pix_tlv(id_: str, value: str) -> str:
     return f"{id_}{len(value):02d}{value}"
 
@@ -2811,7 +2856,24 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
                 continue
 
             else:
-                output = await _exec_step(step if isinstance(step, dict) else step.model_dump(), ctx)
+                step_dict = step if isinstance(step, dict) else step.model_dump()
+                try:
+                    output = await _exec_step(step_dict, ctx)
+                except ModuleNotFoundError as e:
+                    missing_module = e.name or ""
+                    if missing_module.split(".")[0] in _NO_AUTO_INSTALL:
+                        raise
+                    package = _pip_package_for_module(missing_module)
+                    install_ok, install_msg = await _try_pip_install(package)
+                    if not install_ok:
+                        raise Exception(
+                            f"Esta ação precisa do pacote Python '{package}' (módulo '{missing_module}'), "
+                            f"que não está instalado e não pôde ser instalado automaticamente: {install_msg}. "
+                            f"Adicione '{package}' ao requirements.txt e faça redeploy."
+                        ) from e
+                    # reinstalado com sucesso — tenta a ação de novo, uma única vez
+                    output = await _exec_step(step_dict, ctx)
+                    output = f"[pacote '{package}' instalado automaticamente] {output}"
                 result["output"] = str(output)[:3000]
 
         except Exception as e:
