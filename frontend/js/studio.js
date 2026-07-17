@@ -3,7 +3,13 @@ const ACTION_CATEGORIES = [
   { key: 'flow', label: 'Controle de Fluxo', icon: '🔄', actions: [
     { type: 'condition',  icon: '🔀', label: 'Condição (Se/Senão)', color: '#b45309', bg: '#fffbeb' },
     { type: 'loop_count', icon: '🔁', label: 'Repetir N vezes',     color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'foreach',    icon: '📜', label: 'Para cada item (foreach)', color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'while_condition', icon: '🔂', label: 'Repetir até condição (while)', color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'try_catch',  icon: '🧯', label: 'Tentar / Capturar erro', color: '#b45309', bg: '#fffbeb' },
+    { type: 'parallel',   icon: '🧩', label: 'Executar em paralelo', color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'call_automation', icon: '🔗', label: 'Chamar outra automação', color: '#7c3aed', bg: '#f5f3ff' },
     { type: 'wait',       icon: '⏳', label: 'Aguardar (delay)',    color: '#64748b', bg: '#f8fafc' },
+    { type: 'random_wait',icon: '🎲', label: 'Aguardar (aleatório)', color: '#64748b', bg: '#f8fafc' },
     { type: 'comment',    icon: '💬', label: 'Comentário',          color: '#94a3b8', bg: '#f8fafc' },
   ]},
   { key: 'variables', label: 'Variáveis', icon: '📦', actions: [
@@ -15,24 +21,167 @@ const ACTION_CATEGORIES = [
     { type: 'write_file', icon: '✏️', label: 'Escrever arquivo', color: '#1d4ed8', bg: '#eff6ff' },
     { type: 'list_files', icon: '📂', label: 'Listar arquivos',  color: '#1d4ed8', bg: '#eff6ff' },
     { type: 'delete_file',icon: '🗑️', label: 'Deletar arquivo',  color: '#ef4444', bg: '#fef2f2' },
+    { type: 'copy_file',  icon: '📑', label: 'Copiar arquivo',   color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'move_file',  icon: '📤', label: 'Mover/Renomear arquivo', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'file_hash',  icon: '🔑', label: 'Hash de arquivo',  color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'file_info',  icon: 'ℹ️', label: 'Metadados do arquivo', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'search_in_files', icon: '🔍', label: 'Buscar texto em arquivos', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'convert_encoding', icon: '🔤', label: 'Converter encoding', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'ensure_dir', icon: '📁', label: 'Criar pasta (se não existir)', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'delete_folder', icon: '🗑️', label: 'Deletar pasta', color: '#ef4444', bg: '#fef2f2' },
+    { type: 'zip_files',  icon: '🗜️', label: 'Compactar (.zip)', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'unzip_file', icon: '📦', label: 'Descompactar (.zip)', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'backup_folder', icon: '💾', label: 'Backup de pasta', color: '#1d4ed8', bg: '#eff6ff' },
+  ]},
+  { key: 'sheets', label: 'Planilhas & Excel', icon: '📊', actions: [
+    { type: 'read_excel',  icon: '📗', label: 'Ler Excel',    color: '#15803d', bg: '#f0fdf4' },
+    { type: 'write_excel', icon: '📗', label: 'Gerar Excel',  color: '#15803d', bg: '#f0fdf4' },
+    { type: 'read_csv',    icon: '📄', label: 'Ler CSV',      color: '#15803d', bg: '#f0fdf4' },
+    { type: 'write_csv',   icon: '📄', label: 'Gerar CSV',    color: '#15803d', bg: '#f0fdf4' },
+    { type: 'filter_data', icon: '🔎', label: 'Filtrar dados',  color: '#15803d', bg: '#f0fdf4' },
+    { type: 'merge_data',  icon: '🔗', label: 'Mesclar dados (join)', color: '#15803d', bg: '#f0fdf4' },
+    { type: 'dedupe_data', icon: '🧹', label: 'Remover duplicados', color: '#15803d', bg: '#f0fdf4' },
+    { type: 'sort_group_data', icon: '↕️', label: 'Ordenar dados', color: '#15803d', bg: '#f0fdf4' },
+  ]},
+  { key: 'pdf', label: 'PDF', icon: '📕', actions: [
+    { type: 'pdf_extract_text',   icon: '📖', label: 'Extrair texto de PDF', color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'pdf_extract_tables', icon: '📋', label: 'Extrair tabelas de PDF', color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'pdf_merge',  icon: '🧷', label: 'Mesclar PDFs',   color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'pdf_split',  icon: '✂️', label: 'Dividir PDF',    color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'pdf_generate', icon: '🖨️', label: 'Gerar PDF',    color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'pdf_fill_form', icon: '📝', label: 'Preencher formulário PDF', color: '#b91c1c', bg: '#fef2f2' },
+  ]},
+  { key: 'etl', label: 'Dados & ETL', icon: '🧮', actions: [
+    { type: 'validate_json_schema', icon: '✅', label: 'Validar schema JSON', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'convert_data_format',  icon: '🔄', label: 'Converter formato de dados', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'html_extract', icon: '🕸️', label: 'Extrair de HTML (CSS selector)', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'sql_on_data',  icon: '🗄️', label: 'SQL sobre dados', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'generate_fake_data', icon: '🎭', label: 'Gerar dados de teste', color: '#0891b2', bg: '#f0f9ff' },
+  ]},
+  { key: 'validation', label: 'Validação BR', icon: '✅', actions: [
+    { type: 'validate_cpf_cnpj', icon: '🪪', label: 'Validar CPF/CNPJ', color: '#b45309', bg: '#fffbeb' },
+    { type: 'validate_email',    icon: '📧', label: 'Validar Email', color: '#b45309', bg: '#fffbeb' },
+    { type: 'validate_phone',    icon: '📱', label: 'Validar Telefone', color: '#b45309', bg: '#fffbeb' },
+    { type: 'lookup_cep',        icon: '📍', label: 'Consultar CEP', color: '#b45309', bg: '#fffbeb' },
+    { type: 'format_currency',   icon: '💵', label: 'Formatar Moeda (BRL)', color: '#b45309', bg: '#fffbeb' },
+  ]},
+  { key: 'security', label: 'Segurança & Criptografia', icon: '🔒', actions: [
+    { type: 'encrypt_text',   icon: '🔐', label: 'Criptografar texto', color: '#374151', bg: '#f8fafc' },
+    { type: 'decrypt_text',   icon: '🔓', label: 'Descriptografar texto', color: '#374151', bg: '#f8fafc' },
+    { type: 'generate_jwt',   icon: '🪙', label: 'Gerar JWT', color: '#374151', bg: '#f8fafc' },
+    { type: 'verify_jwt',     icon: '🧾', label: 'Verificar JWT', color: '#374151', bg: '#f8fafc' },
+    { type: 'hash_password',  icon: '#️⃣', label: 'Hash de senha', color: '#374151', bg: '#f8fafc' },
+    { type: 'verify_password',icon: '✔️', label: 'Verificar senha', color: '#374151', bg: '#f8fafc' },
+    { type: 'generate_otp',   icon: '🔢', label: 'Gerar código OTP', color: '#374151', bg: '#f8fafc' },
+    { type: 'verify_otp',     icon: '🔑', label: 'Verificar código OTP', color: '#374151', bg: '#f8fafc' },
+    { type: 'generate_secure_password', icon: '🎲', label: 'Gerar senha segura', color: '#374151', bg: '#f8fafc' },
+    { type: 'check_ssl_cert', icon: '📜', label: 'Verificar certificado SSL', color: '#374151', bg: '#f8fafc' },
+    { type: 'hmac_sign',      icon: '✍️', label: 'Assinar (HMAC)', color: '#374151', bg: '#f8fafc' },
+  ]},
+  { key: 'datetime', label: 'Data & Hora', icon: '📅', actions: [
+    { type: 'date_diff',   icon: '📏', label: 'Diferença entre datas', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'date_add',    icon: '➕', label: 'Somar/Subtrair de uma data', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'format_date', icon: '📆', label: 'Formatar data', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'timezone_convert', icon: '🌍', label: 'Converter fuso horário', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'is_business_day', icon: '💼', label: 'É dia útil?', color: '#0891b2', bg: '#f0f9ff' },
   ]},
   { key: 'http', label: 'HTTP & Internet', icon: '🌐', actions: [
     { type: 'http_request', icon: '🌐', label: 'HTTP Request', color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'http_request_retry', icon: '🔁', label: 'HTTP Request (com retry)', color: '#0f766e', bg: '#f0fdfa' },
     { type: 'parse_json',   icon: '{}', label: 'Parse JSON',   color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'download_file', icon: '⬇️', label: 'Baixar arquivo (URL)', color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'upload_file',   icon: '⬆️', label: 'Enviar arquivo (upload)', color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'scrape_html_table', icon: '📰', label: 'Raspar tabela HTML', color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'read_rss_feed', icon: '📡', label: 'Ler feed RSS', color: '#0f766e', bg: '#f0fdfa' },
+  ]},
+  { key: 'external_apis', label: 'APIs Externas', icon: '🌎', actions: [
+    { type: 'get_weather',     icon: '☀️', label: 'Previsão do tempo', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'geocode_address', icon: '📍', label: 'Geocodificar endereço', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'calculate_distance', icon: '📏', label: 'Distância entre coordenadas', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'shorten_url',     icon: '🔗', label: 'Encurtar URL', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'lookup_cnpj',     icon: '🏢', label: 'Consultar CNPJ', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'translate_text',  icon: '🌐', label: 'Traduzir texto', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'get_holidays',    icon: '📅', label: 'Feriados nacionais', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'detect_language', icon: '🔤', label: 'Detectar idioma', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'count_tokens',    icon: '🧮', label: 'Contar tokens (LLM)', color: '#0891b2', bg: '#f0f9ff' },
   ]},
   { key: 'email', label: 'Email', icon: '📧', actions: [
     { type: 'send_email', icon: '📧', label: 'Enviar Email', color: '#dc2626', bg: '#fef2f2' },
+    { type: 'read_email_imap', icon: '📥', label: 'Ler caixa de entrada (IMAP)', color: '#dc2626', bg: '#fef2f2' },
+  ]},
+  { key: 'messaging', label: 'Comunicação', icon: '💬', actions: [
+    { type: 'send_telegram', icon: '✈️', label: 'Enviar Telegram', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'send_slack',    icon: '💬', label: 'Enviar Slack', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'send_discord',  icon: '🎮', label: 'Enviar Discord', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'send_whatsapp', icon: '📱', label: 'Enviar WhatsApp', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'send_sms',      icon: '💌', label: 'Enviar SMS', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'send_push_notification', icon: '🔔', label: 'Push Notification', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'create_incident', icon: '🚨', label: 'Criar incidente (PagerDuty)', color: '#dc2626', bg: '#fef2f2' },
+  ]},
+  { key: 'payments', label: 'Pagamentos & Financeiro', icon: '💰', actions: [
+    { type: 'asaas_create_charge', icon: '💳', label: 'Criar cobrança (Asaas)', color: '#15803d', bg: '#f0fdf4' },
+    { type: 'asaas_check_payment', icon: '🔍', label: 'Consultar pagamento (Asaas)', color: '#15803d', bg: '#f0fdf4' },
+    { type: 'generate_pix_qr', icon: '📲', label: 'Gerar código Pix', color: '#15803d', bg: '#f0fdf4' },
+    { type: 'get_currency_rate', icon: '💱', label: 'Cotação de moeda', color: '#15803d', bg: '#f0fdf4' },
+    { type: 'get_crypto_price', icon: '₿', label: 'Cotação de criptomoeda', color: '#15803d', bg: '#f0fdf4' },
   ]},
   { key: 'system', label: 'Sistema', icon: '⚙️', actions: [
     { type: 'run_command', icon: '⌨️', label: 'Comando Shell',   color: '#374151', bg: '#f8fafc' },
     { type: 'run_python',  icon: '🐍', label: 'Script Python',  color: '#15803d', bg: '#f0fdf4' },
+    { type: 'system_stats',    icon: '📊', label: 'Uso de CPU/memória/disco', color: '#374151', bg: '#f8fafc' },
+    { type: 'list_processes',  icon: '📋', label: 'Listar processos', color: '#374151', bg: '#f8fafc' },
+    { type: 'check_port_open', icon: '🔌', label: 'Verificar porta', color: '#374151', bg: '#f8fafc' },
+    { type: 'dns_lookup',      icon: '🌐', label: 'Consultar DNS', color: '#374151', bg: '#f8fafc' },
+    { type: 'whois_lookup',    icon: '🔎', label: 'WHOIS de domínio', color: '#374151', bg: '#f8fafc' },
+    { type: 'ssh_execute',     icon: '🖥️', label: 'Executar via SSH', color: '#374151', bg: '#f8fafc' },
+    { type: 'read_env_var',    icon: '🔧', label: 'Ler variável de ambiente', color: '#374151', bg: '#f8fafc' },
+    { type: 'check_url_uptime',icon: '💚', label: 'Verificar uptime (URL)', color: '#374151', bg: '#f8fafc' },
+  ]},
+  { key: 'database', label: 'Banco de Dados & Fila', icon: '🗄️', actions: [
+    { type: 'redis_get',  icon: '📤', label: 'Redis: Ler', color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'redis_set',  icon: '📥', label: 'Redis: Escrever', color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'queue_push', icon: '➡️', label: 'Enfileirar (Redis)', color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'queue_pop',  icon: '⬅️', label: 'Desenfileirar (Redis)', color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'sql_query_external', icon: '🐘', label: 'SQL externo (Postgres)', color: '#b91c1c', bg: '#fef2f2' },
   ]},
   { key: 'ai', label: 'Inteligência Artificial', icon: '🤖', actions: [
     { type: 'call_ai_agent', icon: '🧠', label: 'Agente IA',   color: '#1d4ed8', bg: '#eff6ff' },
     { type: 'call_pipeline', icon: '🔗', label: 'Pipeline IA', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'generate_embedding', icon: '🧬', label: 'Gerar embedding', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'semantic_search',    icon: '🔍', label: 'Busca semântica', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'moderate_content',   icon: '🛡️', label: 'Moderar conteúdo', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'compare_texts',      icon: '🆚', label: 'Comparar textos', color: '#1d4ed8', bg: '#eff6ff' },
+  ]},
+  { key: 'documents', label: 'Templates & Documentos', icon: '📝', actions: [
+    { type: 'render_template',  icon: '📄', label: 'Renderizar template (Jinja2)', color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'generate_word_doc',icon: '📘', label: 'Gerar documento Word', color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'generate_pptx',    icon: '📙', label: 'Gerar apresentação (PPTX)', color: '#7c3aed', bg: '#f5f3ff' },
   ]},
   { key: 'data', label: 'Dados', icon: '📊', actions: [
     { type: 'text_transform', icon: '✂️', label: 'Transformar Texto', color: '#0891b2', bg: '#f0f9ff' },
+  ]},
+  { key: 'images', label: 'Imagens', icon: '🖼️', actions: [
+    { type: 'resize_image',    icon: '📐', label: 'Redimensionar imagem', color: '#ea580c', bg: '#fff7ed' },
+    { type: 'convert_image_format', icon: '🔄', label: 'Converter formato de imagem', color: '#ea580c', bg: '#fff7ed' },
+    { type: 'add_watermark',   icon: '💧', label: 'Aplicar marca d\'água', color: '#ea580c', bg: '#fff7ed' },
+    { type: 'generate_thumbnail', icon: '🖼️', label: 'Gerar thumbnail', color: '#ea580c', bg: '#fff7ed' },
+    { type: 'generate_qrcode', icon: '⬛', label: 'Gerar QR Code', color: '#ea580c', bg: '#fff7ed' },
+    { type: 'read_qrcode',     icon: '📷', label: 'Ler QR Code', color: '#ea580c', bg: '#fff7ed' },
+    { type: 'compare_images',  icon: '🆚', label: 'Comparar imagens', color: '#ea580c', bg: '#fff7ed' },
+    { type: 'generate_ai_image', icon: '🎨', label: 'Gerar imagem via IA', color: '#ea580c', bg: '#fff7ed' },
+  ]},
+  { key: 'media', label: 'Áudio & Vídeo ⚠️ requer ffmpeg', icon: '🎬', actions: [
+    { type: 'transcode_media', icon: '🔁', label: 'Converter áudio/vídeo', color: '#9333ea', bg: '#faf5ff' },
+    { type: 'extract_audio',   icon: '🎵', label: 'Extrair áudio de vídeo', color: '#9333ea', bg: '#faf5ff' },
+    { type: 'trim_media',      icon: '✂️', label: 'Cortar trecho de mídia', color: '#9333ea', bg: '#faf5ff' },
+    { type: 'extract_video_frame', icon: '🖼️', label: 'Extrair frame de vídeo', color: '#9333ea', bg: '#faf5ff' },
+    { type: 'transcribe_audio',icon: '📝', label: 'Transcrever áudio (Whisper)', color: '#9333ea', bg: '#faf5ff' },
+    { type: 'text_to_speech',  icon: '🔊', label: 'Texto para voz (TTS)', color: '#9333ea', bg: '#faf5ff' },
+  ]},
+  { key: 'ocr', label: 'OCR & Visão ⚠️ requer tesseract', icon: '👁️', actions: [
+    { type: 'ocr_image',       icon: '🔤', label: 'OCR de imagem', color: '#9333ea', bg: '#faf5ff' },
+    { type: 'ocr_pdf_scanned', icon: '📄', label: 'OCR de PDF escaneado', color: '#9333ea', bg: '#faf5ff' },
+    { type: 'detect_face_object', icon: '👤', label: 'Detectar rosto', color: '#ea580c', bg: '#fff7ed' },
   ]},
   { key: 'browser', label: 'Navegador Web', icon: '🌍', actions: [
     { type: 'browser_open',       icon: '🌐', label: 'Abrir sessão',       color: '#7c3aed', bg: '#f5f3ff' },
@@ -78,13 +227,27 @@ const STEP_DEFAULTS = {
   text_input: '{output}', operation: 'upper', search: '', replace_with: '',
   browser_actions: [], browser_engine: 'playwright', browser_headless: true,
   session_name: '', target: '',
+  source_path: '', dest_path: '', hash_algo: 'sha256', encoding_from: 'utf-8', encoding_to: 'utf-8',
+  date_value: '', date_value2: '', date_unit: 'days', date_amount: 0,
+  date_format_in: '%Y-%m-%d', date_format_out: '%d/%m/%Y',
+  timezone_from: 'UTC', timezone_to: 'America/Sao_Paulo',
+  list_source: '{output}', item_variable: 'item', max_iterations: 100,
+  automation_id: '', seconds_max: 3,
+  sheet_name: 'Sheet1', delimiter: ',', data_input: '{output}', data_input2: '', merge_key: '',
+  sort_key: '', sort_desc: false, schema_input: '', format_from: 'json', format_to: 'csv',
+  css_selector: '', sql_query: 'SELECT * FROM data', fake_type: 'name', fake_count: 5,
+  secret_key: '', password_length: 16, region: 'BR',
+  api_key: '', api_secret: '', from_number: '', pix_key: '', pix_merchant_name: '', pix_merchant_city: '',
+  coord_from: '', coord_to: '',
+  width: 0, height: 0,
 };
 
 // ─── Container helpers ────────────────────────────────────────────
-const CONTAINER_TYPES = new Set(['loop_count', 'condition']);
+const CONTAINER_TYPES = new Set(['loop_count', 'condition', 'foreach', 'while_condition', 'try_catch', 'parallel']);
+const DOUBLE_BRANCH_TYPES = new Set(['condition', 'try_catch']);
 
 function _branches(step) {
-  return step.type === 'condition' ? ['children_true', 'children_false'] : ['children'];
+  return DOUBLE_BRANCH_TYPES.has(step.type) ? ['children_true', 'children_false'] : ['children'];
 }
 
 function _findStep(id, arr) {
@@ -555,22 +718,29 @@ function _renderContainer(step, arr, idx, containerId, branch, depth) {
   </div>`;
 
   let body = '';
-  if (step.type === 'loop_count') {
+  const singleBranchLabels = {
+    loop_count: `CORPO DO LOOP (${(step.config||{}).count||3} vezes)`,
+    foreach: `PARA CADA ITEM (variável {${(step.config||{}).item_variable||'item'}})`,
+    while_condition: 'CORPO DO WHILE',
+    parallel: 'AÇÕES EXECUTADAS EM PARALELO',
+  };
+  if (singleBranchLabels[step.type]) {
     const children = step.children || [];
     body = `<div style="border-top:1.5px solid ${meta.color}44;padding:.5rem;background:${meta.bg}55">
-      <div style="font-size:.65rem;font-weight:700;color:${meta.color};opacity:.8;margin-bottom:.25rem;letter-spacing:.03em">CORPO DO LOOP (${(step.config||{}).count||3} vezes)</div>
+      <div style="font-size:.65rem;font-weight:700;color:${meta.color};opacity:.8;margin-bottom:.25rem;letter-spacing:.03em">${singleBranchLabels[step.type]}</div>
       ${_renderStepList(children, step.id, 'children', depth + 1)}
     </div>`;
-  } else if (step.type === 'condition') {
+  } else if (step.type === 'condition' || step.type === 'try_catch') {
+    const isTry = step.type === 'try_catch';
     const ct = step.children_true || [];
     const cf = step.children_false || [];
     body = `<div style="border-top:1.5px solid ${meta.color}44;display:grid;grid-template-columns:1fr 1fr;background:${meta.bg}55">
       <div style="padding:.4rem .5rem;border-right:1px solid ${meta.color}22">
-        <div style="font-size:.65rem;font-weight:700;color:#16a34a;margin-bottom:.25rem;letter-spacing:.03em">✓ VERDADEIRO</div>
+        <div style="font-size:.65rem;font-weight:700;color:#16a34a;margin-bottom:.25rem;letter-spacing:.03em">${isTry ? '▶ TENTAR' : '✓ VERDADEIRO'}</div>
         ${_renderStepList(ct, step.id, 'children_true', depth + 1)}
       </div>
       <div style="padding:.4rem .5rem">
-        <div style="font-size:.65rem;font-weight:700;color:#ef4444;margin-bottom:.25rem;letter-spacing:.03em">✗ FALSO</div>
+        <div style="font-size:.65rem;font-weight:700;color:#ef4444;margin-bottom:.25rem;letter-spacing:.03em">${isTry ? '⚠ SE FALHAR (catch)' : '✗ FALSO'}</div>
         ${_renderStepList(cf, step.id, 'children_false', depth + 1)}
       </div>
     </div>`;
@@ -617,6 +787,127 @@ function _stepBrief(step) {
     case 'write_file':   return c.file_path || 'caminho não definido';
     case 'list_files':   return `${c.directory || '.'} / ${c.pattern || '*'}`;
     case 'delete_file':  return c.file_path || 'caminho não definido';
+    case 'copy_file':    return `${c.source_path || '...'} → ${c.dest_path || '...'}`;
+    case 'move_file':    return `${c.source_path || '...'} → ${c.dest_path || '...'}`;
+    case 'file_hash':    return `${c.hash_algo || 'sha256'}: ${c.file_path || 'caminho não definido'}`;
+    case 'file_info':    return c.file_path || 'caminho não definido';
+    case 'search_in_files': return `"${(c.search||'').substring(0,20)}" em ${c.directory || '.'}/${c.pattern || '*'}`;
+    case 'convert_encoding': return `${c.encoding_from||'utf-8'} → ${c.encoding_to||'utf-8'}: ${c.source_path || c.file_path || '...'}`;
+    case 'ensure_dir':   return c.directory || c.file_path || 'caminho não definido';
+    case 'delete_folder':return c.directory || c.file_path || 'caminho não definido';
+    case 'zip_files':    return `${c.source_path || '...'} → ${c.dest_path || '...'}.zip`;
+    case 'unzip_file':   return `${c.source_path || '...'} → ${c.dest_path || '.'}`;
+    case 'backup_folder':return `${c.source_path || '...'} → ${c.dest_path || '...'}_<timestamp>`;
+    case 'date_diff':    return `${c.date_value||'?'} → ${c.date_value2||'?'} (${c.date_unit||'days'})`;
+    case 'date_add':     return `${c.date_value||'?'} ${c.date_amount>=0?'+':''}${c.date_amount||0} ${c.date_unit||'days'}`;
+    case 'format_date':  return `${c.date_value||'?'} (${c.date_format_in||'%Y-%m-%d'} → ${c.date_format_out||'%d/%m/%Y'})`;
+    case 'timezone_convert': return `${c.timezone_from||'UTC'} → ${c.timezone_to||'America/Sao_Paulo'}`;
+    case 'is_business_day':  return c.date_value || 'data não definida';
+    case 'foreach':       return `{${c.item_variable||'item'}} em ${(c.list_source||'{output}').substring(0,25)}`;
+    case 'while_condition':return `enquanto ${c.operator||'not_empty'} "${(c.condition_value||'').substring(0,15)}" (máx ${c.max_iterations||100})`;
+    case 'try_catch':     return 'tentar / capturar erro';
+    case 'parallel':      return `${(step.children||[]).length} ação(ões) em paralelo`;
+    case 'call_automation':{ const a = _studioList.find(x => x.id === c.automation_id); return a ? `Chamar: ${a.name}` : 'Automação não selecionada'; }
+    case 'random_wait':   return `${c.seconds||1}s a ${c.seconds_max||3}s`;
+    case 'read_excel':    return `${c.file_path||'...'} (aba: ${c.sheet_name||'auto'})`;
+    case 'write_excel':   return `${c.dest_path||'...'} (aba: ${c.sheet_name||'Sheet1'})`;
+    case 'read_csv':      return `${c.file_path||'...'} (delim: "${c.delimiter||','}")`;
+    case 'write_csv':     return `${c.dest_path||'...'} (delim: "${c.delimiter||','}")`;
+    case 'filter_data':   return `${c.sort_key||c.merge_key||'coluna'} ${c.operator||'contains'} "${(c.condition_value||'').substring(0,15)}"`;
+    case 'merge_data':    return `join por "${c.merge_key||'...'}"`;
+    case 'dedupe_data':   return c.merge_key ? `por chave "${c.merge_key}"` : 'linha inteira';
+    case 'sort_group_data': return `por "${c.sort_key||'...'}" ${c.sort_desc?'desc':'asc'}`;
+    case 'pdf_extract_text':   return c.source_path || c.file_path || 'arquivo não definido';
+    case 'pdf_extract_tables': return c.source_path || c.file_path || 'arquivo não definido';
+    case 'pdf_merge':     return `${(c.list_source||'[]').substring(0,30)} → ${c.dest_path||'...'}`;
+    case 'pdf_split':     return `${c.source_path||c.file_path||'...'} → ${c.dest_path||'.'}`;
+    case 'pdf_generate':  return c.dest_path || 'caminho não definido';
+    case 'pdf_fill_form': return `${c.source_path||c.file_path||'...'} → ${c.dest_path||'...'}`;
+    case 'validate_json_schema': return 'valida {output} contra schema';
+    case 'convert_data_format':  return `${c.format_from||'json'} → ${c.format_to||'csv'}`;
+    case 'html_extract':  return `seletor: ${c.css_selector || '...'}`;
+    case 'sql_on_data':   return (c.sql_query||'SELECT * FROM data').substring(0,40);
+    case 'generate_fake_data': return `${c.fake_count||5}x ${c.fake_type||'name'}`;
+    case 'validate_cpf_cnpj': return (c.text_input||'{output}').substring(0,30);
+    case 'validate_email':    return (c.text_input||'{output}').substring(0,30);
+    case 'validate_phone':    return `${(c.text_input||'{output}').substring(0,20)} (${c.region||'BR'})`;
+    case 'lookup_cep':        return (c.text_input||'{output}').substring(0,20);
+    case 'format_currency':   return (c.text_input||'{output}').substring(0,20);
+    case 'encrypt_text':      return 'criptografar com secret_key';
+    case 'decrypt_text':      return 'descriptografar com secret_key';
+    case 'generate_jwt':      return (c.json_input||'{}').substring(0,30);
+    case 'verify_jwt':        return (c.text_input||'{output}').substring(0,25);
+    case 'hash_password':     return 'bcrypt hash';
+    case 'verify_password':   return 'compara senha com hash em secret_key';
+    case 'generate_otp':      return c.secret_key ? 'código para secret existente' : 'gera novo secret + código';
+    case 'verify_otp':        return `código: ${(c.text_input||'{output}').substring(0,10)}`;
+    case 'generate_secure_password': return `${c.password_length||16} caracteres`;
+    case 'check_ssl_cert':    return (c.text_input||'{output}').substring(0,30);
+    case 'hmac_sign':         return `HMAC-SHA256 de ${(c.text_input||'{output}').substring(0,20)}`;
+    case 'send_telegram': return `chat ${c.to||'...'}: ${(c.content||'{output}').substring(0,25)}`;
+    case 'send_slack':    return (c.content||'{output}').substring(0,35);
+    case 'send_discord':  return (c.content||'{output}').substring(0,35);
+    case 'send_whatsapp': return `${c.from_number||'...'} → ${c.to||'...'}`;
+    case 'send_sms':      return `${c.from_number||'...'} → ${c.to||'...'}`;
+    case 'read_email_imap': return `${c.to||'...'} @ ${c.url||'imap.gmail.com'}`;
+    case 'send_push_notification': return (c.content||'{output}').substring(0,35);
+    case 'create_incident': return (c.content||'{output}').substring(0,40);
+    case 'asaas_create_charge': return `cliente ${c.to||'...'}: R$ ${c.text_input||'0'}`;
+    case 'asaas_check_payment': return `pagamento ${(c.text_input||'{output}').substring(0,25)}`;
+    case 'generate_pix_qr': return `${c.pix_key||'chave não definida'} — ${c.pix_merchant_name||'...'}`;
+    case 'get_currency_rate': return c.text_input || 'USD-BRL';
+    case 'get_crypto_price':  return c.text_input || 'bitcoin';
+    case 'get_weather':     return c.text_input || 'cidade não definida';
+    case 'geocode_address': return (c.text_input||'{output}').substring(0,35);
+    case 'calculate_distance': return `${c.coord_from||'?'} → ${c.coord_to||'?'}`;
+    case 'shorten_url':     return (c.text_input||'{output}').substring(0,35);
+    case 'lookup_cnpj':     return c.text_input || 'CNPJ não definido';
+    case 'translate_text':  return `→ ${c.region||'EN'}: ${(c.text_input||'{output}').substring(0,25)}`;
+    case 'get_holidays':    return c.text_input || String(new Date().getFullYear());
+    case 'download_file':   return `${c.url||'...'} → ${c.dest_path||'...'}`;
+    case 'upload_file':     return `${c.source_path||'...'} → ${c.url||'...'}`;
+    case 'scrape_html_table': return (c.text_input||'{output}').substring(0,35);
+    case 'read_rss_feed':   return c.url || 'URL não definida';
+    case 'http_request_retry': return c.url ? `${c.method||'GET'} ${c.url.substring(0,25)} (até ${c.max_iterations||3}x)` : 'URL não definida';
+    case 'detect_language': return (c.text_input||'{output}').substring(0,30);
+    case 'count_tokens':    return (c.text_input||'{output}').substring(0,30);
+    case 'generate_embedding': return (c.text_input||'{output}').substring(0,35);
+    case 'semantic_search':    return `query: ${(c.text_input||'{output}').substring(0,25)}`;
+    case 'moderate_content':   return (c.text_input||'{output}').substring(0,35);
+    case 'compare_texts':      return `${(c.text_input||'{output}').substring(0,15)} vs ${(c.data_input2||'').substring(0,15)}`;
+    case 'system_stats':    return 'CPU / memória / disco';
+    case 'list_processes':  return `top ${c.fake_count||20} por memória`;
+    case 'check_port_open': return c.text_input || 'host:porta não definido';
+    case 'dns_lookup':      return `${c.text_input||'{output}'} (${c.operation||'A'})`;
+    case 'whois_lookup':    return c.text_input || 'domínio não definido';
+    case 'ssh_execute':     return `${c.to||'user'}@${c.url||'host'}: ${(c.command||'').substring(0,25)}`;
+    case 'read_env_var':    return c.text_input || 'variável não definida';
+    case 'check_url_uptime':return c.url || 'URL não definida';
+    case 'redis_get':       return `GET ${c.text_input||'chave'}`;
+    case 'redis_set':       return `SET ${c.text_input||'chave'} = ${(c.content||'{output}').substring(0,20)}`;
+    case 'queue_push':      return `RPUSH ${c.text_input||'fila'} ← ${(c.content||'{output}').substring(0,20)}`;
+    case 'queue_pop':       return `LPOP ${c.text_input||'fila'}`;
+    case 'sql_query_external': return (c.sql_query||'SELECT 1').substring(0,40);
+    case 'render_template': return (c.content||'').substring(0,35) || 'template vazio';
+    case 'generate_word_doc': return c.dest_path || 'caminho não definido';
+    case 'generate_pptx':     return c.dest_path || 'caminho não definido';
+    case 'resize_image':   return `${c.width||'auto'}x${c.height||'auto'}: ${c.source_path||'...'}`;
+    case 'convert_image_format': return `${c.source_path||'...'} → ${c.dest_path||'...'}`;
+    case 'add_watermark':  return `"${(c.text||'').substring(0,20)}" em ${c.source_path||'...'}`;
+    case 'generate_thumbnail': return `${c.width||200}px: ${c.source_path||'...'}`;
+    case 'generate_qrcode':return (c.text_input||'{output}').substring(0,30);
+    case 'read_qrcode':    return c.source_path || 'imagem não definida';
+    case 'compare_images': return `${c.source_path||'...'} vs ${c.dest_path||'...'}`;
+    case 'generate_ai_image': return (c.text_input||'{output}').substring(0,35);
+    case 'transcode_media':return `${c.source_path||'...'} → ${c.dest_path||'...'}`;
+    case 'extract_audio':  return `${c.source_path||'...'} → ${c.dest_path||'...'}`;
+    case 'trim_media':     return `${c.source_path||'...'} [${c.seconds||0}s–${c.seconds_max||'fim'}]`;
+    case 'extract_video_frame': return `${c.source_path||'...'} @ ${c.seconds||0}s`;
+    case 'transcribe_audio': return c.source_path || 'áudio não definido';
+    case 'text_to_speech':   return (c.text_input||'{output}').substring(0,30);
+    case 'ocr_image':      return c.source_path || 'imagem não definida';
+    case 'ocr_pdf_scanned':return c.source_path || 'PDF não definido';
+    case 'detect_face_object': return c.source_path || 'imagem não definida';
     case 'http_request': return c.url ? `${c.method || 'GET'} ${c.url.substring(0, 35)}` : 'URL não definida';
     case 'parse_json':   return c.key_path ? `chave: ${c.key_path}` : 'Parse completo';
     case 'send_email':   return `Para: ${c.to || '...'} | ${(c.subject || '').substring(0, 25)}`;
@@ -643,8 +934,8 @@ function _makeStep(type) {
   const meta = ACTION_MAP[type] || { label: type };
   const id = 'step_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   const step = { id, type, name: meta.label, config: { ...STEP_DEFAULTS, browser_actions: [], headers: {} } };
-  if (type === 'loop_count') step.children = [];
-  if (type === 'condition') { step.children_true = []; step.children_false = []; }
+  if (['loop_count', 'foreach', 'while_condition', 'parallel'].includes(type)) step.children = [];
+  if (DOUBLE_BRANCH_TYPES.has(type)) { step.children_true = []; step.children_false = []; }
   return step;
 }
 
@@ -841,6 +1132,450 @@ function _renderPropsPanel(step) {
       html += `<div style="background:#fef2f2;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#dc2626">⚠️ Esta ação é irreversível.</div>`;
       break;
 
+    case 'copy_file':
+    case 'move_file':
+      html += _field('ORIGEM', `<input type="text" value="${escapeHtml(c.source_path||'')}" placeholder="/tmp/origem.txt" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('DESTINO', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/destino.txt" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      if (step.type === 'move_file') html += `<div style="background:#fef2f2;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#dc2626">⚠️ O arquivo de origem deixa de existir.</div>`;
+      break;
+
+    case 'file_hash':
+      html += _field('CAMINHO DO ARQUIVO', `<input type="text" value="${escapeHtml(c.file_path||'')}" placeholder="/tmp/arquivo.bin" onchange="_upCfg('${step.id}','file_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('ALGORITMO', `<select onchange="_upCfg('${step.id}','hash_algo',this.value)" ${_sel()}>
+        ${['sha256','sha1','md5','sha512'].map(a=>`<option value="${a}" ${a===(c.hash_algo||'sha256')?'selected':''}>${a}</option>`).join('')}
+      </select>`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="hash (vazio = output)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'file_info':
+      html += _field('CAMINHO DO ARQUIVO', `<input type="text" value="${escapeHtml(c.file_path||'')}" placeholder="/tmp/arquivo.txt" onchange="_upCfg('${step.id}','file_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="info_json (vazio = output)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Retorna JSON com size_bytes, modified, created, is_dir');
+      break;
+
+    case 'search_in_files':
+      html += _field('DIRETÓRIO', `<input type="text" value="${escapeHtml(c.directory||'.')}" placeholder="/tmp" onchange="_upCfg('${step.id}','directory',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('PADRÃO DE ARQUIVO', `<input type="text" value="${escapeHtml(c.pattern||'*')}" placeholder="*.txt" onchange="_upCfg('${step.id}','pattern',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('TEXTO A BUSCAR', `<input type="text" value="${escapeHtml(c.search||'')}" placeholder="palavra ou trecho" onchange="_upCfg('${step.id}','search',this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="ocorrencias (vazio = output)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Busca recursiva (pastas dentro de pastas). Retorna arquivo:linha: trecho, um por linha.');
+      break;
+
+    case 'convert_encoding':
+      html += _field('ARQUIVO DE ORIGEM', `<input type="text" value="${escapeHtml(c.source_path||'')}" placeholder="/tmp/latin1.txt" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('ARQUIVO DE DESTINO', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="vazio = sobrescreve a origem" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('ENCODING DE ORIGEM', `<input type="text" value="${escapeHtml(c.encoding_from||'utf-8')}" onchange="_upCfg('${step.id}','encoding_from',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('ENCODING DE DESTINO', `<input type="text" value="${escapeHtml(c.encoding_to||'utf-8')}" onchange="_upCfg('${step.id}','encoding_to',this.value)" ${_inp('font-family:monospace')} />`);
+      break;
+
+    case 'ensure_dir':
+      html += _field('DIRETÓRIO', `<input type="text" value="${escapeHtml(c.directory||'')}" placeholder="/tmp/nova_pasta" onchange="_upCfg('${step.id}','directory',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _hint('Cria a pasta (e pastas pai) se ainda não existir. Não dá erro se já existir.');
+      break;
+
+    case 'delete_folder':
+      html += _field('DIRETÓRIO', `<input type="text" value="${escapeHtml(c.directory||'')}" placeholder="/tmp/pasta_antiga" onchange="_upCfg('${step.id}','directory',this.value)" ${_inp('font-family:monospace')} />`);
+      html += `<div style="background:#fef2f2;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#dc2626">⚠️ Remove a pasta e TODO o conteúdo dela. Irreversível.</div>`;
+      break;
+
+    case 'zip_files':
+      html += _field('ORIGEM (arquivo ou pasta)', `<input type="text" value="${escapeHtml(c.source_path||'')}" placeholder="/tmp/pasta" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('ARQUIVO .ZIP DE SAÍDA', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/saida" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _hint('.zip é adicionado automaticamente se não informado');
+      break;
+
+    case 'unzip_file':
+      html += _field('ARQUIVO .ZIP', `<input type="text" value="${escapeHtml(c.source_path||'')}" placeholder="/tmp/arquivo.zip" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('PASTA DE DESTINO', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/extraido (vazio = .)" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      break;
+
+    case 'backup_folder':
+      html += _field('PASTA DE ORIGEM', `<input type="text" value="${escapeHtml(c.source_path||'')}" placeholder="/dados/producao" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('PREFIXO DE DESTINO', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/backups/producao" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _hint('O nome final leva um timestamp: prefixo_AAAAMMDD_HHMMSS');
+      break;
+
+    case 'date_diff':
+      html += _field('DATA A', `<input type="text" value="${escapeHtml(c.date_value||'')}" placeholder="{output} ou 2026-01-01" onchange="_upCfg('${step.id}','date_value',this.value)" ${_inp()} />`);
+      html += _field('DATA B', `<input type="text" value="${escapeHtml(c.date_value2||'')}" placeholder="2026-01-31" onchange="_upCfg('${step.id}','date_value2',this.value)" ${_inp()} />`);
+      html += _field('FORMATO DE ENTRADA', `<input type="text" value="${escapeHtml(c.date_format_in||'%Y-%m-%d')}" onchange="_upCfg('${step.id}','date_format_in',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('UNIDADE DO RESULTADO', `<select onchange="_upCfg('${step.id}','date_unit',this.value)" ${_sel()}>
+        ${[['days','dias'],['hours','horas'],['minutes','minutos'],['seconds','segundos'],['weeks','semanas']].map(([v,l])=>`<option value="${v}" ${v===(c.date_unit||'days')?'selected':''}>${l}</option>`).join('')}
+      </select>`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'date_add':
+      html += _field('DATA BASE', `<input type="text" value="${escapeHtml(c.date_value||'')}" placeholder="{output} ou 2026-01-01" onchange="_upCfg('${step.id}','date_value',this.value)" ${_inp()} />`);
+      html += _field('FORMATO DE ENTRADA', `<input type="text" value="${escapeHtml(c.date_format_in||'%Y-%m-%d')}" onchange="_upCfg('${step.id}','date_format_in',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('QUANTIDADE (negativo = subtrai)', `<input type="number" value="${c.date_amount||0}" onchange="_upCfg('${step.id}','date_amount',+this.value)" ${_inp()} />`);
+      html += _field('UNIDADE', `<select onchange="_upCfg('${step.id}','date_unit',this.value)" ${_sel()}>
+        ${[['days','dias'],['hours','horas'],['minutes','minutos'],['seconds','segundos'],['weeks','semanas']].map(([v,l])=>`<option value="${v}" ${v===(c.date_unit||'days')?'selected':''}>${l}</option>`).join('')}
+      </select>`);
+      html += _field('FORMATO DE SAÍDA', `<input type="text" value="${escapeHtml(c.date_format_out||'%Y-%m-%d')}" onchange="_upCfg('${step.id}','date_format_out',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'format_date':
+      html += _field('DATA', `<input type="text" value="${escapeHtml(c.date_value||'')}" placeholder="{output} ou 2026-01-01" onchange="_upCfg('${step.id}','date_value',this.value)" ${_inp()} />`);
+      html += _field('FORMATO DE ENTRADA', `<input type="text" value="${escapeHtml(c.date_format_in||'%Y-%m-%d')}" onchange="_upCfg('${step.id}','date_format_in',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('FORMATO DE SAÍDA', `<input type="text" value="${escapeHtml(c.date_format_out||'%d/%m/%Y')}" onchange="_upCfg('${step.id}','date_format_out',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Códigos: %Y ano, %m mês, %d dia, %H hora, %M min, %S seg');
+      break;
+
+    case 'timezone_convert':
+      html += _field('DATA/HORA', `<input type="text" value="${escapeHtml(c.date_value||'')}" placeholder="{output} ou 2026-01-01 12:00:00" onchange="_upCfg('${step.id}','date_value',this.value)" ${_inp()} />`);
+      html += _field('FORMATO DE ENTRADA', `<input type="text" value="${escapeHtml(c.date_format_in||'%Y-%m-%d %H:%M:%S')}" onchange="_upCfg('${step.id}','date_format_in',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('FUSO DE ORIGEM', `<input type="text" value="${escapeHtml(c.timezone_from||'UTC')}" placeholder="UTC" onchange="_upCfg('${step.id}','timezone_from',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('FUSO DE DESTINO', `<input type="text" value="${escapeHtml(c.timezone_to||'America/Sao_Paulo')}" placeholder="America/Sao_Paulo" onchange="_upCfg('${step.id}','timezone_to',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('FORMATO DE SAÍDA', `<input type="text" value="${escapeHtml(c.date_format_out||'%Y-%m-%d %H:%M:%S')}" onchange="_upCfg('${step.id}','date_format_out',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Nomes de fuso no padrão IANA, ex: America/Sao_Paulo, Europe/Lisbon, UTC');
+      break;
+
+    case 'is_business_day':
+      html += _field('DATA', `<input type="text" value="${escapeHtml(c.date_value||'')}" placeholder="{output} ou 2026-01-01" onchange="_upCfg('${step.id}','date_value',this.value)" ${_inp()} />`);
+      html += _field('FORMATO DE ENTRADA', `<input type="text" value="${escapeHtml(c.date_format_in||'%Y-%m-%d')}" onchange="_upCfg('${step.id}','date_format_in',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="eh_util (true/false)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Considera apenas segunda a sexta — feriados não são levados em conta.');
+      break;
+
+    case 'foreach':
+      html += _field('LISTA (JSON array ou uma linha por item)', `<textarea rows="3" placeholder='{output} ou ["a","b","c"]' onchange="_upCfg('${step.id}','list_source',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.list_source||'{output}')}</textarea>`);
+      html += _field('VARIÁVEL DO ITEM', `<input type="text" value="${escapeHtml(c.item_variable||'item')}" placeholder="item" onchange="_upCfg('${step.id}','item_variable',this.value)" ${_inp()} />`);
+      html += _hint('Dentro do bloco, use {nome_var} para o item atual e {nome_var_index} para o índice (0, 1, 2...).');
+      break;
+
+    case 'while_condition':
+      html += _field('OPERADOR (avaliado sobre {output})', `<select onchange="_upCfg('${step.id}','operator',this.value)" ${_sel()}>
+        ${[['contains','contém'],['not_contains','não contém'],['equals','igual a'],['not_equals','diferente de'],
+           ['starts_with','começa com'],['ends_with','termina com'],['is_empty','está vazio'],['not_empty','não está vazio'],
+           ['greater_than','maior que (número)'],['less_than','menor que (número)']]
+          .map(([v,l])=>`<option value="${v}" ${v===c.operator?'selected':''}>${l}</option>`).join('')}
+      </select>`);
+      html += _field('VALOR A COMPARAR', `<input type="text" value="${escapeHtml(c.condition_value||'')}" onchange="_upCfg('${step.id}','condition_value',this.value)" ${_inp()} />`);
+      html += _field('MÁXIMO DE ITERAÇÕES (segurança)', `<input type="number" value="${c.max_iterations||100}" min="1" max="10000" onchange="_upCfg('${step.id}','max_iterations',+this.value)" ${_inp()} />`);
+      html += _hint('Repete o bloco enquanto a condição for verdadeira sobre o {output} atual, até o limite de iterações.');
+      break;
+
+    case 'try_catch':
+      html += `<div style="background:#fffbeb;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#92400e">Executa o bloco TENTAR. Se qualquer ação dele falhar, executa o bloco SE FALHAR (catch) em vez de interromper a automação. A variável {error} fica disponível no bloco catch com a mensagem do erro.</div>`;
+      break;
+
+    case 'parallel':
+      html += `<div style="background:#f0fdfa;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#0f766e">Cada ação dentro do bloco roda concorrentemente, isolada das outras (não enxergam variáveis umas das outras enquanto rodam). Ao final, o {output} vira a junção dos resultados (uma linha por ação) e as variáveis definidas por cada uma são mescladas de volta.</div>`;
+      break;
+
+    case 'call_automation':
+      html += _field('AUTOMAÇÃO', `<select onchange="_upCfg('${step.id}','automation_id',this.value)" ${_sel()}>
+        <option value="">Selecione uma automação...</option>
+        ${_studioList.filter(a=>a.id !== _buildEditId).map(a=>`<option value="${a.id}" ${a.id===c.automation_id?'selected':''}>${escapeHtml(a.name)}</option>`).join('')}
+      </select>`);
+      html += _field('INPUT TEMPLATE', `<input type="text" value="${escapeHtml(c.input_template||'{output}')}" placeholder="{output}" onchange="_upCfg('${step.id}','input_template',this.value)" ${_inp()} />`);
+      html += _field('SALVAR SAÍDA EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="resultado_sub (vazio = output)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Limite de 5 níveis de profundidade entre automações, para evitar recursão infinita.');
+      break;
+
+    case 'random_wait':
+      html += _field('MÍNIMO (segundos)', `<input type="number" value="${c.seconds||1}" min="0" max="60" step="0.1" onchange="_upCfg('${step.id}','seconds',+this.value)" ${_inp()} />`);
+      html += _field('MÁXIMO (segundos)', `<input type="number" value="${c.seconds_max||3}" min="0" max="60" step="0.1" onchange="_upCfg('${step.id}','seconds_max',+this.value)" ${_inp()} />`);
+      html += _hint('Útil para espaçar requisições/ações de forma menos previsível.');
+      break;
+
+    case 'read_excel':
+      html += _field('CAMINHO DO ARQUIVO', `<input type="text" value="${escapeHtml(c.file_path||'')}" placeholder="/tmp/planilha.xlsx" onchange="_upCfg('${step.id}','file_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('ABA (vazio = primeira)', `<input type="text" value="${escapeHtml(c.sheet_name||'')}" placeholder="Sheet1" onchange="_upCfg('${step.id}','sheet_name',this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="linhas (vazio = output)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Retorna JSON: lista de objetos, um por linha, usando a primeira linha como cabeçalho.');
+      break;
+
+    case 'write_excel':
+      html += _field('DADOS (JSON: lista de objetos)', `<textarea rows="4" placeholder='{output} ou [{"nome":"A","valor":1}]' onchange="_upCfg('${step.id}','data_input',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.data_input||'{output}')}</textarea>`);
+      html += _field('ARQUIVO DE SAÍDA', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/planilha.xlsx" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('NOME DA ABA', `<input type="text" value="${escapeHtml(c.sheet_name||'Sheet1')}" onchange="_upCfg('${step.id}','sheet_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'read_csv':
+      html += _field('CAMINHO DO ARQUIVO', `<input type="text" value="${escapeHtml(c.file_path||'')}" placeholder="/tmp/dados.csv" onchange="_upCfg('${step.id}','file_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('DELIMITADOR', `<input type="text" value="${escapeHtml(c.delimiter||',')}" maxlength="1" onchange="_upCfg('${step.id}','delimiter',this.value)" ${_inp('font-family:monospace;max-width:60px')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="linhas (vazio = output)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'write_csv':
+      html += _field('DADOS (JSON: lista de objetos)', `<textarea rows="4" placeholder='{output} ou [{"nome":"A","valor":1}]' onchange="_upCfg('${step.id}','data_input',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.data_input||'{output}')}</textarea>`);
+      html += _field('ARQUIVO DE SAÍDA', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/dados.csv" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('DELIMITADOR', `<input type="text" value="${escapeHtml(c.delimiter||',')}" maxlength="1" onchange="_upCfg('${step.id}','delimiter',this.value)" ${_inp('font-family:monospace;max-width:60px')} />`);
+      break;
+
+    case 'filter_data':
+      html += _field('DADOS DE ENTRADA (JSON)', `<input type="text" value="${escapeHtml(c.data_input||'{output}')}" onchange="_upCfg('${step.id}','data_input',this.value)" ${_inp()} />`);
+      html += _field('COLUNA', `<input type="text" value="${escapeHtml(c.sort_key||'')}" placeholder="nome_da_coluna" onchange="_upCfg('${step.id}','sort_key',this.value)" ${_inp()} />`);
+      html += _field('OPERADOR', `<select onchange="_upCfg('${step.id}','operator',this.value)" ${_sel()}>
+        ${[['contains','contém'],['not_contains','não contém'],['equals','igual a'],['not_equals','diferente de'],
+           ['starts_with','começa com'],['ends_with','termina com'],['is_empty','está vazio'],['not_empty','não está vazio'],
+           ['greater_than','maior que (número)'],['less_than','menor que (número)']]
+          .map(([v,l])=>`<option value="${v}" ${v===c.operator?'selected':''}>${l}</option>`).join('')}
+      </select>`);
+      html += _field('VALOR A COMPARAR', `<input type="text" value="${escapeHtml(c.condition_value||'')}" onchange="_upCfg('${step.id}','condition_value',this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'merge_data':
+      html += _field('DADOS À ESQUERDA (JSON)', `<input type="text" value="${escapeHtml(c.data_input||'{output}')}" onchange="_upCfg('${step.id}','data_input',this.value)" ${_inp()} />`);
+      html += _field('DADOS À DIREITA (JSON)', `<input type="text" value="${escapeHtml(c.data_input2||'')}" placeholder='[{"id":1,"nome":"A"}]' onchange="_upCfg('${step.id}','data_input2',this.value)" ${_inp()} />`);
+      html += _field('CHAVE DE JUNÇÃO', `<input type="text" value="${escapeHtml(c.merge_key||'')}" placeholder="id" onchange="_upCfg('${step.id}','merge_key',this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'dedupe_data':
+      html += _field('DADOS DE ENTRADA (JSON)', `<input type="text" value="${escapeHtml(c.data_input||'{output}')}" onchange="_upCfg('${step.id}','data_input',this.value)" ${_inp()} />`);
+      html += _field('CHAVE (vazio = linha inteira)', `<input type="text" value="${escapeHtml(c.merge_key||'')}" placeholder="email" onchange="_upCfg('${step.id}','merge_key',this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'sort_group_data':
+      html += _field('DADOS DE ENTRADA (JSON)', `<input type="text" value="${escapeHtml(c.data_input||'{output}')}" onchange="_upCfg('${step.id}','data_input',this.value)" ${_inp()} />`);
+      html += _field('ORDENAR POR (coluna)', `<input type="text" value="${escapeHtml(c.sort_key||'')}" onchange="_upCfg('${step.id}','sort_key',this.value)" ${_inp()} />`);
+      html += _field('ORDEM', `<label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer">
+        <input type="checkbox" ${c.sort_desc?'checked':''} onchange="_upCfg('${step.id}','sort_desc',this.checked)" /> Decrescente
+      </label>`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'pdf_extract_text':
+    case 'pdf_extract_tables':
+      html += _field('ARQUIVO PDF', `<input type="text" value="${escapeHtml(c.source_path||'')}" placeholder="/tmp/documento.pdf" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'pdf_merge':
+      html += _field('LISTA DE ARQUIVOS (JSON array de caminhos)', `<textarea rows="3" placeholder='["/tmp/a.pdf","/tmp/b.pdf"]' onchange="_upCfg('${step.id}','list_source',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.list_source||'[]')}</textarea>`);
+      html += _field('ARQUIVO DE SAÍDA', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/mesclado.pdf" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      break;
+
+    case 'pdf_split':
+      html += _field('ARQUIVO PDF', `<input type="text" value="${escapeHtml(c.source_path||'')}" placeholder="/tmp/documento.pdf" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('PASTA DE DESTINO', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/paginas" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR LISTA DE ARQUIVOS EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Uma página por arquivo PDF: pagina_1.pdf, pagina_2.pdf...');
+      break;
+
+    case 'pdf_generate':
+      html += _field('CONTEÚDO (texto simples)', `<textarea rows="5" placeholder="{output} ou texto fixo" onchange="_upCfg('${step.id}','content',this.value)" ${_ta()}>${escapeHtml(c.content||'{output}')}</textarea>`);
+      html += _field('ARQUIVO DE SAÍDA', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/relatorio.pdf" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _hint('Gera um PDF simples em texto corrido (A4, quebra de página automática).');
+      break;
+
+    case 'pdf_fill_form':
+      html += _field('ARQUIVO PDF (com campos de formulário)', `<input type="text" value="${escapeHtml(c.source_path||'')}" placeholder="/tmp/formulario.pdf" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('CAMPOS (JSON: nome do campo → valor)', `<textarea rows="3" placeholder='{"nome":"João","cpf":"000.000.000-00"}' onchange="_upCfg('${step.id}','data_input',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.data_input||'{}')}</textarea>`);
+      html += _field('ARQUIVO DE SAÍDA', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/preenchido.pdf" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      break;
+
+    case 'validate_json_schema':
+      html += _field('JSON DE ENTRADA', `<input type="text" value="${escapeHtml(c.json_input||'{output}')}" onchange="_upCfg('${step.id}','json_input',this.value)" ${_inp()} />`);
+      html += _field('SCHEMA (JSON Schema)', `<textarea rows="4" placeholder='{"type":"object","required":["nome"]}' onchange="_upCfg('${step.id}','schema_input',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.schema_input||'')}</textarea>`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="validacao ('válido' ou 'inválido: ...')" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'convert_data_format':
+      html += _field('DADOS DE ENTRADA', `<textarea rows="4" placeholder="{output}" onchange="_upCfg('${step.id}','data_input',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.data_input||'{output}')}</textarea>`);
+      html += _field('FORMATO DE ORIGEM', `<select onchange="_upCfg('${step.id}','format_from',this.value)" ${_sel()}>
+        ${['json','yaml','csv','xml'].map(f=>`<option value="${f}" ${f===(c.format_from||'json')?'selected':''}>${f.toUpperCase()}</option>`).join('')}
+      </select>`);
+      html += _field('FORMATO DE DESTINO', `<select onchange="_upCfg('${step.id}','format_to',this.value)" ${_sel()}>
+        ${['json','yaml','csv','xml'].map(f=>`<option value="${f}" ${f===(c.format_to||'csv')?'selected':''}>${f.toUpperCase()}</option>`).join('')}
+      </select>`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'html_extract':
+      html += _field('HTML DE ENTRADA', `<textarea rows="4" placeholder="{output}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.text_input||'{output}')}</textarea>`);
+      html += _field('SELETOR CSS', `<input type="text" value="${escapeHtml(c.css_selector||'')}" placeholder=".preco, #titulo, table tr" onchange="_upCfg('${step.id}','css_selector',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="textos_encontrados" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Retorna o texto de cada elemento encontrado, como lista JSON.');
+      break;
+
+    case 'sql_on_data':
+      html += _field('DADOS DE ENTRADA (JSON: lista de objetos)', `<textarea rows="3" placeholder="{output}" onchange="_upCfg('${step.id}','data_input',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.data_input||'{output}')}</textarea>`);
+      html += _field('QUERY SQL (tabela = "data")', `<textarea rows="4" placeholder="SELECT * FROM data WHERE valor > 100" onchange="_upCfg('${step.id}','sql_query',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.sql_query||'SELECT * FROM data')}</textarea>`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Motor DuckDB — SQL padrão sobre os dados de entrada, sem precisar de banco externo.');
+      break;
+
+    case 'generate_fake_data':
+      html += _field('TIPO', `<select onchange="_upCfg('${step.id}','fake_type',this.value)" ${_sel()}>
+        ${[['name','Nome'],['email','Email'],['cpf','CPF'],['cnpj','CNPJ'],['phone','Telefone'],
+           ['address','Endereço'],['company','Empresa'],['date','Data'],['text','Texto']]
+          .map(([v,l])=>`<option value="${v}" ${v===(c.fake_type||'name')?'selected':''}>${l}</option>`).join('')}
+      </select>`);
+      html += _field('QUANTIDADE', `<input type="number" value="${c.fake_count||5}" min="1" max="1000" onchange="_upCfg('${step.id}','fake_count',+this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Dados fictícios em pt-BR, formato JSON (lista). Uso: testes, popular ambientes de homologação.');
+      break;
+
+    case 'validate_cpf_cnpj':
+      html += _field('CPF OU CNPJ', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" placeholder="{output} ou 000.000.000-00" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="validacao ('válido'/'inválido')" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Detecta automaticamente CPF (11 dígitos) ou CNPJ (14 dígitos) pelo tamanho.');
+      break;
+
+    case 'validate_email':
+      html += _field('EMAIL', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Verifica sintaxe e se o domínio tem registro MX (deliverability).');
+      break;
+
+    case 'validate_phone':
+      html += _field('TELEFONE', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" placeholder="(11) 91234-5678" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('PAÍS (código ISO)', `<input type="text" value="${escapeHtml(c.region||'BR')}" placeholder="BR" onchange="_upCfg('${step.id}','region',this.value)" ${_inp('max-width:80px')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'lookup_cep':
+      html += _field('CEP', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" placeholder="01310-100" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="endereco (vazio = output)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Consulta a API pública ViaCEP. Retorna JSON com logradouro, bairro, cidade, UF.');
+      break;
+
+    case 'format_currency':
+      html += _field('VALOR NUMÉRICO', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" placeholder="1234.56" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Formata em Real (R$ 1.234,56), padrão pt_BR.');
+      break;
+
+    case 'encrypt_text':
+    case 'decrypt_text':
+      html += _field('TEXTO', `<textarea rows="3" placeholder="{output}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_ta()}>${escapeHtml(c.text_input||'{output}')}</textarea>`);
+      html += _field('CHAVE SECRETA', `<input type="text" value="${escapeHtml(c.secret_key||'')}" placeholder="senha ou chave" onchange="_upCfg('${step.id}','secret_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('AES simétrico (Fernet) — use a mesma chave secreta para criptografar e descriptografar.');
+      break;
+
+    case 'generate_jwt':
+      html += _field('PAYLOAD (JSON)', `<textarea rows="3" placeholder='{"user_id":"123"}' onchange="_upCfg('${step.id}','json_input',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.json_input||'{}')}</textarea>`);
+      html += _field('CHAVE SECRETA', `<input type="text" value="${escapeHtml(c.secret_key||'')}" onchange="_upCfg('${step.id}','secret_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'verify_jwt':
+      html += _field('TOKEN JWT', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('CHAVE SECRETA', `<input type="text" value="${escapeHtml(c.secret_key||'')}" onchange="_upCfg('${step.id}','secret_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="payload (JSON) ou 'inválido: ...'" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'hash_password':
+      html += _field('SENHA', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Usa bcrypt (mesmo algoritmo do login da plataforma).');
+      break;
+
+    case 'verify_password':
+      html += _field('SENHA EM TEXTO PLANO', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('HASH BCRYPT PARA COMPARAR', `<input type="text" value="${escapeHtml(c.secret_key||'')}" placeholder="$2b$12$..." onchange="_upCfg('${step.id}','secret_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="senha_ok (true/false)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'generate_otp':
+      html += _field('SECRET (vazio = gera um novo)', `<input type="text" value="${escapeHtml(c.secret_key||'')}" placeholder="base32, ex: JBSWY3DPEHPK3PXP" onchange="_upCfg('${step.id}','secret_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="otp_json ({secret, code})" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Compatível com Google Authenticator. Código válido por 30s.');
+      break;
+
+    case 'verify_otp':
+      html += _field('SECRET', `<input type="text" value="${escapeHtml(c.secret_key||'')}" onchange="_upCfg('${step.id}','secret_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('CÓDIGO DIGITADO', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" placeholder="123456" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="otp_ok (true/false)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'generate_secure_password':
+      html += _field('TAMANHO', `<input type="number" value="${c.password_length||16}" min="4" max="128" onchange="_upCfg('${step.id}','password_length',+this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'check_ssl_cert':
+      html += _field('DOMÍNIO', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" placeholder="exemplo.com (sem https://)" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Retorna JSON com emissor, validade e dias restantes até expirar.');
+      break;
+
+    case 'hmac_sign':
+      html += _field('MENSAGEM', `<textarea rows="3" placeholder="{output}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_ta()}>${escapeHtml(c.text_input||'{output}')}</textarea>`);
+      html += _field('CHAVE SECRETA', `<input type="text" value="${escapeHtml(c.secret_key||'')}" onchange="_upCfg('${step.id}','secret_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Útil para validar assinatura de webhooks recebidos (HMAC-SHA256).');
+      break;
+
+    case 'send_telegram':
+      html += _field('BOT TOKEN', `<input type="text" value="${escapeHtml(c.secret_key||'')}" placeholder="123456:ABC-DEF..." onchange="_upCfg('${step.id}','secret_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('CHAT ID', `<input type="text" value="${escapeHtml(c.to||'')}" placeholder="-1001234567890" onchange="_upCfg('${step.id}','to',this.value)" ${_inp()} />`);
+      html += _field('MENSAGEM', `<textarea rows="3" placeholder="{output}" onchange="_upCfg('${step.id}','content',this.value)" ${_ta()}>${escapeHtml(c.content||'{output}')}</textarea>`);
+      break;
+
+    case 'send_slack':
+    case 'send_discord':
+      html += _field('WEBHOOK URL', `<input type="text" value="${escapeHtml(c.url||'')}" placeholder="https://hooks.slack.com/... ou discord.com/api/webhooks/..." onchange="_upCfg('${step.id}','url',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('MENSAGEM', `<textarea rows="3" placeholder="{output}" onchange="_upCfg('${step.id}','content',this.value)" ${_ta()}>${escapeHtml(c.content||'{output}')}</textarea>`);
+      break;
+
+    case 'send_whatsapp':
+    case 'send_sms':
+      html += _field('TWILIO ACCOUNT SID', `<input type="text" value="${escapeHtml(c.api_key||'')}" onchange="_upCfg('${step.id}','api_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('TWILIO AUTH TOKEN', `<input type="text" value="${escapeHtml(c.api_secret||'')}" onchange="_upCfg('${step.id}','api_secret',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('NÚMERO DE ORIGEM (Twilio)', `<input type="text" value="${escapeHtml(c.from_number||'')}" placeholder="+14155238886" onchange="_upCfg('${step.id}','from_number',this.value)" ${_inp()} />`);
+      html += _field('NÚMERO DE DESTINO', `<input type="text" value="${escapeHtml(c.to||'')}" placeholder="+5511999999999" onchange="_upCfg('${step.id}','to',this.value)" ${_inp()} />`);
+      html += _field('MENSAGEM', `<textarea rows="3" placeholder="{output}" onchange="_upCfg('${step.id}','content',this.value)" ${_ta()}>${escapeHtml(c.content||'{output}')}</textarea>`);
+      break;
+
+    case 'send_push_notification':
+      html += _field('ONESIGNAL API KEY', `<input type="text" value="${escapeHtml(c.api_key||'')}" onchange="_upCfg('${step.id}','api_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('ONESIGNAL APP ID', `<input type="text" value="${escapeHtml(c.secret_key||'')}" onchange="_upCfg('${step.id}','secret_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('PLAYER ID (vazio = todos)', `<input type="text" value="${escapeHtml(c.to||'')}" onchange="_upCfg('${step.id}','to',this.value)" ${_inp()} />`);
+      html += _field('MENSAGEM', `<textarea rows="3" placeholder="{output}" onchange="_upCfg('${step.id}','content',this.value)" ${_ta()}>${escapeHtml(c.content||'{output}')}</textarea>`);
+      break;
+
+    case 'create_incident':
+      html += _field('PAGERDUTY ROUTING KEY', `<input type="text" value="${escapeHtml(c.api_key||'')}" onchange="_upCfg('${step.id}','api_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('RESUMO DO INCIDENTE', `<textarea rows="3" placeholder="{output}" onchange="_upCfg('${step.id}','content',this.value)" ${_ta()}>${escapeHtml(c.content||'{output}')}</textarea>`);
+      html += _hint('Severidade fixa em "critical". Cria um evento de trigger na Events API v2.');
+      break;
+
+    case 'asaas_create_charge':
+      html += _field('ASAAS API KEY', `<input type="text" value="${escapeHtml(c.api_key||'')}" onchange="_upCfg('${step.id}','api_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('ID DO CLIENTE (Asaas)', `<input type="text" value="${escapeHtml(c.to||'')}" placeholder="cus_000000000000" onchange="_upCfg('${step.id}','to',this.value)" ${_inp()} />`);
+      html += _field('VALOR (R$)', `<input type="text" value="${escapeHtml(c.text_input||'')}" placeholder="99.90" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('DESCRIÇÃO', `<input type="text" value="${escapeHtml(c.content||'')}" onchange="_upCfg('${step.id}','content',this.value)" ${_inp()} />`);
+      html += _field('SALVAR RESPOSTA EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Cria cobrança via Pix. O cliente precisa já existir no Asaas.');
+      break;
+
+    case 'asaas_check_payment':
+      html += _field('ASAAS API KEY', `<input type="text" value="${escapeHtml(c.api_key||'')}" onchange="_upCfg('${step.id}','api_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('ID DO PAGAMENTO', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" placeholder="pay_000000000000" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('SALVAR RESPOSTA EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'generate_pix_qr':
+      html += _field('CHAVE PIX', `<input type="text" value="${escapeHtml(c.pix_key||'')}" placeholder="email, celular, CPF/CNPJ ou chave aleatória" onchange="_upCfg('${step.id}','pix_key',this.value)" ${_inp()} />`);
+      html += _field('NOME DO RECEBEDOR', `<input type="text" value="${escapeHtml(c.pix_merchant_name||'')}" maxlength="25" onchange="_upCfg('${step.id}','pix_merchant_name',this.value)" ${_inp()} />`);
+      html += _field('CIDADE', `<input type="text" value="${escapeHtml(c.pix_merchant_city||'')}" maxlength="15" onchange="_upCfg('${step.id}','pix_merchant_city',this.value)" ${_inp()} />`);
+      html += _field('VALOR (opcional)', `<input type="text" value="${escapeHtml(c.text_input||'')}" placeholder="vazio = Pix sem valor fixo" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="pix_copia_cola" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Gera o código "Pix copia e cola" (BR Code / EMV) — não gera a imagem do QR.');
+      break;
+
+    case 'get_currency_rate':
+      html += _field('PAR DE MOEDAS', `<input type="text" value="${escapeHtml(c.text_input||'USD-BRL')}" placeholder="USD-BRL" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'get_crypto_price':
+      html += _field('MOEDA (id CoinGecko)', `<input type="text" value="${escapeHtml(c.text_input||'bitcoin')}" placeholder="bitcoin, ethereum..." onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Retorna preço em USD e BRL.');
+      break;
+
     case 'http_request':
       html += _field('MÉTODO', `<select onchange="_upCfg('${step.id}','method',this.value)" ${_sel()}>
         ${['GET','POST','PUT','PATCH','DELETE'].map(m=>`<option ${m===(c.method||'GET')?'selected':''}>${m}</option>`).join('')}
@@ -850,6 +1585,311 @@ function _renderPropsPanel(step) {
       html += _field('BODY', `<textarea rows="4" placeholder='{"chave": "{output}"}' onchange="_upCfg('${step.id}','body',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.body||'')}</textarea>`);
       html += _field('SALVAR RESPOSTA EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="resposta (vazio = output)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
       html += _hint('{output} {input} {varname} são substituídos na URL e no body');
+      break;
+
+    case 'http_request_retry':
+      html += _field('MÉTODO', `<select onchange="_upCfg('${step.id}','method',this.value)" ${_sel()}>
+        ${['GET','POST','PUT','PATCH','DELETE'].map(m=>`<option ${m===(c.method||'GET')?'selected':''}>${m}</option>`).join('')}
+      </select>`);
+      html += _field('URL', `<input type="text" value="${escapeHtml(c.url||'')}" onchange="_upCfg('${step.id}','url',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('HEADERS (chave: valor por linha)', `<textarea rows="3" onchange="_upCfgHeaders('${step.id}',this.value)" ${_ta('font-family:monospace')}>${_headersToText(c.headers)}</textarea>`);
+      html += _field('BODY', `<textarea rows="3" onchange="_upCfg('${step.id}','body',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.body||'')}</textarea>`);
+      html += _field('MÁXIMO DE TENTATIVAS', `<input type="number" value="${c.max_iterations||3}" min="1" max="10" onchange="_upCfg('${step.id}','max_iterations',+this.value)" ${_inp()} />`);
+      html += _field('SALVAR RESPOSTA EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Repete com espera exponencial (1s, 2s, 4s...) em erro de rede ou HTTP 5xx. Erros 4xx não são repetidos.');
+      break;
+
+    case 'download_file':
+      html += _field('URL', `<input type="text" value="${escapeHtml(c.url||'')}" onchange="_upCfg('${step.id}','url',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/arquivo.pdf" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      break;
+
+    case 'upload_file':
+      html += _field('ARQUIVO LOCAL', `<input type="text" value="${escapeHtml(c.source_path||'')}" placeholder="/tmp/arquivo.pdf" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('URL DE DESTINO', `<input type="text" value="${escapeHtml(c.url||'')}" onchange="_upCfg('${step.id}','url',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('HEADERS (chave: valor por linha)', `<textarea rows="3" onchange="_upCfgHeaders('${step.id}',this.value)" ${_ta('font-family:monospace')}>${_headersToText(c.headers)}</textarea>`);
+      html += _hint('Envia como multipart/form-data, campo "file".');
+      break;
+
+    case 'scrape_html_table':
+      html += _field('URL OU HTML', `<textarea rows="3" placeholder="{output} ou https://site.com/pagina" onchange="_upCfg('${step.id}','text_input',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.text_input||'{output}')}</textarea>`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="tabelas (lista de tabelas encontradas)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Extrai todas as tabelas <table> da página. Retorna uma lista de tabelas (cada uma como lista de objetos).');
+      break;
+
+    case 'read_rss_feed':
+      html += _field('URL DO FEED', `<input type="text" value="${escapeHtml(c.url||'')}" placeholder="https://site.com/feed.xml" onchange="_upCfg('${step.id}','url',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'get_weather':
+      html += _field('CIDADE', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" placeholder="São Paulo,BR" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('OPENWEATHERMAP API KEY', `<input type="text" value="${escapeHtml(c.api_key||'')}" onchange="_upCfg('${step.id}','api_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'geocode_address':
+      html += _field('ENDEREÇO', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" placeholder="Av. Paulista, 1000, São Paulo" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="coords (lat, lon, display_name)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Via OpenStreetMap Nominatim (gratuito, sem API key).');
+      break;
+
+    case 'calculate_distance':
+      html += _field('COORDENADA DE ORIGEM (lat,lon)', `<input type="text" value="${escapeHtml(c.coord_from||'')}" placeholder="-23.5505,-46.6333" onchange="_upCfg('${step.id}','coord_from',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('COORDENADA DE DESTINO (lat,lon)', `<input type="text" value="${escapeHtml(c.coord_to||'')}" placeholder="-22.9068,-43.1729" onchange="_upCfg('${step.id}','coord_to',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="distancia_km" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Distância em linha reta (fórmula de Haversine), em km.');
+      break;
+
+    case 'shorten_url':
+      html += _field('URL LONGA', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'lookup_cnpj':
+      html += _field('CNPJ', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" placeholder="00.000.000/0001-00" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Via BrasilAPI (dados da Receita Federal, gratuito).');
+      break;
+
+    case 'translate_text':
+      html += _field('TEXTO', `<textarea rows="3" placeholder="{output}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_ta()}>${escapeHtml(c.text_input||'{output}')}</textarea>`);
+      html += _field('IDIOMA DE DESTINO', `<input type="text" value="${escapeHtml(c.region||'EN')}" placeholder="EN, PT-BR, ES..." onchange="_upCfg('${step.id}','region',this.value)" ${_inp('max-width:120px')} />`);
+      html += _field('DEEPL API KEY', `<input type="text" value="${escapeHtml(c.api_key||'')}" onchange="_upCfg('${step.id}','api_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'get_holidays':
+      html += _field('ANO', `<input type="text" value="${escapeHtml(c.text_input||'')}" placeholder="2026 (vazio = ano atual)" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp('max-width:120px')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Feriados nacionais do Brasil, via BrasilAPI.');
+      break;
+
+    case 'detect_language':
+      html += _field('TEXTO', `<textarea rows="3" placeholder="{output}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_ta()}>${escapeHtml(c.text_input||'{output}')}</textarea>`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="idioma (ex: pt, en, es)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'count_tokens':
+      html += _field('TEXTO', `<textarea rows="3" placeholder="{output}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_ta()}>${escapeHtml(c.text_input||'{output}')}</textarea>`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="qtd_tokens" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Estimativa via encoding cl100k_base (compatível com GPT-4/Claude aproximadamente). Útil antes de chamar um Agente IA para estimar custo.');
+      break;
+
+    case 'generate_embedding':
+      html += _field('TEXTO', `<textarea rows="3" placeholder="{output}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_ta()}>${escapeHtml(c.text_input||'{output}')}</textarea>`);
+      html += _field('OPENAI API KEY', `<input type="text" value="${escapeHtml(c.api_key||'')}" onchange="_upCfg('${step.id}','api_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Modelo text-embedding-3-small. Retorna o vetor como JSON.');
+      break;
+
+    case 'semantic_search':
+      html += _field('QUERY (texto a buscar)', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('CANDIDATOS (JSON)', `<textarea rows="4" placeholder='[{"text":"...","embedding":[...]}]' onchange="_upCfg('${step.id}','json_input',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.json_input||'[]')}</textarea>`);
+      html += _field('OPENAI API KEY', `<input type="text" value="${escapeHtml(c.api_key||'')}" onchange="_upCfg('${step.id}','api_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Compara a query com cada candidato (embedding já calculado) por similaridade de cosseno e retorna o melhor.');
+      break;
+
+    case 'moderate_content':
+      html += _field('TEXTO', `<textarea rows="3" placeholder="{output}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_ta()}>${escapeHtml(c.text_input||'{output}')}</textarea>`);
+      html += _field('OPENAI API KEY', `<input type="text" value="${escapeHtml(c.api_key||'')}" onchange="_upCfg('${step.id}','api_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="moderacao ({flagged, categories})" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'compare_texts':
+      html += _field('TEXTO A', `<textarea rows="3" placeholder="{output}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_ta()}>${escapeHtml(c.text_input||'{output}')}</textarea>`);
+      html += _field('TEXTO B', `<textarea rows="3" onchange="_upCfg('${step.id}','data_input2',this.value)" ${_ta()}>${escapeHtml(c.data_input2||'')}</textarea>`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="similaridade (0 a 1)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Similaridade textual determinística (difflib), não semântica. Para similaridade de sentido, use embeddings.');
+      break;
+
+    case 'system_stats':
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Mede o uso no agente/servidor onde a automação está rodando.');
+      break;
+
+    case 'list_processes':
+      html += _field('LIMITE (top N por memória)', `<input type="number" value="${c.fake_count||20}" min="1" max="200" onchange="_upCfg('${step.id}','fake_count',+this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'check_port_open':
+      html += _field('HOST:PORTA', `<input type="text" value="${escapeHtml(c.text_input||'')}" placeholder="exemplo.com:443" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="porta_status ('aberta'/'fechada')" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'dns_lookup':
+      html += _field('DOMÍNIO', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" placeholder="exemplo.com" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('TIPO DE REGISTRO', `<select onchange="_upCfg('${step.id}','operation',this.value)" ${_sel()}>
+        ${['A','AAAA','MX','TXT','NS','CNAME'].map(t=>`<option value="${t}" ${t===(c.operation||'A')?'selected':''}>${t}</option>`).join('')}
+      </select>`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'whois_lookup':
+      html += _field('DOMÍNIO', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" placeholder="exemplo.com" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'ssh_execute':
+      html += _field('HOST', `<input type="text" value="${escapeHtml(c.url||'')}" placeholder="servidor.exemplo.com" onchange="_upCfg('${step.id}','url',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('USUÁRIO', `<input type="text" value="${escapeHtml(c.to||'')}" onchange="_upCfg('${step.id}','to',this.value)" ${_inp()} />`);
+      html += _field('SENHA', `<input type="text" value="${escapeHtml(c.secret_key||'')}" onchange="_upCfg('${step.id}','secret_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('COMANDO', `<input type="text" value="${escapeHtml(c.command||'')}" placeholder="ls -la /var/www" onchange="_upCfg('${step.id}','command',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR SAÍDA EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Autenticação por senha. Timeout de 30s no comando.');
+      break;
+
+    case 'read_env_var':
+      html += _field('NOME DA VARIÁVEL', `<input type="text" value="${escapeHtml(c.text_input||'')}" placeholder="PATH" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Lê do ambiente do processo da API/worker — não confundir com variáveis do fluxo.');
+      break;
+
+    case 'check_url_uptime':
+      html += _field('URL', `<input type="text" value="${escapeHtml(c.url||'')}" onchange="_upCfg('${step.id}','url',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="uptime_info ({up, status_code, latency_ms})" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'redis_get':
+    case 'queue_pop':
+      html += _field('URL DE CONEXÃO REDIS', `<input type="text" value="${escapeHtml(c.url||'')}" placeholder="redis://user:senha@host:6379/0" onchange="_upCfg('${step.id}','url',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field(step.type==='queue_pop' ? 'NOME DA FILA' : 'CHAVE', `<input type="text" value="${escapeHtml(c.text_input||'')}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'redis_set':
+    case 'queue_push':
+      html += _field('URL DE CONEXÃO REDIS', `<input type="text" value="${escapeHtml(c.url||'')}" placeholder="redis://user:senha@host:6379/0" onchange="_upCfg('${step.id}','url',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field(step.type==='queue_push' ? 'NOME DA FILA' : 'CHAVE', `<input type="text" value="${escapeHtml(c.text_input||'')}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('VALOR', `<input type="text" value="${escapeHtml(c.content||'{output}')}" onchange="_upCfg('${step.id}','content',this.value)" ${_inp()} />`);
+      break;
+
+    case 'sql_query_external':
+      html += _field('DSN DE CONEXÃO (Postgres)', `<input type="text" value="${escapeHtml(c.url||'')}" placeholder="postgresql://user:senha@host:5432/banco" onchange="_upCfg('${step.id}','url',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('QUERY SQL', `<textarea rows="4" placeholder="SELECT * FROM clientes LIMIT 10" onchange="_upCfg('${step.id}','sql_query',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.sql_query||'SELECT 1')}</textarea>`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'render_template':
+      html += _field('TEMPLATE (Jinja2)', `<textarea rows="5" placeholder="Olá {{ nome }}, seu pedido {{ pedido_id }} foi confirmado." onchange="_upCfg('${step.id}','content',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.content||'')}</textarea>`);
+      html += _field('VARIÁVEIS (JSON)', `<textarea rows="3" placeholder='{"nome":"Ana","pedido_id":123}' onchange="_upCfg('${step.id}','json_input',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.json_input||'{}')}</textarea>`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Sintaxe Jinja2: {{ variavel }}, {% if %}, {% for %}. {{ output }} e {{ input }} também disponíveis.');
+      break;
+
+    case 'generate_word_doc':
+      html += _field('CONTEÚDO', `<textarea rows="5" placeholder="{output}" onchange="_upCfg('${step.id}','content',this.value)" ${_ta()}>${escapeHtml(c.content||'{output}')}</textarea>`);
+      html += _field('ARQUIVO DE SAÍDA', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/documento.docx" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _hint('Um parágrafo por linha do conteúdo.');
+      break;
+
+    case 'generate_pptx':
+      html += _field('SLIDES (JSON: lista de {title, content})', `<textarea rows="4" placeholder='[{"title":"Intro","content":"Bem-vindo"},{"title":"Dados","content":"..."}]' onchange="_upCfg('${step.id}','data_input',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.data_input||'[]')}</textarea>`);
+      html += _field('ARQUIVO DE SAÍDA', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/apresentacao.pptx" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      break;
+
+    case 'resize_image':
+      html += _field('IMAGEM DE ORIGEM', `<input type="text" value="${escapeHtml(c.source_path||'')}" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SAÍDA', `<input type="text" value="${escapeHtml(c.dest_path||'')}" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('LARGURA (0 = auto)', `<input type="number" value="${c.width||0}" min="0" onchange="_upCfg('${step.id}','width',+this.value)" ${_inp()} />`);
+      html += _field('ALTURA (0 = auto)', `<input type="number" value="${c.height||0}" min="0" onchange="_upCfg('${step.id}','height',+this.value)" ${_inp()} />`);
+      html += _hint('Informe só largura OU altura para manter a proporção.');
+      break;
+
+    case 'convert_image_format':
+      html += _field('IMAGEM DE ORIGEM', `<input type="text" value="${escapeHtml(c.source_path||'')}" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SAÍDA (extensão define o formato)', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/imagem.webp" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      break;
+
+    case 'add_watermark':
+      html += _field('IMAGEM DE ORIGEM', `<input type="text" value="${escapeHtml(c.source_path||'')}" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SAÍDA', `<input type="text" value="${escapeHtml(c.dest_path||'')}" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('TEXTO DA MARCA D\'ÁGUA', `<input type="text" value="${escapeHtml(c.text||'')}" onchange="_upCfg('${step.id}','text',this.value)" ${_inp()} />`);
+      break;
+
+    case 'generate_thumbnail':
+      html += _field('IMAGEM DE ORIGEM', `<input type="text" value="${escapeHtml(c.source_path||'')}" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SAÍDA', `<input type="text" value="${escapeHtml(c.dest_path||'')}" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('TAMANHO MÁXIMO (px)', `<input type="number" value="${c.width||200}" min="16" onchange="_upCfg('${step.id}','width',+this.value)" ${_inp()} />`);
+      break;
+
+    case 'generate_qrcode':
+      html += _field('CONTEÚDO', `<input type="text" value="${escapeHtml(c.text_input||'{output}')}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_inp()} />`);
+      html += _field('SAÍDA (imagem)', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/qrcode.png" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      break;
+
+    case 'read_qrcode':
+      html += _field('IMAGEM COM QR CODE', `<input type="text" value="${escapeHtml(c.source_path||'')}" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'compare_images':
+      html += _field('IMAGEM A', `<input type="text" value="${escapeHtml(c.source_path||'')}" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('IMAGEM B', `<input type="text" value="${escapeHtml(c.dest_path||'')}" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="diff ({diff_bits, similarity})" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'generate_ai_image':
+      html += _field('PROMPT', `<textarea rows="3" placeholder="{output}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_ta()}>${escapeHtml(c.text_input||'{output}')}</textarea>`);
+      html += _field('OPENAI API KEY', `<input type="text" value="${escapeHtml(c.api_key||'')}" onchange="_upCfg('${step.id}','api_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SAÍDA', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/gerada.png" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _hint('DALL-E 3, 1024x1024.');
+      break;
+
+    case 'transcode_media':
+    case 'extract_audio':
+      html += _field('ARQUIVO DE ORIGEM', `<input type="text" value="${escapeHtml(c.source_path||'')}" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SAÍDA (extensão define o formato)', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="${step.type==='extract_audio'?'/tmp/audio.mp3':'/tmp/saida.mp4'}" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += `<div style="background:#faf5ff;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#7e22ce">⚠️ Requer <code>ffmpeg</code> instalado no agente que executar este passo.</div>`;
+      break;
+
+    case 'trim_media':
+      html += _field('ARQUIVO DE ORIGEM', `<input type="text" value="${escapeHtml(c.source_path||'')}" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SAÍDA', `<input type="text" value="${escapeHtml(c.dest_path||'')}" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('INÍCIO (segundos)', `<input type="number" value="${c.seconds||0}" min="0" step="0.1" onchange="_upCfg('${step.id}','seconds',+this.value)" ${_inp()} />`);
+      html += _field('DURAÇÃO (segundos, 0 = até o fim)', `<input type="number" value="${c.seconds_max||0}" min="0" step="0.1" onchange="_upCfg('${step.id}','seconds_max',+this.value)" ${_inp()} />`);
+      html += `<div style="background:#faf5ff;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#7e22ce">⚠️ Requer <code>ffmpeg</code> instalado no agente que executar este passo.</div>`;
+      break;
+
+    case 'extract_video_frame':
+      html += _field('VÍDEO DE ORIGEM', `<input type="text" value="${escapeHtml(c.source_path||'')}" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SAÍDA (imagem)', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/frame.png" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('TIMESTAMP (segundos)', `<input type="number" value="${c.seconds||0}" min="0" step="0.1" onchange="_upCfg('${step.id}','seconds',+this.value)" ${_inp()} />`);
+      html += `<div style="background:#faf5ff;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#7e22ce">⚠️ Requer <code>ffmpeg</code> instalado no agente que executar este passo.</div>`;
+      break;
+
+    case 'transcribe_audio':
+      html += _field('ARQUIVO DE ÁUDIO', `<input type="text" value="${escapeHtml(c.source_path||'')}" placeholder="/tmp/audio.mp3" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('OPENAI API KEY', `<input type="text" value="${escapeHtml(c.api_key||'')}" onchange="_upCfg('${step.id}','api_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Usa a API Whisper da OpenAI (nuvem) — não precisa de ffmpeg nem de modelo local.');
+      break;
+
+    case 'text_to_speech':
+      html += _field('TEXTO', `<textarea rows="3" placeholder="{output}" onchange="_upCfg('${step.id}','text_input',this.value)" ${_ta()}>${escapeHtml(c.text_input||'{output}')}</textarea>`);
+      html += _field('OPENAI API KEY', `<input type="text" value="${escapeHtml(c.api_key||'')}" onchange="_upCfg('${step.id}','api_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SAÍDA', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/fala.mp3" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _hint('Usa a API TTS da OpenAI (nuvem), voz "alloy".');
+      break;
+
+    case 'ocr_image':
+      html += _field('IMAGEM', `<input type="text" value="${escapeHtml(c.source_path||'')}" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += `<div style="background:#faf5ff;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#7e22ce">⚠️ Requer <code>tesseract-ocr</code> instalado no agente (idiomas português + inglês).</div>`;
+      break;
+
+    case 'ocr_pdf_scanned':
+      html += _field('ARQUIVO PDF (escaneado)', `<input type="text" value="${escapeHtml(c.source_path||'')}" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += `<div style="background:#faf5ff;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#7e22ce">⚠️ Requer <code>tesseract-ocr</code> E <code>poppler</code> instalados no agente.</div>`;
+      break;
+
+    case 'detect_face_object':
+      html += _field('IMAGEM', `<input type="text" value="${escapeHtml(c.source_path||'')}" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="rostos ({count, boxes})" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Detecção de rosto frontal via OpenCV (Haar cascade, incluso na biblioteca — não precisa de binário externo).');
       break;
 
     case 'parse_json':
@@ -866,6 +1906,15 @@ function _renderPropsPanel(step) {
         <input type="checkbox" ${c.is_html?'checked':''} onchange="_upCfg('${step.id}','is_html',this.checked)" /> Corpo em HTML
       </label>`);
       html += _hint('Usa o Brevo (API key configurada no servidor)');
+      break;
+
+    case 'read_email_imap':
+      html += _field('SERVIDOR IMAP', `<input type="text" value="${escapeHtml(c.url||'')}" placeholder="imap.gmail.com" onchange="_upCfg('${step.id}','url',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('EMAIL', `<input type="text" value="${escapeHtml(c.to||'')}" placeholder="voce@gmail.com" onchange="_upCfg('${step.id}','to',this.value)" ${_inp()} />`);
+      html += _field('SENHA (de app, recomendado)', `<input type="text" value="${escapeHtml(c.secret_key||'')}" onchange="_upCfg('${step.id}','secret_key',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('QUANTIDADE (mais recentes)', `<input type="number" value="${c.fake_count||5}" min="1" max="50" onchange="_upCfg('${step.id}','fake_count',+this.value)" ${_inp()} />`);
+      html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _hint('Gmail exige senha de app (não a senha normal da conta), com IMAP habilitado.');
       break;
 
     case 'run_command':
@@ -904,7 +1953,8 @@ function _renderPropsPanel(step) {
         ${[['upper','Maiúsculas'],['lower','Minúsculas'],['strip','Remover espaços (strip)'],
            ['replace','Substituir texto'],['count_chars','Contar caracteres'],['count_words','Contar palavras'],
            ['split','Dividir (split)'],['regex','Extrair via Regex'],
-           ['base64_encode','Codificar Base64'],['base64_decode','Decodificar Base64']]
+           ['base64_encode','Codificar Base64'],['base64_decode','Decodificar Base64'],
+           ['remove_accents','Remover acentos'],['slugify','Slugify (url-amigável)']]
           .map(([v,l])=>`<option value="${v}" ${v===c.operation?'selected':''}>${l}</option>`).join('')}
       </select>`);
       if (['replace','split','regex'].includes(c.operation||'upper')) {

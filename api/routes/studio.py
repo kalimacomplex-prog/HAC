@@ -1,14 +1,17 @@
 import asyncio
 import glob as glob_module
+import hashlib
 import io
 import json
 import os
 import re
 import secrets
+import shutil
 import subprocess
 import sys
 import time
-from datetime import datetime
+import zipfile
+from datetime import datetime, timedelta
 from typing import List
 
 import httpx
@@ -115,6 +118,39 @@ def _store(result: str, variable_name: str, ctx: dict):
     ctx["output"] = result
     if variable_name:
         ctx["vars"][variable_name] = result
+
+
+def _pix_tlv(id_: str, value: str) -> str:
+    return f"{id_}{len(value):02d}{value}"
+
+
+def _pix_crc16(payload: str) -> str:
+    poly = 0x1021
+    result = 0xFFFF
+    for b in payload.encode():
+        result ^= b << 8
+        for _ in range(8):
+            result = ((result << 1) ^ poly) & 0xFFFF if result & 0x8000 else (result << 1) & 0xFFFF
+    return format(result, "04X")
+
+
+def _build_pix_payload(key: str, name: str, city: str, amount: str = "") -> str:
+    name = (name or "RECEBEDOR")[:25].upper()
+    city = (city or "SAO PAULO")[:15].upper()
+    merchant_account = _pix_tlv("26", _pix_tlv("00", "br.gov.bcb.pix") + _pix_tlv("01", key))
+    payload = (
+        _pix_tlv("00", "01")
+        + merchant_account
+        + _pix_tlv("52", "0000")
+        + _pix_tlv("53", "986")
+        + (_pix_tlv("54", f"{float(amount):.2f}") if amount else "")
+        + _pix_tlv("58", "BR")
+        + _pix_tlv("59", name)
+        + _pix_tlv("60", city)
+        + _pix_tlv("62", _pix_tlv("05", "***"))
+    )
+    payload += "6304"
+    return payload + _pix_crc16(payload)
 
 
 def _eval_condition(output: str, operator: str, value: str) -> bool:
@@ -732,6 +768,1588 @@ async def _exec_step(step: dict, ctx: dict) -> str:
         _store(result, var, ctx)
         return result
 
+    if t == "copy_file":
+        src = _sub(cfg.get("source_path", ""), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.copy2(src, dst)
+        result = f"Copiado: {src} → {dst}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "move_file":
+        src = _sub(cfg.get("source_path", ""), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.move(src, dst)
+        result = f"Movido: {src} → {dst}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "file_hash":
+        path = _sub(cfg.get("file_path", ""), ctx)
+        algo = cfg.get("hash_algo", "sha256")
+        h = hashlib.new(algo)
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(65536), b""):
+                h.update(chunk)
+        result = h.hexdigest()
+        _store(result, var, ctx)
+        return result
+
+    if t == "file_info":
+        path = _sub(cfg.get("file_path", ""), ctx)
+        st = os.stat(path)
+        info = {
+            "path": path, "size_bytes": st.st_size,
+            "modified": datetime.fromtimestamp(st.st_mtime).isoformat(),
+            "created": datetime.fromtimestamp(st.st_ctime).isoformat(),
+            "is_dir": os.path.isdir(path),
+        }
+        result = json.dumps(info, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "search_in_files":
+        directory = _sub(cfg.get("directory", "."), ctx)
+        pattern = cfg.get("pattern", "*") or "*"
+        needle = _sub(cfg.get("search", ""), ctx)
+        matches = []
+        for path in glob_module.glob(os.path.join(directory, "**", pattern), recursive=True):
+            if not os.path.isfile(path):
+                continue
+            try:
+                with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                    for line_no, line in enumerate(f, 1):
+                        if needle in line:
+                            matches.append(f"{path}:{line_no}: {line.strip()[:200]}")
+            except Exception:
+                continue
+        result = "\n".join(matches) if matches else "Nenhuma ocorrência encontrada."
+        _store(result, var, ctx)
+        return result
+
+    if t == "convert_encoding":
+        src = _sub(cfg.get("source_path", "") or cfg.get("file_path", ""), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx) or src
+        enc_from = cfg.get("encoding_from", "utf-8")
+        enc_to = cfg.get("encoding_to", "utf-8")
+        with open(src, "r", encoding=enc_from) as f:
+            content = f.read()
+        with open(dst, "w", encoding=enc_to) as f:
+            f.write(content)
+        result = f"Convertido {src} ({enc_from} → {enc_to}) em {dst}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "delete_folder":
+        path = _sub(cfg.get("directory", "") or cfg.get("file_path", ""), ctx)
+        shutil.rmtree(path)
+        result = f"Pasta deletada: {path}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "ensure_dir":
+        path = _sub(cfg.get("directory", "") or cfg.get("file_path", ""), ctx)
+        os.makedirs(path, exist_ok=True)
+        result = f"Diretório garantido: {path}"
+        _store(result, var, ctx)
+        return result
+
+    # ── Compactação ─────────────────────────────────────────
+
+    if t == "zip_files":
+        src = _sub(cfg.get("source_path", ""), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        if not dst.lower().endswith(".zip"):
+            dst += ".zip"
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zf:
+            if os.path.isdir(src):
+                for root, _dirs, files in os.walk(src):
+                    for fn in files:
+                        full = os.path.join(root, fn)
+                        zf.write(full, os.path.relpath(full, src))
+            else:
+                zf.write(src, os.path.basename(src))
+        result = f"Compactado em: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "unzip_file":
+        src = _sub(cfg.get("source_path", ""), ctx)
+        dst = _sub(cfg.get("dest_path", "") or ".", ctx)
+        os.makedirs(dst, exist_ok=True)
+        with zipfile.ZipFile(src, "r") as zf:
+            zf.extractall(dst)
+        result = f"Descompactado em: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "backup_folder":
+        src = _sub(cfg.get("source_path", ""), ctx)
+        dst_base = _sub(cfg.get("dest_path", ""), ctx)
+        stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        dst = f"{dst_base}_{stamp}"
+        shutil.copytree(src, dst)
+        result = f"Backup criado em: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    # ── Data & Hora ─────────────────────────────────────────
+
+    if t == "date_diff":
+        fmt_in = cfg.get("date_format_in", "%Y-%m-%d")
+        d1 = datetime.strptime(_sub(cfg.get("date_value", ""), ctx), fmt_in)
+        d2 = datetime.strptime(_sub(cfg.get("date_value2", ""), ctx), fmt_in)
+        delta_seconds = (d2 - d1).total_seconds()
+        unit = cfg.get("date_unit", "days")
+        unit_map = {
+            "seconds": delta_seconds, "minutes": delta_seconds / 60,
+            "hours": delta_seconds / 3600, "days": delta_seconds / 86400,
+            "weeks": delta_seconds / 604800,
+        }
+        result = str(round(unit_map.get(unit, delta_seconds / 86400), 2))
+        _store(result, var, ctx)
+        return result
+
+    if t == "date_add":
+        base = datetime.strptime(_sub(cfg.get("date_value", ""), ctx), cfg.get("date_format_in", "%Y-%m-%d"))
+        unit = cfg.get("date_unit", "days")
+        amount = int(cfg.get("date_amount", 0))
+        kwargs = {unit: amount} if unit in ("seconds", "minutes", "hours", "days", "weeks") else {"days": amount}
+        new_date = base + timedelta(**kwargs)
+        result = new_date.strftime(cfg.get("date_format_out", "%Y-%m-%d"))
+        _store(result, var, ctx)
+        return result
+
+    if t == "timezone_convert":
+        from zoneinfo import ZoneInfo
+        fmt_in = cfg.get("date_format_in", "%Y-%m-%d %H:%M:%S")
+        naive = datetime.strptime(_sub(cfg.get("date_value", ""), ctx), fmt_in)
+        aware = naive.replace(tzinfo=ZoneInfo(cfg.get("timezone_from", "UTC")))
+        converted = aware.astimezone(ZoneInfo(cfg.get("timezone_to", "America/Sao_Paulo")))
+        result = converted.strftime(cfg.get("date_format_out", "%Y-%m-%d %H:%M:%S"))
+        _store(result, var, ctx)
+        return result
+
+    if t == "is_business_day":
+        d = datetime.strptime(_sub(cfg.get("date_value", ""), ctx), cfg.get("date_format_in", "%Y-%m-%d"))
+        result = "true" if d.weekday() < 5 else "false"
+        _store(result, var, ctx)
+        return result
+
+    if t == "format_date":
+        d = datetime.strptime(_sub(cfg.get("date_value", ""), ctx), cfg.get("date_format_in", "%Y-%m-%d"))
+        result = d.strftime(cfg.get("date_format_out", "%d/%m/%Y"))
+        _store(result, var, ctx)
+        return result
+
+    if t == "random_wait":
+        import random
+        lo = float(cfg.get("seconds", 1))
+        hi = float(cfg.get("seconds_max", 3))
+        if hi < lo:
+            hi = lo
+        secs = random.uniform(lo, min(hi, 60))
+        await asyncio.sleep(secs)
+        result = f"Aguardou {secs:.2f}s (aleatório entre {lo}s e {hi}s)"
+        _store(result, var, ctx)
+        return result
+
+    if t == "call_automation":
+        target_id = cfg.get("automation_id", "")
+        if not target_id:
+            raise Exception("Automação não selecionada")
+        depth = ctx.get("call_depth", 0)
+        if depth >= 5:
+            raise Exception("Profundidade máxima de sub-fluxos (5) atingida — possível recursão")
+        target = await studio_automations_col.find_one({"_id": target_id})
+        if not target:
+            raise Exception(f"Automação '{target_id}' não encontrada")
+        sub_input = _sub(cfg.get("input_template", "{output}") or "{output}", ctx)
+        sub_ctx = {
+            "input": sub_input, "output": sub_input, "vars": {}, "sessions": ctx.get("sessions", {}),
+            "agent_id": target.get("agent_id", ctx.get("agent_id", "")), "user_id": ctx.get("user_id", ""),
+            "call_depth": depth + 1,
+        }
+        sub_results, sub_failed = await _exec_step_list(target.get("steps", []), sub_ctx)
+        if sub_failed:
+            last_err = next((r["error"] for r in reversed(sub_results) if r.get("error")), "erro desconhecido")
+            raise Exception(f"Sub-fluxo '{target.get('name')}' falhou: {last_err}")
+        result = sub_ctx["output"]
+        _store(result, var, ctx)
+        return result
+
+    # ── Planilhas & Excel ───────────────────────────────────
+
+    if t == "read_excel":
+        import openpyxl
+        path = _sub(cfg.get("file_path", ""), ctx)
+        sheet = cfg.get("sheet_name") or None
+        wb = openpyxl.load_workbook(path, data_only=True)
+        ws = wb[sheet] if sheet and sheet in wb.sheetnames else wb.active
+        rows = list(ws.iter_rows(values_only=True))
+        if not rows:
+            data = []
+        else:
+            headers = [str(h) if h is not None else f"col{i}" for i, h in enumerate(rows[0])]
+            data = [dict(zip(headers, r)) for r in rows[1:]]
+        result = json.dumps(data, ensure_ascii=False, default=str)
+        _store(result, var, ctx)
+        return result
+
+    if t == "write_excel":
+        import openpyxl
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        data = json.loads(_sub(cfg.get("data_input", "{output}"), ctx))
+        if not isinstance(data, list):
+            raise Exception("data_input precisa ser uma lista de objetos JSON")
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = cfg.get("sheet_name") or "Sheet1"
+        if data:
+            headers = list(data[0].keys())
+            ws.append(headers)
+            for row in data:
+                ws.append([row.get(h, "") for h in headers])
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        wb.save(dst)
+        result = f"Excel salvo em: {dst} ({len(data)} linha(s))"
+        _store(result, var, ctx)
+        return result
+
+    if t == "read_csv":
+        import csv as csv_module
+        path = _sub(cfg.get("file_path", ""), ctx)
+        delim = cfg.get("delimiter", ",") or ","
+        with open(path, "r", encoding="utf-8", newline="") as f:
+            reader = csv_module.DictReader(f, delimiter=delim)
+            data = list(reader)
+        result = json.dumps(data, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "write_csv":
+        import csv as csv_module
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        delim = cfg.get("delimiter", ",") or ","
+        data = json.loads(_sub(cfg.get("data_input", "{output}"), ctx))
+        if not isinstance(data, list):
+            raise Exception("data_input precisa ser uma lista de objetos JSON")
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        with open(dst, "w", encoding="utf-8", newline="") as f:
+            if data:
+                writer = csv_module.DictWriter(f, fieldnames=list(data[0].keys()), delimiter=delim)
+                writer.writeheader()
+                writer.writerows(data)
+        result = f"CSV salvo em: {dst} ({len(data)} linha(s))"
+        _store(result, var, ctx)
+        return result
+
+    if t == "filter_data":
+        data = json.loads(_sub(cfg.get("data_input", "{output}"), ctx))
+        if not isinstance(data, list):
+            raise Exception("data_input precisa ser uma lista de objetos JSON")
+        col = cfg.get("sort_key", "") or cfg.get("merge_key", "")
+        operator = cfg.get("operator", "contains")
+        value = cfg.get("condition_value", "")
+        filtered = [row for row in data if isinstance(row, dict) and _eval_condition(str(row.get(col, "")), operator, value)]
+        result = json.dumps(filtered, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "merge_data":
+        left = json.loads(_sub(cfg.get("data_input", "{output}"), ctx))
+        right = json.loads(_sub(cfg.get("data_input2", "[]"), ctx))
+        key = cfg.get("merge_key", "")
+        if not key:
+            raise Exception("Informe a chave de junção (merge_key)")
+        right_by_key = {str(r.get(key)): r for r in right if isinstance(r, dict)}
+        merged = []
+        for row in left:
+            match = right_by_key.get(str(row.get(key)), {})
+            merged.append({**row, **{k: v for k, v in match.items() if k != key}})
+        result = json.dumps(merged, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "dedupe_data":
+        data = json.loads(_sub(cfg.get("data_input", "{output}"), ctx))
+        key = cfg.get("merge_key", "")
+        seen = set()
+        deduped = []
+        for row in data:
+            k = row.get(key) if key and isinstance(row, dict) else json.dumps(row, sort_keys=True, ensure_ascii=False)
+            if k in seen:
+                continue
+            seen.add(k)
+            deduped.append(row)
+        result = json.dumps(deduped, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "sort_group_data":
+        data = json.loads(_sub(cfg.get("data_input", "{output}"), ctx))
+        sort_key = cfg.get("sort_key", "")
+        desc = bool(cfg.get("sort_desc", False))
+        if sort_key:
+            data = sorted(data, key=lambda r: (r.get(sort_key) is None, r.get(sort_key)), reverse=desc)
+        result = json.dumps(data, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    # ── PDF ─────────────────────────────────────────────────
+
+    if t == "pdf_extract_text":
+        import pdfplumber
+        path = _sub(cfg.get("source_path", "") or cfg.get("file_path", ""), ctx)
+        text_parts = []
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                text_parts.append(page.extract_text() or "")
+        result = "\n".join(text_parts)
+        _store(result, var, ctx)
+        return result
+
+    if t == "pdf_extract_tables":
+        import pdfplumber
+        path = _sub(cfg.get("source_path", "") or cfg.get("file_path", ""), ctx)
+        all_tables = []
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                for table in page.extract_tables():
+                    all_tables.append(table)
+        result = json.dumps(all_tables, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "pdf_merge":
+        from pypdf import PdfWriter
+        raw_list = _sub(cfg.get("list_source", "[]"), ctx)
+        paths = json.loads(raw_list)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        writer = PdfWriter()
+        for p in paths:
+            writer.append(p)
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        with open(dst, "wb") as f:
+            writer.write(f)
+        result = f"PDFs mesclados em: {dst} ({len(paths)} arquivo(s))"
+        _store(result, var, ctx)
+        return result
+
+    if t == "pdf_split":
+        from pypdf import PdfReader, PdfWriter
+        path = _sub(cfg.get("source_path", "") or cfg.get("file_path", ""), ctx)
+        dst_dir = _sub(cfg.get("dest_path", "") or ".", ctx)
+        os.makedirs(dst_dir, exist_ok=True)
+        reader = PdfReader(path)
+        out_paths = []
+        for i, page in enumerate(reader.pages):
+            writer = PdfWriter()
+            writer.add_page(page)
+            out_path = os.path.join(dst_dir, f"pagina_{i + 1}.pdf")
+            with open(out_path, "wb") as f:
+                writer.write(f)
+            out_paths.append(out_path)
+        result = json.dumps(out_paths, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "pdf_generate":
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas as pdf_canvas
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        text = _sub(cfg.get("content", "{output}"), ctx)
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        c = pdf_canvas.Canvas(dst, pagesize=A4)
+        width, height = A4
+        y = height - 50
+        for line in text.split("\n"):
+            if y < 50:
+                c.showPage()
+                y = height - 50
+            c.drawString(50, y, line[:110])
+            y -= 16
+        c.save()
+        result = f"PDF gerado em: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "pdf_fill_form":
+        from pypdf import PdfReader, PdfWriter
+        path = _sub(cfg.get("source_path", "") or cfg.get("file_path", ""), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        fields = json.loads(_sub(cfg.get("data_input", "{}"), ctx))
+        reader = PdfReader(path)
+        writer = PdfWriter()
+        writer.append(reader)
+        for page in writer.pages:
+            writer.update_page_form_field_values(page, fields)
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        with open(dst, "wb") as f:
+            writer.write(f)
+        result = f"Formulário preenchido em: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    # ── Dados & ETL ─────────────────────────────────────────
+
+    if t == "validate_json_schema":
+        import jsonschema
+        data = json.loads(_sub(cfg.get("json_input", "{output}"), ctx))
+        schema = json.loads(_sub(cfg.get("schema_input", "{}"), ctx))
+        try:
+            jsonschema.validate(instance=data, schema=schema)
+            result = "válido"
+        except jsonschema.ValidationError as e:
+            result = f"inválido: {e.message}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "convert_data_format":
+        import csv as csv_module
+        import io as io_module
+        import xmltodict
+        import yaml
+        raw = _sub(cfg.get("data_input", "{output}"), ctx)
+        fmt_from = cfg.get("format_from", "json")
+        fmt_to = cfg.get("format_to", "csv")
+
+        if fmt_from == "json":
+            data = json.loads(raw)
+        elif fmt_from == "yaml":
+            data = yaml.safe_load(raw)
+        elif fmt_from == "csv":
+            data = list(csv_module.DictReader(io_module.StringIO(raw)))
+        elif fmt_from == "xml":
+            data = xmltodict.parse(raw)
+        else:
+            raise Exception(f"Formato de origem não suportado: {fmt_from}")
+
+        if fmt_to == "json":
+            result = json.dumps(data, ensure_ascii=False, indent=2)
+        elif fmt_to == "yaml":
+            result = yaml.safe_dump(data, allow_unicode=True)
+        elif fmt_to == "csv":
+            buf = io_module.StringIO()
+            if isinstance(data, list) and data:
+                writer = csv_module.DictWriter(buf, fieldnames=list(data[0].keys()))
+                writer.writeheader()
+                writer.writerows(data)
+            result = buf.getvalue()
+        elif fmt_to == "xml":
+            result = xmltodict.unparse({"root": data}, pretty=True)
+        else:
+            raise Exception(f"Formato de destino não suportado: {fmt_to}")
+        _store(result, var, ctx)
+        return result
+
+    if t == "html_extract":
+        from bs4 import BeautifulSoup
+        html = _sub(cfg.get("text_input", "{output}"), ctx)
+        selector = cfg.get("css_selector", "")
+        soup = BeautifulSoup(html, "html.parser")
+        found = soup.select(selector) if selector else []
+        result = json.dumps([el.get_text(strip=True) for el in found], ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "sql_on_data":
+        import duckdb
+        import pandas as pd
+        data = json.loads(_sub(cfg.get("data_input", "{output}"), ctx))
+        query = _sub(cfg.get("sql_query", "SELECT * FROM data"), ctx)
+        df = pd.DataFrame(data if isinstance(data, list) else [data])
+        con = duckdb.connect(":memory:")
+        try:
+            con.register("data", df)
+            rows = con.execute(query).fetchdf()
+            result = rows.to_json(orient="records", force_ascii=False)
+        finally:
+            con.close()
+        _store(result, var, ctx)
+        return result
+
+    if t == "generate_fake_data":
+        from faker import Faker
+        fake = Faker("pt_BR")
+        kind = cfg.get("fake_type", "name")
+        count = int(cfg.get("fake_count", 5) or 5)
+        generators = {
+            "name": fake.name, "email": fake.email, "cpf": fake.cpf, "cnpj": fake.cnpj,
+            "phone": fake.phone_number, "address": fake.address, "company": fake.company,
+            "date": lambda: fake.date_between(start_date="-5y", end_date="today").isoformat(),
+            "text": lambda: fake.text(max_nb_chars=120),
+        }
+        gen = generators.get(kind, fake.name)
+        result = json.dumps([gen() for _ in range(max(1, min(count, 1000)))], ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    # ── Validação BR ────────────────────────────────────────
+
+    if t == "validate_cpf_cnpj":
+        from validate_docbr import CPF, CNPJ
+        value = re.sub(r"\D", "", _sub(cfg.get("text_input", "{output}"), ctx))
+        if len(value) <= 11:
+            result = "válido" if CPF().validate(value) else "inválido"
+        else:
+            result = "válido" if CNPJ().validate(value) else "inválido"
+        _store(result, var, ctx)
+        return result
+
+    if t == "validate_email":
+        from email_validator import validate_email as _validate_email, EmailNotValidError
+        addr = _sub(cfg.get("text_input", "{output}"), ctx).strip()
+        try:
+            _validate_email(addr, check_deliverability=True)
+            result = "válido"
+        except EmailNotValidError as e:
+            result = f"inválido: {e}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "validate_phone":
+        import phonenumbers
+        raw = _sub(cfg.get("text_input", "{output}"), ctx)
+        region = cfg.get("region", "BR") or "BR"
+        try:
+            parsed = phonenumbers.parse(raw, region)
+            result = "válido" if phonenumbers.is_valid_number(parsed) else "inválido"
+        except phonenumbers.NumberParseException as e:
+            result = f"inválido: {e}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "lookup_cep":
+        cep = re.sub(r"\D", "", _sub(cfg.get("text_input", "{output}"), ctx))
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(f"https://viacep.com.br/ws/{cep}/json/")
+        data = resp.json()
+        if data.get("erro"):
+            raise Exception(f"CEP '{cep}' não encontrado")
+        result = json.dumps(data, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "format_currency":
+        from babel.numbers import format_currency as _format_currency
+        raw = _sub(cfg.get("text_input", "{output}"), ctx)
+        try:
+            value = float(str(raw).replace(",", "."))
+        except ValueError:
+            raise Exception(f"Valor inválido para formatar: '{raw}'")
+        result = _format_currency(value, "BRL", locale="pt_BR")
+        _store(result, var, ctx)
+        return result
+
+    # ── Segurança & Criptografia ────────────────────────────
+
+    if t == "encrypt_text":
+        from cryptography.fernet import Fernet
+        import base64 as base64_module
+        import hashlib as hashlib_module
+        key_raw = _sub(cfg.get("secret_key", ""), ctx)
+        if not key_raw:
+            raise Exception("Informe uma chave secreta (secret_key)")
+        key = base64_module.urlsafe_b64encode(hashlib_module.sha256(key_raw.encode()).digest())
+        text = _sub(cfg.get("text_input", "{output}"), ctx)
+        result = Fernet(key).encrypt(text.encode()).decode()
+        _store(result, var, ctx)
+        return result
+
+    if t == "decrypt_text":
+        from cryptography.fernet import Fernet, InvalidToken
+        import base64 as base64_module
+        import hashlib as hashlib_module
+        key_raw = _sub(cfg.get("secret_key", ""), ctx)
+        if not key_raw:
+            raise Exception("Informe uma chave secreta (secret_key)")
+        key = base64_module.urlsafe_b64encode(hashlib_module.sha256(key_raw.encode()).digest())
+        token = _sub(cfg.get("text_input", "{output}"), ctx)
+        try:
+            result = Fernet(key).decrypt(token.encode()).decode()
+        except InvalidToken:
+            raise Exception("Token inválido ou chave secreta incorreta")
+        _store(result, var, ctx)
+        return result
+
+    if t == "generate_jwt":
+        from jose import jwt as jose_jwt
+        payload = json.loads(_sub(cfg.get("json_input", "{}"), ctx))
+        secret = _sub(cfg.get("secret_key", ""), ctx)
+        if not secret:
+            raise Exception("Informe uma chave secreta (secret_key)")
+        result = jose_jwt.encode(payload, secret, algorithm="HS256")
+        _store(result, var, ctx)
+        return result
+
+    if t == "verify_jwt":
+        from jose import jwt as jose_jwt
+        from jose.exceptions import JWTError
+        token = _sub(cfg.get("text_input", "{output}"), ctx)
+        secret = _sub(cfg.get("secret_key", ""), ctx)
+        try:
+            payload = jose_jwt.decode(token, secret, algorithms=["HS256"])
+            result = json.dumps(payload, ensure_ascii=False)
+        except JWTError as e:
+            result = f"inválido: {e}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "hash_password":
+        import bcrypt as bcrypt_module
+        text = _sub(cfg.get("text_input", "{output}"), ctx)
+        result = bcrypt_module.hashpw(text.encode(), bcrypt_module.gensalt()).decode()
+        _store(result, var, ctx)
+        return result
+
+    if t == "verify_password":
+        import bcrypt as bcrypt_module
+        plain = _sub(cfg.get("text_input", "{output}"), ctx)
+        hashed = _sub(cfg.get("secret_key", ""), ctx)
+        try:
+            ok = bcrypt_module.checkpw(plain.encode(), hashed.encode())
+        except ValueError:
+            ok = False
+        result = "true" if ok else "false"
+        _store(result, var, ctx)
+        return result
+
+    if t == "generate_otp":
+        import pyotp
+        secret = _sub(cfg.get("secret_key", ""), ctx) or pyotp.random_base32()
+        code = pyotp.TOTP(secret).now()
+        result = json.dumps({"secret": secret, "code": code}, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "verify_otp":
+        import pyotp
+        secret = _sub(cfg.get("secret_key", ""), ctx)
+        code = _sub(cfg.get("text_input", "{output}"), ctx).strip()
+        if not secret:
+            raise Exception("Informe o secret do OTP (secret_key)")
+        ok = pyotp.TOTP(secret).verify(code, valid_window=1)
+        result = "true" if ok else "false"
+        _store(result, var, ctx)
+        return result
+
+    if t == "generate_secure_password":
+        length = int(cfg.get("password_length", 16) or 16)
+        alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+"
+        result = "".join(secrets.choice(alphabet) for _ in range(max(4, min(length, 128))))
+        _store(result, var, ctx)
+        return result
+
+    if t == "check_ssl_cert":
+        import ssl as ssl_module
+        import socket as socket_module
+        from datetime import datetime as _dt
+        host = _sub(cfg.get("text_input", "{output}"), ctx).strip()
+        ctx_ssl = ssl_module.create_default_context()
+        with socket_module.create_connection((host, 443), timeout=10) as sock:
+            with ctx_ssl.wrap_socket(sock, server_hostname=host) as ssock:
+                cert = ssock.getpeercert()
+        expires = _dt.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y %Z")
+        days_left = (expires - _dt.utcnow()).days
+        result = json.dumps({
+            "subject": dict(x[0] for x in cert.get("subject", [])),
+            "issuer": dict(x[0] for x in cert.get("issuer", [])),
+            "expires": expires.isoformat(), "days_left": days_left,
+        }, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "hmac_sign":
+        import hmac as hmac_module
+        import hashlib as hashlib_module
+        message = _sub(cfg.get("text_input", "{output}"), ctx)
+        secret = _sub(cfg.get("secret_key", ""), ctx)
+        if not secret:
+            raise Exception("Informe uma chave secreta (secret_key)")
+        result = hmac_module.new(secret.encode(), message.encode(), hashlib_module.sha256).hexdigest()
+        _store(result, var, ctx)
+        return result
+
+    # ── Comunicação ─────────────────────────────────────────
+
+    if t == "send_telegram":
+        bot_token = _sub(cfg.get("secret_key", ""), ctx)
+        chat_id = _sub(cfg.get("to", ""), ctx)
+        text = _sub(cfg.get("content", "{output}"), ctx)
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                json={"chat_id": chat_id, "text": text},
+            )
+        if resp.status_code != 200:
+            raise Exception(f"Telegram retornou {resp.status_code}: {resp.text}")
+        result = f"Mensagem enviada ao chat {chat_id}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "send_slack":
+        webhook_url = _sub(cfg.get("url", ""), ctx)
+        text = _sub(cfg.get("content", "{output}"), ctx)
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(webhook_url, json={"text": text})
+        if resp.status_code != 200:
+            raise Exception(f"Slack retornou {resp.status_code}: {resp.text}")
+        result = "Mensagem enviada ao Slack"
+        _store(result, var, ctx)
+        return result
+
+    if t == "send_discord":
+        webhook_url = _sub(cfg.get("url", ""), ctx)
+        text = _sub(cfg.get("content", "{output}"), ctx)
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(webhook_url, json={"content": text})
+        if resp.status_code not in (200, 204):
+            raise Exception(f"Discord retornou {resp.status_code}: {resp.text}")
+        result = "Mensagem enviada ao Discord"
+        _store(result, var, ctx)
+        return result
+
+    if t in ("send_whatsapp", "send_sms"):
+        sid = _sub(cfg.get("api_key", ""), ctx)
+        token = _sub(cfg.get("api_secret", ""), ctx)
+        from_num = _sub(cfg.get("from_number", ""), ctx)
+        to_num = _sub(cfg.get("to", ""), ctx)
+        body = _sub(cfg.get("content", "{output}"), ctx)
+        prefix = "whatsapp:" if t == "send_whatsapp" else ""
+        async with httpx.AsyncClient(timeout=15, auth=(sid, token)) as client:
+            resp = await client.post(
+                f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json",
+                data={"From": f"{prefix}{from_num}", "To": f"{prefix}{to_num}", "Body": body},
+            )
+        if resp.status_code not in (200, 201):
+            raise Exception(f"Twilio retornou {resp.status_code}: {resp.text}")
+        result = f"{'WhatsApp' if t == 'send_whatsapp' else 'SMS'} enviado para {to_num}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "read_email_imap":
+        import imaplib
+        import email as email_module
+        host = _sub(cfg.get("url", ""), ctx) or "imap.gmail.com"
+        user_addr = _sub(cfg.get("to", ""), ctx)
+        password = _sub(cfg.get("secret_key", ""), ctx)
+        limit = int(cfg.get("fake_count", 5) or 5)
+        imap = imaplib.IMAP4_SSL(host)
+        try:
+            imap.login(user_addr, password)
+            imap.select("INBOX")
+            _, msg_ids = imap.search(None, "ALL")
+            ids = msg_ids[0].split()[-limit:]
+            messages = []
+            for mid in reversed(ids):
+                _, data = imap.fetch(mid, "(RFC822)")
+                msg = email_module.message_from_bytes(data[0][1])
+                messages.append({"from": msg.get("From", ""), "subject": msg.get("Subject", ""), "date": msg.get("Date", "")})
+        finally:
+            imap.logout()
+        result = json.dumps(messages, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    # ── Notificações ────────────────────────────────────────
+
+    if t == "send_push_notification":
+        api_key = _sub(cfg.get("api_key", ""), ctx)
+        app_id = _sub(cfg.get("secret_key", ""), ctx)
+        message = _sub(cfg.get("content", "{output}"), ctx)
+        segment_or_player = _sub(cfg.get("to", ""), ctx)
+        payload = {"app_id": app_id, "contents": {"en": message}}
+        if segment_or_player:
+            payload["include_player_ids"] = [segment_or_player]
+        else:
+            payload["included_segments"] = ["All"]
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                "https://onesignal.com/api/v1/notifications",
+                headers={"Authorization": f"Basic {api_key}", "Content-Type": "application/json"},
+                json=payload,
+            )
+        if resp.status_code not in (200, 201):
+            raise Exception(f"OneSignal retornou {resp.status_code}: {resp.text}")
+        result = "Push notification enviada"
+        _store(result, var, ctx)
+        return result
+
+    if t == "create_incident":
+        routing_key = _sub(cfg.get("api_key", ""), ctx)
+        summary = _sub(cfg.get("content", "{output}"), ctx)
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                "https://events.pagerduty.com/v2/enqueue",
+                json={
+                    "routing_key": routing_key, "event_action": "trigger",
+                    "payload": {"summary": summary, "source": "HAC Studio", "severity": "critical"},
+                },
+            )
+        if resp.status_code not in (200, 202):
+            raise Exception(f"PagerDuty retornou {resp.status_code}: {resp.text}")
+        result = "Incidente criado no PagerDuty"
+        _store(result, var, ctx)
+        return result
+
+    # ── Pagamentos & Financeiro ─────────────────────────────
+
+    if t == "asaas_create_charge":
+        api_key = _sub(cfg.get("api_key", ""), ctx)
+        customer_id = _sub(cfg.get("to", ""), ctx)
+        value = _sub(cfg.get("text_input", "0"), ctx)
+        description = _sub(cfg.get("content", ""), ctx)
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                "https://api.asaas.com/v3/payments",
+                headers={"access_token": api_key, "Content-Type": "application/json"},
+                json={"customer": customer_id, "billingType": "PIX", "value": float(value), "description": description},
+            )
+        if resp.status_code not in (200, 201):
+            raise Exception(f"Asaas retornou {resp.status_code}: {resp.text}")
+        result = resp.text
+        _store(result, var, ctx)
+        return result
+
+    if t == "asaas_check_payment":
+        api_key = _sub(cfg.get("api_key", ""), ctx)
+        payment_id = _sub(cfg.get("text_input", "{output}"), ctx)
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                f"https://api.asaas.com/v3/payments/{payment_id}",
+                headers={"access_token": api_key},
+            )
+        if resp.status_code != 200:
+            raise Exception(f"Asaas retornou {resp.status_code}: {resp.text}")
+        result = resp.text
+        _store(result, var, ctx)
+        return result
+
+    if t == "generate_pix_qr":
+        key = _sub(cfg.get("pix_key", ""), ctx)
+        name = _sub(cfg.get("pix_merchant_name", ""), ctx)
+        city = _sub(cfg.get("pix_merchant_city", ""), ctx)
+        amount = _sub(cfg.get("text_input", ""), ctx)
+        if not key:
+            raise Exception("Informe a chave Pix (pix_key)")
+        result = _build_pix_payload(key, name, city, amount)
+        _store(result, var, ctx)
+        return result
+
+    if t == "get_currency_rate":
+        pair = _sub(cfg.get("text_input", "USD-BRL"), ctx).strip()
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(f"https://economia.awesomeapi.com.br/last/{pair}")
+        data = resp.json()
+        result = json.dumps(data, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "get_crypto_price":
+        coin = _sub(cfg.get("text_input", "bitcoin"), ctx).strip().lower()
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                "https://api.coingecko.com/api/v3/simple/price",
+                params={"ids": coin, "vs_currencies": "usd,brl"},
+            )
+        data = resp.json()
+        if coin not in data:
+            raise Exception(f"Moeda '{coin}' não encontrada")
+        result = json.dumps(data[coin], ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    # ── APIs Externas Úteis ─────────────────────────────────
+
+    if t == "get_weather":
+        city = _sub(cfg.get("text_input", "{output}"), ctx)
+        api_key = _sub(cfg.get("api_key", ""), ctx)
+        if not api_key:
+            raise Exception("Informe a API key do OpenWeatherMap (api_key)")
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                "https://api.openweathermap.org/data/2.5/weather",
+                params={"q": city, "appid": api_key, "units": "metric", "lang": "pt_br"},
+            )
+        if resp.status_code != 200:
+            raise Exception(f"OpenWeatherMap retornou {resp.status_code}: {resp.text}")
+        result = resp.text
+        _store(result, var, ctx)
+        return result
+
+    if t == "geocode_address":
+        address = _sub(cfg.get("text_input", "{output}"), ctx)
+        async with httpx.AsyncClient(timeout=15, headers={"User-Agent": "HAC-Studio/1.0"}) as client:
+            resp = await client.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={"q": address, "format": "json", "limit": 1},
+            )
+        data = resp.json()
+        if not data:
+            raise Exception(f"Endereço não encontrado: '{address}'")
+        result = json.dumps({"lat": data[0]["lat"], "lon": data[0]["lon"], "display_name": data[0]["display_name"]}, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "calculate_distance":
+        import math
+        lat1, lon1 = [float(x) for x in _sub(cfg.get("coord_from", ""), ctx).split(",")]
+        lat2, lon2 = [float(x) for x in _sub(cfg.get("coord_to", ""), ctx).split(",")]
+        r = 6371.0
+        phi1, phi2 = math.radians(lat1), math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lon2 - lon1)
+        a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+        km = r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        result = str(round(km, 3))
+        _store(result, var, ctx)
+        return result
+
+    if t == "shorten_url":
+        long_url = _sub(cfg.get("text_input", "{output}"), ctx)
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get("http://tinyurl.com/api-create.php", params={"url": long_url})
+        if resp.status_code != 200:
+            raise Exception(f"TinyURL retornou {resp.status_code}: {resp.text}")
+        result = resp.text.strip()
+        _store(result, var, ctx)
+        return result
+
+    if t == "lookup_cnpj":
+        cnpj = re.sub(r"\D", "", _sub(cfg.get("text_input", "{output}"), ctx))
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(f"https://brasilapi.com.br/api/cnpj/v1/{cnpj}")
+        if resp.status_code != 200:
+            raise Exception(f"CNPJ '{cnpj}' não encontrado ou inválido")
+        result = resp.text
+        _store(result, var, ctx)
+        return result
+
+    if t == "translate_text":
+        text = _sub(cfg.get("text_input", "{output}"), ctx)
+        target_lang = (cfg.get("region", "EN") or "EN").upper()
+        api_key = _sub(cfg.get("api_key", ""), ctx)
+        if not api_key:
+            raise Exception("Informe a API key do DeepL (api_key)")
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                "https://api-free.deepl.com/v2/translate",
+                headers={"Authorization": f"DeepL-Auth-Key {api_key}"},
+                data={"text": text, "target_lang": target_lang},
+            )
+        if resp.status_code != 200:
+            raise Exception(f"DeepL retornou {resp.status_code}: {resp.text}")
+        result = resp.json()["translations"][0]["text"]
+        _store(result, var, ctx)
+        return result
+
+    if t == "get_holidays":
+        year = _sub(cfg.get("text_input", "") or str(datetime.utcnow().year), ctx).strip()
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(f"https://brasilapi.com.br/api/feriados/v1/{year}")
+        if resp.status_code != 200:
+            raise Exception(f"Ano inválido ou API indisponível: {resp.status_code}")
+        result = resp.text
+        _store(result, var, ctx)
+        return result
+
+    # ── Web & Scraping avançado ─────────────────────────────
+
+    if t == "download_file":
+        url = _sub(cfg.get("url", ""), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
+            async with client.stream("GET", url) as resp:
+                if resp.status_code != 200:
+                    raise Exception(f"Download falhou: {resp.status_code}")
+                with open(dst, "wb") as f:
+                    async for chunk in resp.aiter_bytes():
+                        f.write(chunk)
+        result = f"Baixado em: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "upload_file":
+        url = _sub(cfg.get("url", ""), ctx)
+        path = _sub(cfg.get("source_path", ""), ctx)
+        headers = cfg.get("headers") or {}
+        with open(path, "rb") as f:
+            async with httpx.AsyncClient(timeout=60) as client:
+                resp = await client.post(url, files={"file": (os.path.basename(path), f)}, headers=headers)
+        result = f"[{resp.status_code}] {resp.text[:2000]}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "scrape_html_table":
+        import pandas as pd
+        source = _sub(cfg.get("text_input", "{output}"), ctx)
+        if source.startswith("http://") or source.startswith("https://"):
+            async with httpx.AsyncClient(timeout=20, headers={"User-Agent": "Mozilla/5.0"}) as client:
+                resp = await client.get(source)
+            html = resp.text
+        else:
+            html = source
+        tables = pd.read_html(io.StringIO(html))
+        result = json.dumps([t_df.to_dict(orient="records") for t_df in tables], ensure_ascii=False, default=str)
+        _store(result, var, ctx)
+        return result
+
+    if t == "read_rss_feed":
+        import feedparser
+        url = _sub(cfg.get("url", ""), ctx)
+        feed = feedparser.parse(url)
+        items = [{"title": e.get("title", ""), "link": e.get("link", ""), "published": e.get("published", "")} for e in feed.entries]
+        result = json.dumps(items, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "http_request_retry":
+        method = cfg.get("method", "GET").upper()
+        url = _sub(cfg.get("url", ""), ctx)
+        headers = cfg.get("headers") or {}
+        body = _sub(cfg.get("body", ""), ctx)
+        max_tries = int(cfg.get("max_iterations", 3) or 3)
+        last_exc = None
+        for attempt in range(max_tries):
+            try:
+                async with httpx.AsyncClient(timeout=30) as client:
+                    resp = await client.request(method, url, headers=headers, content=body or None)
+                if resp.status_code < 500:
+                    result = f"[{resp.status_code}] {resp.text[:3000]}"
+                    _store(resp.text[:5000], var, ctx)
+                    return result
+                last_exc = Exception(f"HTTP {resp.status_code}")
+            except Exception as e:
+                last_exc = e
+            if attempt < max_tries - 1:
+                await asyncio.sleep(min(2 ** attempt, 30))
+        raise Exception(f"Falhou após {max_tries} tentativas: {last_exc}")
+
+    # ── Texto & NLP ─────────────────────────────────────────
+
+    if t == "detect_language":
+        from langdetect import detect
+        text = _sub(cfg.get("text_input", "{output}"), ctx)
+        try:
+            result = detect(text)
+        except Exception:
+            result = "desconhecido"
+        _store(result, var, ctx)
+        return result
+
+    if t == "count_tokens":
+        import tiktoken
+        text = _sub(cfg.get("text_input", "{output}"), ctx)
+        enc = tiktoken.get_encoding("cl100k_base")
+        result = str(len(enc.encode(text)))
+        _store(result, var, ctx)
+        return result
+
+    # ── IA & ML extra ───────────────────────────────────────
+
+    if t == "generate_embedding":
+        from openai import AsyncOpenAI
+        text = _sub(cfg.get("text_input", "{output}"), ctx)
+        api_key = _sub(cfg.get("api_key", ""), ctx)
+        if not api_key:
+            raise Exception("Informe a API key da OpenAI (api_key)")
+        client = AsyncOpenAI(api_key=api_key)
+        resp = await client.embeddings.create(model="text-embedding-3-small", input=text)
+        result = json.dumps(resp.data[0].embedding, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "semantic_search":
+        from openai import AsyncOpenAI
+        import numpy as np
+        query = _sub(cfg.get("text_input", "{output}"), ctx)
+        api_key = _sub(cfg.get("api_key", ""), ctx)
+        candidates = json.loads(_sub(cfg.get("json_input", "[]"), ctx))
+        if not api_key:
+            raise Exception("Informe a API key da OpenAI (api_key)")
+        if not candidates:
+            raise Exception("Informe candidatos em json_input: [{\"text\":..,\"embedding\":[..]}]")
+        client = AsyncOpenAI(api_key=api_key)
+        q_resp = await client.embeddings.create(model="text-embedding-3-small", input=query)
+        q_vec = np.array(q_resp.data[0].embedding)
+        best, best_score = None, -1.0
+        for cand in candidates:
+            vec = np.array(cand["embedding"])
+            score = float(np.dot(q_vec, vec) / (np.linalg.norm(q_vec) * np.linalg.norm(vec) + 1e-9))
+            if score > best_score:
+                best, best_score = cand, score
+        result = json.dumps({"text": best.get("text"), "score": round(best_score, 4)}, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "moderate_content":
+        from openai import AsyncOpenAI
+        text = _sub(cfg.get("text_input", "{output}"), ctx)
+        api_key = _sub(cfg.get("api_key", ""), ctx)
+        if not api_key:
+            raise Exception("Informe a API key da OpenAI (api_key)")
+        client = AsyncOpenAI(api_key=api_key)
+        resp = await client.moderations.create(input=text)
+        r0 = resp.results[0]
+        result = json.dumps({"flagged": r0.flagged, "categories": {k: v for k, v in r0.categories.model_dump().items() if v}}, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "compare_texts":
+        import difflib
+        text_a = _sub(cfg.get("text_input", "{output}"), ctx)
+        text_b = _sub(cfg.get("data_input2", ""), ctx)
+        ratio = difflib.SequenceMatcher(None, text_a, text_b).ratio()
+        result = str(round(ratio, 4))
+        _store(result, var, ctx)
+        return result
+
+    # ── Sistema & DevOps ─────────────────────────────────────
+
+    if t == "system_stats":
+        import psutil
+        stats = {
+            "cpu_percent": psutil.cpu_percent(interval=0.3),
+            "memory_percent": psutil.virtual_memory().percent,
+            "disk_percent": psutil.disk_usage(os.path.abspath(os.sep)).percent,
+        }
+        result = json.dumps(stats, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "list_processes":
+        import psutil
+        limit = int(cfg.get("fake_count", 20) or 20)
+        procs = []
+        for p in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent"]):
+            try:
+                procs.append(p.info)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        procs = sorted(procs, key=lambda p: p.get("memory_percent") or 0, reverse=True)[:max(1, min(limit, 200))]
+        result = json.dumps(procs, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "check_port_open":
+        import socket as socket_module
+        raw = _sub(cfg.get("text_input", "{output}"), ctx)
+        host, _, port_s = raw.rpartition(":")
+        if not host:
+            raise Exception("Informe host:porta, ex: exemplo.com:443")
+        port = int(port_s)
+        sock = socket_module.socket(socket_module.AF_INET, socket_module.SOCK_STREAM)
+        sock.settimeout(5)
+        try:
+            open_ = sock.connect_ex((host, port)) == 0
+        finally:
+            sock.close()
+        result = "aberta" if open_ else "fechada"
+        _store(result, var, ctx)
+        return result
+
+    if t == "dns_lookup":
+        import dns.resolver
+        domain = _sub(cfg.get("text_input", "{output}"), ctx)
+        record_type = (cfg.get("operation", "A") or "A").upper()
+        answers = dns.resolver.resolve(domain, record_type)
+        result = json.dumps([str(a) for a in answers], ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "whois_lookup":
+        import whois as whois_module
+        domain = _sub(cfg.get("text_input", "{output}"), ctx)
+        w = whois_module.whois(domain)
+        result = json.dumps({k: str(v) for k, v in dict(w).items()}, ensure_ascii=False, default=str)
+        _store(result, var, ctx)
+        return result
+
+    if t == "ssh_execute":
+        import paramiko
+        host = _sub(cfg.get("url", ""), ctx)
+        username = _sub(cfg.get("to", ""), ctx)
+        password = _sub(cfg.get("secret_key", ""), ctx)
+        command = _sub(cfg.get("command", ""), ctx)
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        try:
+            client.connect(host, username=username, password=password, timeout=10)
+            _, stdout, stderr = client.exec_command(command, timeout=30)
+            result = stdout.read().decode() + stderr.read().decode()
+        finally:
+            client.close()
+        _store(result, var, ctx)
+        return result
+
+    if t == "read_env_var":
+        name = _sub(cfg.get("text_input", "{output}"), ctx).strip()
+        result = os.environ.get(name, "")
+        _store(result, var, ctx)
+        return result
+
+    if t == "check_url_uptime":
+        url = _sub(cfg.get("url", ""), ctx)
+        start = time.time()
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(url)
+            up = resp.status_code < 500
+            status_code = resp.status_code
+        except Exception:
+            up, status_code = False, 0
+        latency_ms = int((time.time() - start) * 1000)
+        result = json.dumps({"up": up, "status_code": status_code, "latency_ms": latency_ms}, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    # ── Banco de Dados & Fila ────────────────────────────────
+
+    if t == "redis_get":
+        import redis.asyncio as redis_module
+        conn = redis_module.from_url(_sub(cfg.get("url", ""), ctx), decode_responses=True)
+        try:
+            result = await conn.get(_sub(cfg.get("text_input", ""), ctx)) or ""
+        finally:
+            await conn.aclose()
+        _store(result, var, ctx)
+        return result
+
+    if t == "redis_set":
+        import redis.asyncio as redis_module
+        conn = redis_module.from_url(_sub(cfg.get("url", ""), ctx), decode_responses=True)
+        try:
+            await conn.set(_sub(cfg.get("text_input", ""), ctx), _sub(cfg.get("content", "{output}"), ctx))
+        finally:
+            await conn.aclose()
+        result = "salvo"
+        _store(result, var, ctx)
+        return result
+
+    if t == "queue_push":
+        import redis.asyncio as redis_module
+        conn = redis_module.from_url(_sub(cfg.get("url", ""), ctx), decode_responses=True)
+        try:
+            await conn.rpush(_sub(cfg.get("text_input", ""), ctx), _sub(cfg.get("content", "{output}"), ctx))
+        finally:
+            await conn.aclose()
+        result = "enfileirado"
+        _store(result, var, ctx)
+        return result
+
+    if t == "queue_pop":
+        import redis.asyncio as redis_module
+        conn = redis_module.from_url(_sub(cfg.get("url", ""), ctx), decode_responses=True)
+        try:
+            result = await conn.lpop(_sub(cfg.get("text_input", ""), ctx)) or ""
+        finally:
+            await conn.aclose()
+        _store(result, var, ctx)
+        return result
+
+    if t == "sql_query_external":
+        import asyncpg
+        dsn = _sub(cfg.get("url", ""), ctx)
+        query = _sub(cfg.get("sql_query", "SELECT 1"), ctx)
+        conn = await asyncpg.connect(dsn)
+        try:
+            rows = await conn.fetch(query)
+            result = json.dumps([dict(r) for r in rows], ensure_ascii=False, default=str)
+        finally:
+            await conn.close()
+        _store(result, var, ctx)
+        return result
+
+    # ── Templates & Documentos ───────────────────────────────
+
+    if t == "render_template":
+        from jinja2 import Template
+        template_str = cfg.get("content", "") or ""
+        variables = json.loads(_sub(cfg.get("json_input", "{}"), ctx))
+        result = Template(template_str).render(**variables, output=ctx.get("output", ""), input=ctx.get("input", ""))
+        _store(result, var, ctx)
+        return result
+
+    if t == "generate_word_doc":
+        import docx
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        text = _sub(cfg.get("content", "{output}"), ctx)
+        doc = docx.Document()
+        for line in text.split("\n"):
+            doc.add_paragraph(line)
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        doc.save(dst)
+        result = f"Documento salvo em: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "generate_pptx":
+        from pptx import Presentation
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        slides_data = json.loads(_sub(cfg.get("data_input", "[]"), ctx))
+        prs = Presentation()
+        layout = prs.slide_layouts[1]
+        for slide_info in slides_data:
+            slide = prs.slides.add_slide(layout)
+            slide.shapes.title.text = slide_info.get("title", "")
+            slide.placeholders[1].text = slide_info.get("content", "")
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        prs.save(dst)
+        result = f"Apresentação salva em: {dst} ({len(slides_data)} slide(s))"
+        _store(result, var, ctx)
+        return result
+
+    # ── Imagens ─────────────────────────────────────────────
+
+    if t == "resize_image":
+        from PIL import Image
+        src = _sub(cfg.get("source_path", ""), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        width = int(cfg.get("width", 0) or 0)
+        height = int(cfg.get("height", 0) or 0)
+        img = Image.open(src)
+        if width and not height:
+            height = int(img.height * (width / img.width))
+        elif height and not width:
+            width = int(img.width * (height / img.height))
+        img = img.resize((width or img.width, height or img.height))
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        img.save(dst)
+        result = f"Redimensionado para {width}x{height}: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "convert_image_format":
+        from PIL import Image
+        src = _sub(cfg.get("source_path", ""), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        img = Image.open(src).convert("RGB")
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        img.save(dst)
+        result = f"Convertido para: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "add_watermark":
+        from PIL import Image, ImageDraw
+        src = _sub(cfg.get("source_path", ""), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        text = _sub(cfg.get("text", ""), ctx)
+        img = Image.open(src).convert("RGBA")
+        overlay = Image.new("RGBA", img.size, (255, 255, 255, 0))
+        draw = ImageDraw.Draw(overlay)
+        margin = 10
+        draw.text((margin, img.height - 30 - margin), text, fill=(255, 255, 255, 160))
+        combined = Image.alpha_composite(img, overlay).convert("RGB")
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        combined.save(dst)
+        result = f"Marca d'água aplicada: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "generate_thumbnail":
+        from PIL import Image
+        src = _sub(cfg.get("source_path", ""), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        size = int(cfg.get("width", 200) or 200)
+        img = Image.open(src)
+        img.thumbnail((size, size))
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        img.save(dst)
+        result = f"Thumbnail salva em: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "generate_qrcode":
+        import qrcode as qrcode_module
+        content = _sub(cfg.get("text_input", "{output}"), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        img = qrcode_module.make(content)
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        img.save(dst)
+        result = f"QR Code salvo em: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "read_qrcode":
+        from PIL import Image
+        from pyzbar.pyzbar import decode as qr_decode
+        src = _sub(cfg.get("source_path", ""), ctx)
+        decoded = qr_decode(Image.open(src))
+        result = json.dumps([d.data.decode("utf-8", errors="replace") for d in decoded], ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "compare_images":
+        import imagehash
+        from PIL import Image
+        src = _sub(cfg.get("source_path", ""), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        hash_a = imagehash.average_hash(Image.open(src))
+        hash_b = imagehash.average_hash(Image.open(dst))
+        diff_bits = hash_a - hash_b
+        similarity = round(1 - (diff_bits / len(hash_a.hash) ** 2), 4)
+        result = json.dumps({"diff_bits": diff_bits, "similarity": similarity}, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
+    if t == "generate_ai_image":
+        from openai import AsyncOpenAI
+        prompt = _sub(cfg.get("text_input", "{output}"), ctx)
+        api_key = _sub(cfg.get("api_key", ""), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        if not api_key:
+            raise Exception("Informe a API key da OpenAI (api_key)")
+        client = AsyncOpenAI(api_key=api_key)
+        resp = await client.images.generate(model="dall-e-3", prompt=prompt, n=1, size="1024x1024")
+        image_url = resp.data[0].url
+        async with httpx.AsyncClient(timeout=60) as http_client:
+            img_resp = await http_client.get(image_url)
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        with open(dst, "wb") as f:
+            f.write(img_resp.content)
+        result = f"Imagem gerada em: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    # ── Áudio & Vídeo (requer ffmpeg instalado no host do agente) ──
+
+    if t == "transcode_media":
+        import ffmpeg as ffmpeg_module
+        src = _sub(cfg.get("source_path", ""), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        ffmpeg_module.input(src).output(dst).overwrite_output().run(quiet=True)
+        result = f"Transcodificado em: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "extract_audio":
+        import ffmpeg as ffmpeg_module
+        src = _sub(cfg.get("source_path", ""), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        ffmpeg_module.input(src).output(dst, vn=None).overwrite_output().run(quiet=True)
+        result = f"Áudio extraído em: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "trim_media":
+        import ffmpeg as ffmpeg_module
+        src = _sub(cfg.get("source_path", ""), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        start = float(cfg.get("seconds", 0) or 0)
+        duration = float(cfg.get("seconds_max", 0) or 0)
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        stream = ffmpeg_module.input(src, ss=start)
+        if duration:
+            stream = stream.output(dst, t=duration)
+        else:
+            stream = stream.output(dst)
+        stream.overwrite_output().run(quiet=True)
+        result = f"Recorte salvo em: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "extract_video_frame":
+        import ffmpeg as ffmpeg_module
+        src = _sub(cfg.get("source_path", ""), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        timestamp = float(cfg.get("seconds", 0) or 0)
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        ffmpeg_module.input(src, ss=timestamp).output(dst, vframes=1).overwrite_output().run(quiet=True)
+        result = f"Frame salvo em: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "transcribe_audio":
+        from openai import AsyncOpenAI
+        src = _sub(cfg.get("source_path", ""), ctx)
+        api_key = _sub(cfg.get("api_key", ""), ctx)
+        if not api_key:
+            raise Exception("Informe a API key da OpenAI (api_key)")
+        client = AsyncOpenAI(api_key=api_key)
+        with open(src, "rb") as f:
+            transcript = await client.audio.transcriptions.create(model="whisper-1", file=f)
+        result = transcript.text
+        _store(result, var, ctx)
+        return result
+
+    if t == "text_to_speech":
+        from openai import AsyncOpenAI
+        text = _sub(cfg.get("text_input", "{output}"), ctx)
+        api_key = _sub(cfg.get("api_key", ""), ctx)
+        dst = _sub(cfg.get("dest_path", ""), ctx)
+        if not api_key:
+            raise Exception("Informe a API key da OpenAI (api_key)")
+        client = AsyncOpenAI(api_key=api_key)
+        resp = await client.audio.speech.create(model="tts-1", voice="alloy", input=text)
+        if os.path.dirname(dst):
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+        resp.write_to_file(dst)
+        result = f"Áudio gerado em: {dst}"
+        _store(result, var, ctx)
+        return result
+
+    # ── OCR & Visão (requer tesseract/poppler no host do agente) ───
+
+    if t == "ocr_image":
+        import pytesseract
+        from PIL import Image
+        src = _sub(cfg.get("source_path", ""), ctx)
+        result = pytesseract.image_to_string(Image.open(src), lang="por+eng")
+        _store(result, var, ctx)
+        return result
+
+    if t == "ocr_pdf_scanned":
+        import pytesseract
+        from pdf2image import convert_from_path
+        src = _sub(cfg.get("source_path", ""), ctx)
+        pages = convert_from_path(src)
+        result = "\n\n".join(pytesseract.image_to_string(p, lang="por+eng") for p in pages)
+        _store(result, var, ctx)
+        return result
+
+    if t == "detect_face_object":
+        import cv2
+        src = _sub(cfg.get("source_path", ""), ctx)
+        cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+        img = cv2.imread(src)
+        if img is None:
+            raise Exception(f"Não foi possível abrir a imagem: {src}")
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+        boxes = [{"x": int(x), "y": int(y), "w": int(w), "h": int(h)} for (x, y, w, h) in faces]
+        result = json.dumps({"count": len(boxes), "boxes": boxes}, ensure_ascii=False)
+        _store(result, var, ctx)
+        return result
+
     # ── HTTP & Internet ────────────────────────────────────
 
     if t == "http_request":
@@ -901,6 +2519,12 @@ async def _exec_step(step: dict, ctx: dict) -> str:
         elif operation == "base64_decode":
             import base64
             result = base64.b64decode(text.encode()).decode()
+        elif operation == "remove_accents":
+            from unidecode import unidecode
+            result = unidecode(text)
+        elif operation == "slugify":
+            from slugify import slugify
+            result = slugify(text)
         else:
             result = text
         _store(result, var, ctx)
@@ -1091,6 +2715,98 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
                         results.append(r)
                     if iter_failed:
                         return results, True
+                i += 1
+                continue
+
+            elif step_type == "foreach":
+                raw_list = _sub(cfg.get("list_source", "{output}"), ctx)
+                try:
+                    items = json.loads(raw_list)
+                    if not isinstance(items, list):
+                        items = [items]
+                except Exception:
+                    items = [x for x in raw_list.split("\n") if x.strip()]
+                item_var = cfg.get("item_variable", "item") or "item"
+                children = (step.get("children", []) if isinstance(step, dict) else step.children) or []
+                result["output"] = f"Foreach: {len(items)} item(ns), variável '{item_var}'"
+                result["duration_ms"] = int((time.time() - step_start) * 1000)
+                results.append(result)
+
+                for iter_i, item in enumerate(items):
+                    ctx["vars"][item_var] = item if isinstance(item, str) else json.dumps(item, ensure_ascii=False)
+                    ctx["vars"][f"{item_var}_index"] = str(iter_i)
+                    iter_results, iter_failed = await _exec_step_list(children, ctx)
+                    for r in iter_results:
+                        r = {**r, "step_name": f"[{iter_i + 1}/{len(items)}] {r['step_name']}"}
+                        results.append(r)
+                    if iter_failed:
+                        return results, True
+                i += 1
+                continue
+
+            elif step_type == "while_condition":
+                children = (step.get("children", []) if isinstance(step, dict) else step.children) or []
+                operator = cfg.get("operator", "not_empty")
+                cond_value = cfg.get("condition_value", "")
+                max_iter = int(cfg.get("max_iterations", 100) or 100)
+                result["output"] = f"While: {operator} '{cond_value}' (máx {max_iter} iterações)"
+                result["duration_ms"] = int((time.time() - step_start) * 1000)
+                results.append(result)
+
+                iter_i = 0
+                while _eval_condition(ctx["output"], operator, cond_value) and iter_i < max_iter:
+                    iter_results, iter_failed = await _exec_step_list(children, ctx)
+                    for r in iter_results:
+                        r = {**r, "step_name": f"[{iter_i + 1}] {r['step_name']}"}
+                        results.append(r)
+                    if iter_failed:
+                        return results, True
+                    iter_i += 1
+                i += 1
+                continue
+
+            elif step_type == "try_catch":
+                try_children = (step.get("children_true", []) if isinstance(step, dict) else step.children_true) or []
+                catch_children = (step.get("children_false", []) if isinstance(step, dict) else step.children_false) or []
+                result["output"] = "Try/Catch"
+                result["duration_ms"] = int((time.time() - step_start) * 1000)
+                results.append(result)
+
+                try_results, try_failed = await _exec_step_list(try_children, ctx)
+                results.extend(try_results)
+                if try_failed:
+                    last_err = next((r["error"] for r in reversed(try_results) if r.get("error")), "erro desconhecido")
+                    ctx["vars"]["error"] = last_err
+                    catch_results, catch_failed = await _exec_step_list(catch_children, ctx)
+                    results.extend(catch_results)
+                    if catch_failed:
+                        return results, True
+                i += 1
+                continue
+
+            elif step_type == "parallel":
+                children = (step.get("children", []) if isinstance(step, dict) else step.children) or []
+                result["output"] = f"Paralelo: {len(children)} ação(ões) concorrentes"
+                result["duration_ms"] = int((time.time() - step_start) * 1000)
+                results.append(result)
+
+                async def _run_one_parallel(child, base_ctx):
+                    child_ctx = {**base_ctx, "vars": dict(base_ctx["vars"])}
+                    r, f = await _exec_step_list([child], child_ctx)
+                    return r, f, child_ctx
+
+                outcomes = await asyncio.gather(*[_run_one_parallel(c, ctx) for c in children])
+                any_failed = False
+                outputs = []
+                for r, f, child_ctx in outcomes:
+                    results.extend(r)
+                    if f:
+                        any_failed = True
+                    outputs.append(child_ctx.get("output", ""))
+                    ctx["vars"].update(child_ctx["vars"])
+                ctx["output"] = "\n".join(outputs)
+                if any_failed:
+                    return results, True
                 i += 1
                 continue
 
