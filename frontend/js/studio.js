@@ -1733,7 +1733,7 @@ function _renderPropsPanel(step) {
       break;
 
     case 'ssh_execute':
-      html += _field('HOST', `<input type="text" value="${escapeHtml(c.url||'')}" placeholder="servidor.exemplo.com" onchange="_upCfg('${step.id}','url',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('HOST (porta opcional)', `<input type="text" value="${escapeHtml(c.url||'')}" placeholder="servidor.exemplo.com ou servidor.com:2222" onchange="_upCfg('${step.id}','url',this.value)" ${_inp('font-family:monospace')} />`);
       html += _field('USUÁRIO', `<input type="text" value="${escapeHtml(c.to||'')}" onchange="_upCfg('${step.id}','to',this.value)" ${_inp()} />`);
       html += _field('SENHA', `<input type="text" value="${escapeHtml(c.secret_key||'')}" onchange="_upCfg('${step.id}','secret_key',this.value)" ${_inp('font-family:monospace')} />`);
       html += _field('COMANDO', `<input type="text" value="${escapeHtml(c.command||'')}" placeholder="ls -la /var/www" onchange="_upCfg('${step.id}','command',this.value)" ${_inp('font-family:monospace')} />`);

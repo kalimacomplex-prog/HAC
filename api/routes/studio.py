@@ -2026,14 +2026,22 @@ async def _exec_step(step: dict, ctx: dict) -> str:
 
     if t == "ssh_execute":
         import paramiko
-        host = _sub(cfg.get("url", ""), ctx)
+        raw_host = _sub(cfg.get("url", ""), ctx)
+        host, _, port_s = raw_host.rpartition(":")
+        if not host:
+            host, port = raw_host, 22
+        else:
+            try:
+                port = int(port_s)
+            except ValueError:
+                host, port = raw_host, 22
         username = _sub(cfg.get("to", ""), ctx)
         password = _sub(cfg.get("secret_key", ""), ctx)
         command = _sub(cfg.get("command", ""), ctx)
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            client.connect(host, username=username, password=password, timeout=10)
+            client.connect(host, port=port, username=username, password=password, timeout=10)
             _, stdout, stderr = client.exec_command(command, timeout=30)
             result = stdout.read().decode() + stderr.read().decode()
         finally:
