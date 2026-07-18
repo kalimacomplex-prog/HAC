@@ -2722,12 +2722,17 @@ def _gen_local_step_script(step: dict, ctx: dict) -> str:
     }
     blob = base64.b64encode(json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")).decode("ascii")
 
+    # Só stdlib garantido vai no topo sem proteção. 'httpx' é pacote pip de
+    # terceiro (usado por muitas ações via `import httpx` no topo do módulo
+    # original) — importar ele incondicionalmente aqui faria o script quebrar
+    # ANTES de chegar no bloco que tenta instalar sozinho, caso o agente não
+    # o tenha. Por isso o import dele fica dentro de _run_once(), coberto
+    # pelo mesmo try/except-e-reinstala que protege os outros pacotes.
     header = [
         "import sys, os, json, re, asyncio, base64, hashlib, io, secrets, shutil, subprocess, time, zipfile",
         "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
         "import glob as glob_module",
         "from datetime import datetime, timedelta",
-        "import httpx",
         "",
         f'_payload = json.loads(base64.b64decode("{blob}").decode("utf-8"))',
         "",
@@ -2747,20 +2752,26 @@ def _gen_local_step_script(step: dict, ctx: dict) -> str:
     ]
 
     footer = [
+        "async def _run_once(step, ctx):",
+        "    global httpx",
+        "    import httpx as _httpx_mod",
+        "    httpx = _httpx_mod",
+        "    return await _exec_step(step, ctx)",
+        "",
         "async def _main():",
         "    step = _payload['step']",
         "    ctx = _payload['ctx']",
         "    ctx.setdefault('vars', {})",
         "    try:",
         "        try:",
-        "            output = await _exec_step(step, ctx)",
+        "            output = await _run_once(step, ctx)",
         "        except ModuleNotFoundError as _e:",
         "            _missing = _e.name or ''",
         "            _pkg = _pip_package_for_module(_missing)",
         "            _ok, _msg = await _try_pip_install(_pkg)",
         "            if not _ok:",
         "                raise Exception(\"Pacote '\" + _pkg + \"' ausente no agente e nao pode ser instalado: \" + _msg)",
-        "            output = await _exec_step(step, ctx)",
+        "            output = await _run_once(step, ctx)",
         "        print('__STEP_RESULT__:' + json.dumps({'ok': True, 'output': str(output), 'vars': ctx['vars']}, ensure_ascii=False, default=str))",
         "    except Exception as _e:",
         "        print('__STEP_RESULT__:' + json.dumps({'ok': False, 'error': str(_e)}, ensure_ascii=False))",
