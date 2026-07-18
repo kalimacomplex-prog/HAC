@@ -1,6 +1,8 @@
 import asyncio
+import base64
 import glob as glob_module
 import hashlib
+import inspect
 import io
 import json
 import os
@@ -2687,6 +2689,119 @@ async def _exec_step(step: dict, ctx: dict) -> str:
     return f"[{t}] step executado"
 
 
+# ── Execução no agente (worker) em vez do servidor ─────────────────────────
+#
+# Todo tipo de step PODE ser configurado (campo run_on='agent') para rodar na
+# máquina de um agente worker em vez de dentro do processo da API — útil para
+# ações de arquivo/mídia que precisam enxergar o filesystem local do usuário,
+# não o do servidor na nuvem. Os únicos tipos que NUNCA podem rodar no agente
+# são os que dependem de acesso direto ao Mongo (call_ai_agent, call_pipeline,
+# call_automation) ou que já têm seu próprio mecanismo de despacho pro agente
+# (browser*) — para esses, o campo run_on é ignorado.
+_AGENT_EXCLUDED_TYPES = {
+    "call_ai_agent", "call_pipeline", "call_automation",
+    "browser", "browser_open", "browser_click", "browser_type",
+    "browser_extract", "browser_wait", "browser_screenshot", "browser_close",
+}
+
+
+def _gen_local_step_script(step: dict, ctx: dict) -> str:
+    """Gera um script Python autocontido que executa UM step localmente na
+    máquina do agente, reutilizando o mesmo código de `_exec_step` (via
+    inspect.getsource — sem duplicar a lógica das ~136 ações elegíveis).
+    Os ramos que dependem do Mongo (call_ai_agent/call_pipeline/call_automation)
+    ou de sessão de navegador (browser*) ficam presentes no texto mas nunca são
+    alcançados, pois esses tipos nunca chegam aqui (ver _AGENT_EXCLUDED_TYPES)."""
+    payload = {
+        "step": {"type": step["type"], "config": step.get("config", {})},
+        "ctx": {
+            "input": ctx.get("input", ""),
+            "output": ctx.get("output", ""),
+            "vars": ctx.get("vars", {}),
+        },
+    }
+    blob = base64.b64encode(json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")).decode("ascii")
+
+    header = [
+        "import sys, os, json, re, asyncio, base64, hashlib, io, secrets, shutil, subprocess, time, zipfile",
+        "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
+        "import glob as glob_module",
+        "from datetime import datetime, timedelta",
+        "import httpx",
+        "",
+        f'_payload = json.loads(base64.b64decode("{blob}").decode("utf-8"))',
+        "",
+    ]
+
+    body_parts = [
+        inspect.getsource(_sub),
+        inspect.getsource(_store),
+        inspect.getsource(_pix_tlv),
+        inspect.getsource(_pix_crc16),
+        inspect.getsource(_build_pix_payload),
+        f"_MODULE_TO_PACKAGE = {_MODULE_TO_PACKAGE!r}\n",
+        f"_NO_AUTO_INSTALL = {_NO_AUTO_INSTALL!r}\n",
+        inspect.getsource(_pip_package_for_module),
+        inspect.getsource(_try_pip_install),
+        inspect.getsource(_exec_step),
+    ]
+
+    footer = [
+        "async def _main():",
+        "    step = _payload['step']",
+        "    ctx = _payload['ctx']",
+        "    ctx.setdefault('vars', {})",
+        "    try:",
+        "        try:",
+        "            output = await _exec_step(step, ctx)",
+        "        except ModuleNotFoundError as _e:",
+        "            _missing = _e.name or ''",
+        "            _pkg = _pip_package_for_module(_missing)",
+        "            _ok, _msg = await _try_pip_install(_pkg)",
+        "            if not _ok:",
+        "                raise Exception(\"Pacote '\" + _pkg + \"' ausente no agente e nao pode ser instalado: \" + _msg)",
+        "            output = await _exec_step(step, ctx)",
+        "        print('__STEP_RESULT__:' + json.dumps({'ok': True, 'output': str(output), 'vars': ctx['vars']}, ensure_ascii=False, default=str))",
+        "    except Exception as _e:",
+        "        print('__STEP_RESULT__:' + json.dumps({'ok': False, 'error': str(_e)}, ensure_ascii=False))",
+        "",
+        "asyncio.run(_main())",
+    ]
+
+    return "\n".join(header) + "\n\n" + "\n\n".join(body_parts) + "\n\n" + "\n".join(footer)
+
+
+async def _exec_step_via_agent(step: dict, ctx: dict) -> str:
+    """Despacha um step para rodar na máquina de um agente worker, aguarda o
+    resultado e mescla as variáveis atualizadas de volta no contexto."""
+    agent_id = ctx.get("agent_id", "")
+    user_id = ctx.get("user_id", "")
+    if not agent_id:
+        raise Exception(
+            "Este passo está configurado para rodar no agente ('Onde executar: Agente'), "
+            "mas nenhum agente foi selecionado. Escolha um agente no seletor ao lado do "
+            "botão Executar antes de salvar."
+        )
+    script = _gen_local_step_script(step, ctx)
+    raw = await _run_agent_script(
+        script, agent_id, user_id, timeout_seconds=90,
+        name_prefix="__studio_local_step_", process_label=f"Studio: {step.get('name') or step['type']} (no agente)",
+    )
+    parsed = None
+    for line in raw.splitlines():
+        if line.startswith("__STEP_RESULT__:"):
+            try:
+                parsed = json.loads(line[len("__STEP_RESULT__:"):])
+            except Exception:
+                pass
+    if parsed is None:
+        raise Exception(f"O agente não retornou um resultado reconhecível. Saída bruta: {raw[:500]}")
+    if not parsed.get("ok"):
+        raise Exception(parsed.get("error") or "Falhou no agente sem mensagem de erro")
+    ctx["vars"].update(parsed.get("vars") or {})
+    return parsed.get("output", "")
+
+
 async def _exec_step_list(steps: list, ctx: dict) -> tuple:
     """Executa recursivamente uma lista de steps. Retorna (results, failed)."""
     results = []
@@ -2865,23 +2980,28 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
 
             else:
                 step_dict = step if isinstance(step, dict) else step.model_dump()
-                try:
-                    output = await _exec_step(step_dict, ctx)
-                except ModuleNotFoundError as e:
-                    missing_module = e.name or ""
-                    if missing_module.split(".")[0] in _NO_AUTO_INSTALL:
-                        raise
-                    package = _pip_package_for_module(missing_module)
-                    install_ok, install_msg = await _try_pip_install(package)
-                    if not install_ok:
-                        raise Exception(
-                            f"Esta ação precisa do pacote Python '{package}' (módulo '{missing_module}'), "
-                            f"que não está instalado e não pôde ser instalado automaticamente: {install_msg}. "
-                            f"Adicione '{package}' ao requirements.txt e faça redeploy."
-                        ) from e
-                    # reinstalado com sucesso — tenta a ação de novo, uma única vez
-                    output = await _exec_step(step_dict, ctx)
-                    output = f"[pacote '{package}' instalado automaticamente] {output}"
+                cfg_dict = step_dict.get("config", {}) or {}
+                run_on_agent = cfg_dict.get("run_on") == "agent" and step_type not in _AGENT_EXCLUDED_TYPES
+                if run_on_agent:
+                    output = await _exec_step_via_agent(step_dict, ctx)
+                else:
+                    try:
+                        output = await _exec_step(step_dict, ctx)
+                    except ModuleNotFoundError as e:
+                        missing_module = e.name or ""
+                        if missing_module.split(".")[0] in _NO_AUTO_INSTALL:
+                            raise
+                        package = _pip_package_for_module(missing_module)
+                        install_ok, install_msg = await _try_pip_install(package)
+                        if not install_ok:
+                            raise Exception(
+                                f"Esta ação precisa do pacote Python '{package}' (módulo '{missing_module}'), "
+                                f"que não está instalado e não pôde ser instalado automaticamente: {install_msg}. "
+                                f"Adicione '{package}' ao requirements.txt e faça redeploy."
+                            ) from e
+                        # reinstalado com sucesso — tenta a ação de novo, uma única vez
+                        output = await _exec_step(step_dict, ctx)
+                        output = f"[pacote '{package}' instalado automaticamente] {output}"
                 result["output"] = str(output)[:3000]
 
         except Exception as e:

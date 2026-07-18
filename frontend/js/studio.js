@@ -240,11 +240,20 @@ const STEP_DEFAULTS = {
   api_key: '', api_secret: '', from_number: '', pix_key: '', pix_merchant_name: '', pix_merchant_city: '',
   coord_from: '', coord_to: '',
   width: 0, height: 0,
+  run_on: 'server',
 };
 
 // ─── Container helpers ────────────────────────────────────────────
 const CONTAINER_TYPES = new Set(['loop_count', 'condition', 'foreach', 'while_condition', 'try_catch', 'parallel']);
 const DOUBLE_BRANCH_TYPES = new Set(['condition', 'try_catch']);
+
+// Tipos que nunca podem rodar num agente: dependem do Mongo direto (IA/pipeline/
+// sub-fluxo) ou já têm seu próprio mecanismo de despacho pro agente (navegador).
+const AGENT_EXCLUDED_TYPES = new Set([
+  'call_ai_agent', 'call_pipeline', 'call_automation',
+  'browser', 'browser_open', 'browser_click', 'browser_type',
+  'browser_extract', 'browser_wait', 'browser_screenshot', 'browser_close',
+]);
 
 function _branches(step) {
   return DOUBLE_BRANCH_TYPES.has(step.type) ? ['children_true', 'children_false'] : ['children'];
@@ -769,6 +778,12 @@ function _flowBubble(label, color, bg) {
 }
 
 function _stepBrief(step) {
+  const text = _stepBriefText(step);
+  const runsOnAgent = !AGENT_EXCLUDED_TYPES.has(step.type) && (step.config || {}).run_on === 'agent';
+  return runsOnAgent ? `💻 ${text}` : text;
+}
+
+function _stepBriefText(step) {
   const c = step.config || {};
   switch (step.type) {
     case 'condition': {
@@ -1068,6 +1083,21 @@ function _renderPropsPanel(step) {
       <span style="font-weight:700;font-size:.85rem;color:${meta.color}">${meta.label}</span>
     </div>
     ${_field('NOME DA AÇÃO', `<input type="text" value="${escapeHtml(step.name)}" onchange="_upField('${step.id}','name',this.value)" ${_inp()} />`)}`;
+
+  if (!AGENT_EXCLUDED_TYPES.has(step.type)) {
+    const runOn = c.run_on === 'agent' ? 'agent' : 'server';
+    html += _field('ONDE EXECUTAR', `<div style="display:flex;gap:.5rem">
+      <label style="display:flex;align-items:center;gap:.35rem;padding:.38rem .75rem;border:1.5px solid ${runOn==='server'?'#2563eb':'#e2e8f0'};border-radius:7px;cursor:pointer;font-size:.8rem;background:${runOn==='server'?'#eff6ff':'white'};flex:1;justify-content:center" onclick="_upCfg('${step.id}','run_on','server')">
+        <span style="font-size:.95rem">☁️</span> <span style="color:${runOn==='server'?'#2563eb':'#64748b'};font-weight:${runOn==='server'?'700':'400'}">Servidor</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:.35rem;padding:.38rem .75rem;border:1.5px solid ${runOn==='agent'?'#2563eb':'#e2e8f0'};border-radius:7px;cursor:pointer;font-size:.8rem;background:${runOn==='agent'?'#eff6ff':'white'};flex:1;justify-content:center" onclick="_upCfg('${step.id}','run_on','agent')">
+        <span style="font-size:.95rem">💻</span> <span style="color:${runOn==='agent'?'#2563eb':'#64748b'};font-weight:${runOn==='agent'?'700':'400'}">Agente</span>
+      </label>
+    </div>`);
+    if (runOn === 'agent') {
+      html += _hint('Roda na máquina do agente selecionado no topo da tela (não no servidor da HAC). Caminhos de arquivo/pasta são resolvidos no computador do agente.');
+    }
+  }
 
   switch (step.type) {
 
