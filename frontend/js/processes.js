@@ -153,28 +153,55 @@ async function editProcess(id) {
 
 async function saveProcess() {
   const id = document.getElementById('process-edit-id').value;
+  const name = document.getElementById('process-name').value.trim();
+  const script = document.getElementById('process-script').value.trim();
+  if (!name) return toast('Informe o nome do processo', 'error');
+  if (!id && !script) return toast('Informe o script do processo', 'error');
+
+  // Já existe OUTRO processo (id diferente deste) com o mesmo nome? Confirma antes de prosseguir.
+  const existing = await api('GET', '/processes').catch(() => null);
+  const dup = (existing || []).find(p => p.id !== id && (p.name || '').trim().toLowerCase() === name.toLowerCase());
+  if (dup) {
+    showConfirm(
+      'Já existe um processo com esse nome',
+      `Já existe um processo chamado "${name}". Deseja mesmo continuar e salvar assim mesmo?`,
+      () => _doSaveProcess(id, name, script),
+    );
+    return;
+  }
+  await _doSaveProcess(id, name, script);
+}
+
+async function _doSaveProcess(id, name, script) {
+  const btn = document.getElementById('process-save-btn');
+  if (btn.disabled) return; // trava contra duplo-clique disparando dois saves em paralelo
+  btn.disabled = true;
+  btn.style.opacity = '0.6';
+
   const body = {
-    name: document.getElementById('process-name').value.trim(),
+    name,
     description: document.getElementById('process-description').value.trim(),
     timeout_seconds: parseInt(document.getElementById('process-timeout').value),
     agent_id: document.getElementById('process-agent-id').value || null,
     schedule: _fieldsToSchedule(),
   };
-  const script = document.getElementById('process-script').value.trim();
-  if (!body.name) return toast('Informe o nome do processo', 'error');
-  if (!id && !script) return toast('Informe o script do processo', 'error');
   if (script) body.script = script;
+
   try {
     if (id) {
       await api('PATCH', `/processes/${id}`, body);
       toast('Processo atualizado!', 'success');
     } else {
-      await api('POST', '/processes', body);
+      const created = await api('POST', '/processes', body);
+      document.getElementById('process-edit-id').value = created.id; // evita criar de novo se salvar for clicado outra vez
       toast('Processo criado!', 'success');
     }
     closeModal('modal-process');
     loadProcesses();
-  } catch(e) { toast(e.message, 'error'); }
+  } catch(e) { toast(e.message, 'error'); } finally {
+    btn.disabled = false;
+    btn.style.opacity = '';
+  }
 }
 
 async function deleteProcess(id) {

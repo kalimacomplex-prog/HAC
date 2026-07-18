@@ -2186,40 +2186,68 @@ async function saveBuilderAutomation() {
   const name = document.getElementById('builder-name')?.value.trim();
   if (!name) { showToast('Informe o nome da automação', 'error'); return; }
 
-  const triggerType = document.getElementById('builder-trigger-type')?.value || 'manual';
-  let schedule = '', schedule_input = '';
-  if (triggerType === 'cron') {
-    schedule = _buildScheduleValue();
-    schedule_input = document.getElementById('builder-sched-input')?.value || '';
-  }
+  const editId = document.getElementById('builder-edit-id')?.value || null;
 
-  const payload = {
-    name,
-    description: document.getElementById('builder-description')?.value.trim() || '',
-    trigger: { type: triggerType, schedule, schedule_input, webhook_token: _buildTrigger.webhook_token || '' },
-    steps: _buildSteps,
-    active: true,
-    agent_id: document.getElementById('builder-agent-id')?.value || '',
-  };
+  // Já existe OUTRA automação (id diferente desta) com o mesmo nome? Confirma antes de prosseguir.
+  const dup = (_studioList || []).find(a => a.id !== editId && (a.name || '').trim().toLowerCase() === name.toLowerCase());
+  if (dup) {
+    showConfirm(
+      'Já existe uma automação com esse nome',
+      `Já existe uma automação chamada "${name}". Deseja mesmo continuar e salvar assim mesmo?`,
+      () => _doSaveBuilderAutomation(name, editId),
+    );
+    return;
+  }
+  await _doSaveBuilderAutomation(name, editId);
+}
+
+async function _doSaveBuilderAutomation(name, editId) {
+  const btn = document.getElementById('builder-save-btn');
+  if (btn.disabled) return; // trava contra duplo-clique disparando dois saves em paralelo
+  btn.disabled = true;
+  btn.style.opacity = '0.6';
+  btn.style.cursor = 'default';
 
   try {
-    const editId = document.getElementById('builder-edit-id')?.value || null;
+    const triggerType = document.getElementById('builder-trigger-type')?.value || 'manual';
+    let schedule = '', schedule_input = '';
+    if (triggerType === 'cron') {
+      schedule = _buildScheduleValue();
+      schedule_input = document.getElementById('builder-sched-input')?.value || '';
+    }
+
+    const payload = {
+      name,
+      description: document.getElementById('builder-description')?.value.trim() || '',
+      trigger: { type: triggerType, schedule, schedule_input, webhook_token: _buildTrigger.webhook_token || '' },
+      steps: _buildSteps,
+      active: true,
+      agent_id: document.getElementById('builder-agent-id')?.value || '',
+    };
+
     const saved = editId
       ? await api('PATCH', `/studio/${editId}`, payload)
       : await api('POST', '/studio', payload);
 
+    // Sempre grava o id retornado — independente do tipo de trigger — pra que um
+    // próximo clique em Salvar (ou um duplo-clique) atualize em vez de criar de novo.
+    document.getElementById('builder-edit-id').value = saved.id;
+    _buildEditId = saved.id;
     if (saved.webhook_url) {
       document.getElementById('builder-webhook-url').textContent = saved.webhook_url;
-      document.getElementById('builder-edit-id').value = saved.id;
-      _buildEditId = saved.id;
       _buildTrigger.webhook_token = saved.trigger?.webhook_token || '';
     }
     showToast(editId ? 'Automação atualizada!' : 'Automação criada!', 'success');
     if (!saved.webhook_url || triggerType !== 'webhook') {
       backToStudio();
+      return;
     }
   } catch (e) {
     showToast('Erro ao salvar: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.style.opacity = '';
+    btn.style.cursor = '';
   }
 }
 

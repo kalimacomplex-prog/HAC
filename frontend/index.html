@@ -610,7 +610,7 @@ print(f"Processando {url} com limite {limit}")</pre>
             <option value="">⚙ Qualquer agente</option>
           </select>
           <button onclick="openBuilderRun()" style="padding:.38rem .75rem;border:1.5px solid #3b82f6;border-radius:8px;font-size:.82rem;color:#3b82f6;background:#eff6ff;cursor:pointer;white-space:nowrap;flex-shrink:0">▶ Executar</button>
-          <button onclick="saveBuilderAutomation()" style="padding:.38rem .875rem;border:none;border-radius:8px;font-size:.82rem;background:#2563eb;color:white;cursor:pointer;white-space:nowrap;font-weight:600;flex-shrink:0">💾 Salvar</button>
+          <button id="builder-save-btn" onclick="saveBuilderAutomation()" style="padding:.38rem .875rem;border:none;border-radius:8px;font-size:.82rem;background:#2563eb;color:white;cursor:pointer;white-space:nowrap;font-weight:600;flex-shrink:0">💾 Salvar</button>
         </div>
 
         <!-- Trigger panel (collapsível) -->
@@ -813,7 +813,7 @@ print('Concluído!')"></textarea>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-process')">Cancelar</button>
-      <button class="btn btn-blue" onclick="saveProcess()">Salvar processo</button>
+      <button id="process-save-btn" class="btn btn-blue" onclick="saveProcess()">Salvar processo</button>
     </div>
   </div>
 </div>
@@ -1218,14 +1218,14 @@ print('Concluído!')"></textarea>
 <script src="/static/js/auth.js?v=33"></script>
 <script src="/static/js/dashboard.js?v=33"></script>
 <script src="/static/js/agents.js?v=33"></script>
-<script src="/static/js/processes.js?v=33"></script>
+<script src="/static/js/processes.js?v=34"></script>
 <script src="/static/js/jobs.js?v=33"></script>
 <script src="/static/js/cronjobs.js?v=33"></script>
 <script src="/static/js/ai_agents.js?v=33"></script>
 <script src="/static/js/pipelines.js?v=33"></script>
 <script src="/static/js/oraculo.js?v=34"></script>
 <script src="/static/js/queue.js?v=34"></script>
-<script src="/static/js/studio.js?v=44"></script>
+<script src="/static/js/studio.js?v=45"></script>
 <script src="/static/js/workflows.js?v=41"></script>
 
 </body>
