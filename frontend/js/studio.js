@@ -486,6 +486,25 @@ function _appendBuilderLog(html) {
   el.scrollTop = el.scrollHeight;
 }
 
+let _builderRunController = null;
+
+function _setBuilderRunningUI(running) {
+  const pairs = [['builder-run-btn-top', 'builder-stop-btn-top'], ['builder-run-btn-bottom', 'builder-stop-btn-bottom']];
+  pairs.forEach(([runId, stopId]) => {
+    const runBtn = document.getElementById(runId);
+    const stopBtn = document.getElementById(stopId);
+    if (runBtn) runBtn.style.display = running ? 'none' : '';
+    if (stopBtn) stopBtn.style.display = running ? '' : 'none';
+  });
+}
+
+function stopBuilderRun() {
+  if (_builderRunController) {
+    _builderRunController.abort();
+    _appendBuilderLog(`<span style="color:#f59e0b">⏹ Parando execução...</span>\n`);
+  }
+}
+
 async function _runBuilderInline() {
   const editId = document.getElementById('builder-edit-id')?.value;
   if (!editId) { showToast('Salve a automação antes de executar', 'error'); return; }
@@ -496,10 +515,13 @@ async function _runBuilderInline() {
 
   _appendBuilderLog(`<span style="color:#64748b">[${new Date().toLocaleTimeString()}] Iniciando execução...</span>\n`);
 
+  _builderRunController = new AbortController();
+  _setBuilderRunningUI(true);
+
   try {
-    const run = await api('POST', `/studio/${editId}/run`, { input });
-    const sc = { success: '#22c55e', failed: '#ef4444', skipped: '#f59e0b' };
-    const si = { success: '✓', failed: '✗', skipped: '⚠' };
+    const run = await api('POST', `/studio/${editId}/run`, { input }, 180000, _builderRunController.signal);
+    const sc = { success: '#22c55e', failed: '#ef4444', skipped: '#f59e0b', cancelled: '#f59e0b' };
+    const si = { success: '✓', failed: '✗', skipped: '⚠', cancelled: '⏹' };
     const meta_icon = t => (ACTION_MAP[t] || { icon: '⚙' }).icon;
 
     run.steps_result.forEach(s => {
@@ -517,13 +539,20 @@ async function _runBuilderInline() {
       );
     });
 
-    const finalColor = run.status === 'success' ? '#22c55e' : '#ef4444';
+    const finalColor = run.status === 'success' ? '#22c55e' : (run.status === 'cancelled' ? '#f59e0b' : '#ef4444');
     _appendBuilderLog(`\n<span style="color:${finalColor};font-weight:bold">● Finalizado: ${run.status.toUpperCase()} — ${run.duration_ms}ms</span>\n`);
     if (run.output) _appendBuilderLog(
       `<span style="color:#7dd3fc">Output final: ${escapeHtml(run.output.substring(0, 400))}${run.output.length > 400 ? '…' : ''}</span>\n`
     );
   } catch (e) {
-    _appendBuilderLog(`<span style="color:#ef4444">✗ Erro: ${escapeHtml(e.message)}</span>\n`);
+    if (e.name === 'AbortError') {
+      _appendBuilderLog(`<span style="color:#f59e0b;font-weight:bold">● Execução cancelada pelo usuário</span>\n`);
+    } else {
+      _appendBuilderLog(`<span style="color:#ef4444">✗ Erro: ${escapeHtml(e.message)}</span>\n`);
+    }
+  } finally {
+    _builderRunController = null;
+    _setBuilderRunningUI(false);
   }
 }
 
@@ -992,6 +1021,12 @@ function selectBuilderStep(id) {
   _renderPropsPanel(_findStep(id, _buildSteps));
 }
 
+function closeBuilderProps() {
+  _buildSelectedId = null;
+  _renderBuilderCanvas();
+  _renderPropsPanel(null);
+}
+
 function _insertStepAt(type, insertIdx, containerId, branch) {
   const step = _makeStep(type);
   _getTargetArr(containerId, branch).splice(insertIdx, 0, step);
@@ -1080,7 +1115,8 @@ function _renderPropsPanel(step) {
   let html = `<div style="display:flex;flex-direction:column;gap:.75rem">
     <div style="display:flex;align-items:center;gap:.5rem;padding-bottom:.65rem;border-bottom:1px solid #f1f5f9">
       <span style="font-size:1.1rem">${meta.icon}</span>
-      <span style="font-weight:700;font-size:.85rem;color:${meta.color}">${meta.label}</span>
+      <span style="font-weight:700;font-size:.85rem;color:${meta.color};flex:1">${meta.label}</span>
+      <button onclick="closeBuilderProps()" title="Fechar propriedades" style="width:24px;height:24px;border:1px solid #e2e8f0;border-radius:6px;background:white;cursor:pointer;color:#64748b;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
     </div>
     ${_field('NOME DA AÇÃO', `<input type="text" value="${escapeHtml(step.name)}" onchange="_upField('${step.id}','name',this.value)" ${_inp()} />`)}`;
 

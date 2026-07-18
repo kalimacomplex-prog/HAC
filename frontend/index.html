@@ -609,7 +609,8 @@ print(f"Processando {url} com limite {limit}")</pre>
           <select id="builder-agent-id" title="Agente de execução" style="padding:.38rem .6rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.8rem;background:white;max-width:160px;cursor:pointer;flex-shrink:0;outline:none;color:#475569">
             <option value="">⚙ Qualquer agente</option>
           </select>
-          <button onclick="openBuilderRun()" style="padding:.38rem .75rem;border:1.5px solid #3b82f6;border-radius:8px;font-size:.82rem;color:#3b82f6;background:#eff6ff;cursor:pointer;white-space:nowrap;flex-shrink:0">▶ Executar</button>
+          <button id="builder-run-btn-top" onclick="openBuilderRun()" style="padding:.38rem .75rem;border:1.5px solid #3b82f6;border-radius:8px;font-size:.82rem;color:#3b82f6;background:#eff6ff;cursor:pointer;white-space:nowrap;flex-shrink:0">▶ Executar</button>
+          <button id="builder-stop-btn-top" onclick="stopBuilderRun()" style="display:none;padding:.38rem .75rem;border:1.5px solid #ef4444;border-radius:8px;font-size:.82rem;color:#ef4444;background:#fef2f2;cursor:pointer;white-space:nowrap;flex-shrink:0">⏹ Parar</button>
           <button id="builder-save-btn" onclick="saveBuilderAutomation()" style="padding:.38rem .875rem;border:none;border-radius:8px;font-size:.82rem;background:#2563eb;color:white;cursor:pointer;white-space:nowrap;font-weight:600;flex-shrink:0">💾 Salvar</button>
         </div>
 
@@ -673,7 +674,8 @@ print(f"Processando {url} com limite {limit}")</pre>
               <div style="display:flex;align-items:center;gap:.5rem;padding:.3rem .75rem;background:#1e293b;flex-shrink:0">
                 <span style="font-size:.68rem;font-weight:700;color:#64748b;letter-spacing:.06em;flex-shrink:0">⚡ SAÍDA</span>
                 <input id="builder-log-input" type="text" placeholder="Entrada inicial (opcional)..." style="flex:1;background:#0f172a;border:1px solid #334155;border-radius:5px;padding:.2rem .5rem;font-size:.75rem;color:#94a3b8;outline:none;min-width:0" />
-                <button onclick="_runBuilderInline()" style="padding:.2rem .65rem;background:#2563eb;border:none;border-radius:5px;font-size:.75rem;color:white;cursor:pointer;white-space:nowrap;flex-shrink:0">▶ Executar</button>
+                <button id="builder-run-btn-bottom" onclick="_runBuilderInline()" style="padding:.2rem .65rem;background:#2563eb;border:none;border-radius:5px;font-size:.75rem;color:white;cursor:pointer;white-space:nowrap;flex-shrink:0">▶ Executar</button>
+                <button id="builder-stop-btn-bottom" onclick="stopBuilderRun()" style="display:none;padding:.2rem .65rem;background:#ef4444;border:none;border-radius:5px;font-size:.75rem;color:white;cursor:pointer;white-space:nowrap;flex-shrink:0">⏹ Parar</button>
                 <button onclick="_clearBuilderLog()" style="padding:.2rem .5rem;background:transparent;border:1px solid #334155;border-radius:5px;font-size:.72rem;color:#64748b;cursor:pointer;flex-shrink:0">Limpar</button>
               </div>
               <!-- Output -->
@@ -1214,7 +1216,7 @@ print('Concluído!')"></textarea>
 <div class="toast-container" id="toast-container"></div>
 
 <script src="/static/js/helpers.js?v=33"></script>
-<script src="/static/js/app.js?v=36"></script>
+<script src="/static/js/app.js?v=37"></script>
 <script src="/static/js/auth.js?v=33"></script>
 <script src="/static/js/dashboard.js?v=33"></script>
 <script src="/static/js/agents.js?v=33"></script>
@@ -1225,7 +1227,7 @@ print('Concluído!')"></textarea>
 <script src="/static/js/pipelines.js?v=33"></script>
 <script src="/static/js/oraculo.js?v=34"></script>
 <script src="/static/js/queue.js?v=34"></script>
-<script src="/static/js/studio.js?v=46"></script>
+<script src="/static/js/studio.js?v=47"></script>
 <script src="/static/js/workflows.js?v=41"></script>
 
 </body>

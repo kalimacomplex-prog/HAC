@@ -2818,6 +2818,16 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
     results = []
     i = 0
     while i < len(steps):
+        disconnect_check = ctx.get("_disconnect_check")
+        if disconnect_check and await disconnect_check():
+            ctx["_cancelled"] = True
+            results.append({
+                "step_id": "", "step_name": "Execução cancelada", "step_type": "",
+                "status": "cancelled", "output": "", "error": "Cancelada pelo usuário",
+                "duration_ms": 0, "condition_result": None,
+            })
+            return results, True
+
         step = steps[i]
         step_type = step.get("type", "") if isinstance(step, dict) else step.type
         cfg = (step.get("config", {}) if isinstance(step, dict) else step.config.__dict__) or {}
@@ -3051,7 +3061,7 @@ async def _close_remaining_sessions(ctx: dict):
         sessions.pop(name, None)
 
 
-async def _execute_automation(automation: dict, initial_input: str, trigger_type: str = "manual") -> dict:
+async def _execute_automation(automation: dict, initial_input: str, trigger_type: str = "manual", request: Request = None) -> dict:
     run_id = str(ObjectId())
     started_at = datetime.utcnow()
 
@@ -3077,12 +3087,14 @@ async def _execute_automation(automation: dict, initial_input: str, trigger_type
         "agent_id": automation.get("agent_id", ""),
         "user_id": str(automation.get("user_id", "")),
     }
+    if request is not None:
+        ctx["_disconnect_check"] = request.is_disconnected
 
     try:
         steps_results, failed = await _exec_step_list(steps, ctx)
     finally:
         await _close_remaining_sessions(ctx)
-    final_status = "failed" if failed else "success"
+    final_status = "cancelled" if ctx.get("_cancelled") else ("failed" if failed else "success")
 
     finished_at = datetime.utcnow()
     duration_ms = int((finished_at - started_at).total_seconds() * 1000)
@@ -3180,11 +3192,11 @@ class RunRequest(BaseModel):
 
 
 @router.post("/{automation_id}/run", response_model=AutomationRunOut)
-async def run_automation(automation_id: str, body: RunRequest, user: dict = Depends(get_current_user)):
+async def run_automation(automation_id: str, body: RunRequest, request: Request, user: dict = Depends(get_current_user)):
     doc = await studio_automations_col.find_one({"_id": automation_id, "user_id": user["_id"]})
     if not doc:
         raise HTTPException(status_code=404, detail="Automação não encontrada")
-    run = await _execute_automation(doc, body.input, trigger_type="manual")
+    run = await _execute_automation(doc, body.input, trigger_type="manual", request=request)
     return _run_doc_to_out(run)
 
 

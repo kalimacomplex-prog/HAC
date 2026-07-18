@@ -8,9 +8,14 @@ window.addEventListener('load', () => {
   else showAuth();
 });
 
-async function api(method, path, body, timeoutMs = 180000) {
+async function api(method, path, body, timeoutMs = 180000, externalSignal = null) {
   const controller = new AbortController();
-  const tid = setTimeout(() => controller.abort(), timeoutMs);
+  let timedOut = false;
+  const tid = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort();
+    else externalSignal.addEventListener('abort', () => controller.abort());
+  }
   const opts = {
     method,
     headers: { 'Content-Type': 'application/json' },
@@ -30,7 +35,12 @@ async function api(method, path, body, timeoutMs = 180000) {
     return res.json();
   } catch (e) {
     clearTimeout(tid);
-    if (e.name === 'AbortError') throw new Error('Tempo esgotado (180s). A execução pode continuar em background.');
+    if (e.name === 'AbortError') {
+      if (timedOut) throw new Error('Tempo esgotado (180s). A execução pode continuar em background.');
+      const abortErr = new Error('Cancelado pelo usuário');
+      abortErr.name = 'AbortError';
+      throw abortErr;
+    }
     throw e;
   }
 }
