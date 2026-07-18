@@ -486,7 +486,10 @@ function _appendBuilderLog(html) {
   el.scrollTop = el.scrollHeight;
 }
 
-let _builderRunController = null;
+let _builderRunId = null;
+let _builderRunAutoId = null;
+let _builderPollTimer = null;
+let _builderRenderedStepCount = 0;
 
 function _setBuilderRunningUI(running) {
   const pairs = [['builder-run-btn-top', 'builder-stop-btn-top'], ['builder-run-btn-bottom', 'builder-stop-btn-bottom']];
@@ -499,10 +502,33 @@ function _setBuilderRunningUI(running) {
 }
 
 function stopBuilderRun() {
-  if (_builderRunController) {
-    _builderRunController.abort();
-    _appendBuilderLog(`<span style="color:#f59e0b">⏹ Parando execução...</span>\n`);
+  if (!_builderRunId || !_builderRunAutoId) return;
+  api('POST', `/studio/${_builderRunAutoId}/runs/${_builderRunId}/cancel`).catch(() => {});
+  _appendBuilderLog(`<span style="color:#f59e0b">⏹ Parando execução...</span>\n`);
+}
+
+function _appendNewRunSteps(run) {
+  const sc = { success: '#22c55e', failed: '#ef4444', skipped: '#f59e0b', cancelled: '#f59e0b' };
+  const si = { success: '✓', failed: '✗', skipped: '⚠', cancelled: '⏹' };
+  const meta_icon = t => (ACTION_MAP[t] || { icon: '⚙' }).icon;
+  const steps = run.steps_result || [];
+
+  for (let idx = _builderRenderedStepCount; idx < steps.length; idx++) {
+    const s = steps[idx];
+    const color = sc[s.status] || '#94a3b8';
+    const icon  = si[s.status] || '?';
+    _appendBuilderLog(
+      `<span style="color:${color}">${icon} ${meta_icon(s.step_type)} ${escapeHtml(s.step_name)}</span>` +
+      `<span style="color:#475569"> (${s.duration_ms}ms)</span>\n`
+    );
+    if (s.output) _appendBuilderLog(
+      `<span style="color:#64748b">  → ${escapeHtml(s.output.replace(/\n/g,'↵ ').substring(0, 200))}${s.output.length > 200 ? '…' : ''}</span>\n`
+    );
+    if (s.error)  _appendBuilderLog(
+      `<span style="color:#ef4444">  ✗ ${escapeHtml(s.error.substring(0, 800))}</span>\n`
+    );
   }
+  _builderRenderedStepCount = steps.length;
 }
 
 async function _runBuilderInline() {
@@ -515,29 +541,20 @@ async function _runBuilderInline() {
 
   _appendBuilderLog(`<span style="color:#64748b">[${new Date().toLocaleTimeString()}] Iniciando execução...</span>\n`);
 
-  _builderRunController = new AbortController();
   _setBuilderRunningUI(true);
+  _builderRenderedStepCount = 0;
 
   try {
-    const run = await api('POST', `/studio/${editId}/run`, { input }, 180000, _builderRunController.signal);
-    const sc = { success: '#22c55e', failed: '#ef4444', skipped: '#f59e0b', cancelled: '#f59e0b' };
-    const si = { success: '✓', failed: '✗', skipped: '⚠', cancelled: '⏹' };
-    const meta_icon = t => (ACTION_MAP[t] || { icon: '⚙' }).icon;
+    const initial = await api('POST', `/studio/${editId}/run`, { input });
+    _builderRunId = initial.id;
+    _builderRunAutoId = editId;
 
-    run.steps_result.forEach(s => {
-      const color = sc[s.status] || '#94a3b8';
-      const icon  = si[s.status] || '?';
-      _appendBuilderLog(
-        `<span style="color:${color}">${icon} ${meta_icon(s.step_type)} ${escapeHtml(s.step_name)}</span>` +
-        `<span style="color:#475569"> (${s.duration_ms}ms)</span>\n`
-      );
-      if (s.output) _appendBuilderLog(
-        `<span style="color:#64748b">  → ${escapeHtml(s.output.replace(/\n/g,'↵ ').substring(0, 200))}${s.output.length > 200 ? '…' : ''}</span>\n`
-      );
-      if (s.error)  _appendBuilderLog(
-        `<span style="color:#ef4444">  ✗ ${escapeHtml(s.error.substring(0, 800))}</span>\n`
-      );
-    });
+    let run = initial;
+    while (run.status === 'running') {
+      await new Promise(r => setTimeout(r, 1000));
+      run = await api('GET', `/studio/${editId}/runs/${_builderRunId}`);
+      _appendNewRunSteps(run);
+    }
 
     const finalColor = run.status === 'success' ? '#22c55e' : (run.status === 'cancelled' ? '#f59e0b' : '#ef4444');
     _appendBuilderLog(`\n<span style="color:${finalColor};font-weight:bold">● Finalizado: ${run.status.toUpperCase()} — ${run.duration_ms}ms</span>\n`);
@@ -545,13 +562,10 @@ async function _runBuilderInline() {
       `<span style="color:#7dd3fc">Output final: ${escapeHtml(run.output.substring(0, 400))}${run.output.length > 400 ? '…' : ''}</span>\n`
     );
   } catch (e) {
-    if (e.name === 'AbortError') {
-      _appendBuilderLog(`<span style="color:#f59e0b;font-weight:bold">● Execução cancelada pelo usuário</span>\n`);
-    } else {
-      _appendBuilderLog(`<span style="color:#ef4444">✗ Erro: ${escapeHtml(e.message)}</span>\n`);
-    }
+    _appendBuilderLog(`<span style="color:#ef4444">✗ Erro: ${escapeHtml(e.message)}</span>\n`);
   } finally {
-    _builderRunController = null;
+    _builderRunId = null;
+    _builderRunAutoId = null;
     _setBuilderRunningUI(false);
   }
 }
@@ -2324,7 +2338,13 @@ async function executeStudioRun() {
   if (ow) ow.style.display = 'none';
 
   try {
-    const run = await api('POST', `/studio/${id}/run`, { input });
+    const initial = await api('POST', `/studio/${id}/run`, { input });
+    let run = initial;
+    while (run.status === 'running') {
+      _renderStudioRunResult(run);
+      await new Promise(r => setTimeout(r, 1000));
+      run = await api('GET', `/studio/${id}/runs/${initial.id}`);
+    }
     _renderStudioRunResult(run);
   } catch (e) {
     stepsDiv.innerHTML = `<div style="color:#ef4444;font-size:.85rem">❌ ${escapeHtml(e.message)}</div>`;
@@ -2335,8 +2355,8 @@ async function executeStudioRun() {
 
 function _renderStudioRunResult(run) {
   const stepsDiv = document.getElementById('studio-run-steps');
-  const sc = { success: '#16a34a', failed: '#ef4444', skipped: '#f59e0b' };
-  const si = { success: '✓', failed: '✕', skipped: '⚠' };
+  const sc = { success: '#16a34a', failed: '#ef4444', skipped: '#f59e0b', cancelled: '#f59e0b' };
+  const si = { success: '✓', failed: '✕', skipped: '⚠', cancelled: '⏹' };
 
   stepsDiv.innerHTML = run.steps_result.map(s => {
     const meta = ACTION_MAP[s.step_type] || { icon: '⚙', color: '#64748b' };

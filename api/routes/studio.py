@@ -749,7 +749,14 @@ async def _exec_step(step: dict, ctx: dict) -> str:
 
     if t == "wait":
         secs = float(cfg.get("seconds", 1))
-        await asyncio.sleep(min(secs, 60))
+        remaining = min(secs, 60)
+        while remaining > 0:
+            if await _is_cancelled(ctx):
+                ctx["_cancelled"] = True
+                raise Exception("Cancelada pelo usuário")
+            chunk = min(0.5, remaining)
+            await asyncio.sleep(chunk)
+            remaining -= chunk
         return f"Aguardou {secs}s"
 
     if t == "comment":
@@ -1002,7 +1009,14 @@ async def _exec_step(step: dict, ctx: dict) -> str:
         if hi < lo:
             hi = lo
         secs = random.uniform(lo, min(hi, 60))
-        await asyncio.sleep(secs)
+        remaining = secs
+        while remaining > 0:
+            if await _is_cancelled(ctx):
+                ctx["_cancelled"] = True
+                raise Exception("Cancelada pelo usuário")
+            chunk = min(0.5, remaining)
+            await asyncio.sleep(chunk)
+            remaining -= chunk
         result = f"Aguardou {secs:.2f}s (aleatório entre {lo}s e {hi}s)"
         _store(result, var, ctx)
         return result
@@ -2813,19 +2827,63 @@ async def _exec_step_via_agent(step: dict, ctx: dict) -> str:
     return parsed.get("output", "")
 
 
+_background_tasks: set = set()
+
+
+def _spawn_background(coro):
+    """Dispara uma corrotina em background sem esperar o resultado, mantendo uma
+    referência forte até ela terminar (senão o garbage collector pode derrubar a
+    task no meio, um problema clássico do asyncio.create_task solto)."""
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+    return task
+
+
+async def _push_live(ctx: dict, result: dict):
+    """Registra um resultado de step tanto na lista local (via chamador) quanto,
+    se a execução tiver um run_id associado, grava no Mongo na hora — é isso que
+    permite o frontend acompanhar o progresso em tempo real via polling, em vez
+    de só ver tudo de uma vez quando a automação inteira termina."""
+    live = ctx.setdefault("_live_results", [])
+    live.append(result)
+    run_id = ctx.get("_run_id")
+    if run_id:
+        try:
+            await studio_runs_col.update_one(
+                {"_id": run_id},
+                {"$set": {"steps_result": live, "output": ctx.get("output", "")}},
+            )
+        except Exception:
+            pass  # atualização de progresso nunca deve derrubar a execução
+
+
+async def _is_cancelled(ctx: dict) -> bool:
+    disconnect_check = ctx.get("_disconnect_check")
+    if disconnect_check and await disconnect_check():
+        return True
+    run_id = ctx.get("_run_id")
+    if run_id:
+        doc = await studio_runs_col.find_one({"_id": run_id}, {"cancel_requested": 1})
+        if doc and doc.get("cancel_requested"):
+            return True
+    return False
+
+
 async def _exec_step_list(steps: list, ctx: dict) -> tuple:
     """Executa recursivamente uma lista de steps. Retorna (results, failed)."""
     results = []
     i = 0
     while i < len(steps):
-        disconnect_check = ctx.get("_disconnect_check")
-        if disconnect_check and await disconnect_check():
+        if await _is_cancelled(ctx):
             ctx["_cancelled"] = True
-            results.append({
+            cancelled_result = {
                 "step_id": "", "step_name": "Execução cancelada", "step_type": "",
                 "status": "cancelled", "output": "", "error": "Cancelada pelo usuário",
                 "duration_ms": 0, "condition_result": None,
-            })
+            }
+            results.append(cancelled_result)
+            await _push_live(ctx, cancelled_result)
             return results, True
 
         step = steps[i]
@@ -2857,6 +2915,7 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
                 result["output"] = f"Condição: {'VERDADEIRO ✓' if cond_result else 'FALSO ✗'} ({cfg.get('operator')} '{cfg.get('condition_value')}')"
                 result["duration_ms"] = int((time.time() - step_start) * 1000)
                 results.append(result)
+                await _push_live(ctx, result)
 
                 has_children = (
                     "children_true" in (step if isinstance(step, dict) else {})
@@ -2895,6 +2954,7 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
                 result["output"] = f"Loop: {count} iteração(ões), variável '{idx_var}'"
                 result["duration_ms"] = int((time.time() - step_start) * 1000)
                 results.append(result)
+                await _push_live(ctx, result)
 
                 for iter_i in range(count):
                     ctx["vars"][idx_var] = str(iter_i)
@@ -2920,6 +2980,7 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
                 result["output"] = f"Foreach: {len(items)} item(ns), variável '{item_var}'"
                 result["duration_ms"] = int((time.time() - step_start) * 1000)
                 results.append(result)
+                await _push_live(ctx, result)
 
                 for iter_i, item in enumerate(items):
                     ctx["vars"][item_var] = item if isinstance(item, str) else json.dumps(item, ensure_ascii=False)
@@ -2941,6 +3002,7 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
                 result["output"] = f"While: {operator} '{cond_value}' (máx {max_iter} iterações)"
                 result["duration_ms"] = int((time.time() - step_start) * 1000)
                 results.append(result)
+                await _push_live(ctx, result)
 
                 iter_i = 0
                 while _eval_condition(ctx["output"], operator, cond_value) and iter_i < max_iter:
@@ -2960,6 +3022,7 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
                 result["output"] = "Try/Catch"
                 result["duration_ms"] = int((time.time() - step_start) * 1000)
                 results.append(result)
+                await _push_live(ctx, result)
 
                 try_results, try_failed = await _exec_step_list(try_children, ctx)
                 results.extend(try_results)
@@ -2978,6 +3041,7 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
                 result["output"] = f"Paralelo: {len(children)} ação(ões) concorrentes"
                 result["duration_ms"] = int((time.time() - step_start) * 1000)
                 results.append(result)
+                await _push_live(ctx, result)
 
                 async def _run_one_parallel(child, base_ctx):
                     child_ctx = {**base_ctx, "vars": dict(base_ctx["vars"])}
@@ -3030,10 +3094,12 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
             result["error"] = str(e)
             result["duration_ms"] = int((time.time() - step_start) * 1000)
             results.append(result)
+            await _push_live(ctx, result)
             return results, True
 
         result["duration_ms"] = int((time.time() - step_start) * 1000)
         results.append(result)
+        await _push_live(ctx, result)
         i += 1
 
     return results, False
@@ -3061,31 +3127,43 @@ async def _close_remaining_sessions(ctx: dict):
         sessions.pop(name, None)
 
 
-async def _execute_automation(automation: dict, initial_input: str, trigger_type: str = "manual", request: Request = None) -> dict:
-    run_id = str(ObjectId())
+async def _execute_automation(automation: dict, initial_input: str, trigger_type: str = "manual",
+                               request: Request = None, run_id: str = None) -> dict:
+    """Executa a automação do início ao fim. Se `run_id` for informado, assume que o
+    chamador já inseriu o run_doc (status 'running') no Mongo — usado pelo endpoint
+    manual, que cria o doc e retorna na hora, disparando a execução real em background,
+    para o frontend poder acompanhar o progresso via polling. Sem `run_id`, o próprio
+    doc é criado aqui (comportamento síncrono de sempre — usado por webhook e cron)."""
     started_at = datetime.utcnow()
-
-    run_doc = {
-        "_id": run_id,
-        "automation_id": automation["_id"],
-        "automation_name": automation["name"],
-        "user_id": automation["user_id"],
-        "trigger_type": trigger_type,
-        "input": initial_input,
-        "steps_result": [],
-        "output": "",
-        "status": "running",
-        "started_at": started_at,
-        "finished_at": None,
-        "duration_ms": 0,
-    }
-    await studio_runs_col.insert_one(run_doc)
+    auto_created = run_id is None
+    if auto_created:
+        run_id = str(ObjectId())
+        run_doc = {
+            "_id": run_id,
+            "automation_id": automation["_id"],
+            "automation_name": automation["name"],
+            "user_id": automation["user_id"],
+            "trigger_type": trigger_type,
+            "input": initial_input,
+            "steps_result": [],
+            "output": "",
+            "status": "running",
+            "started_at": started_at,
+            "finished_at": None,
+            "duration_ms": 0,
+            "cancel_requested": False,
+        }
+        await studio_runs_col.insert_one(run_doc)
+    else:
+        run_doc = await studio_runs_col.find_one({"_id": run_id}) or {}
+        started_at = run_doc.get("started_at", started_at)
 
     steps = automation.get("steps", [])
     ctx = {
         "input": initial_input, "output": initial_input, "vars": {}, "sessions": {},
         "agent_id": automation.get("agent_id", ""),
         "user_id": str(automation.get("user_id", "")),
+        "_run_id": run_id,
     }
     if request is not None:
         ctx["_disconnect_check"] = request.is_disconnected
@@ -3191,13 +3269,59 @@ class RunRequest(BaseModel):
     input: str = ""
 
 
-@router.post("/{automation_id}/run", response_model=AutomationRunOut)
-async def run_automation(automation_id: str, body: RunRequest, request: Request, user: dict = Depends(get_current_user)):
+@router.post("/{automation_id}/run", response_model=AutomationRunOut, status_code=202)
+async def run_automation(automation_id: str, body: RunRequest, user: dict = Depends(get_current_user)):
+    """Cria o registro da execução e retorna IMEDIATAMENTE (status 'running'), disparando
+    a execução de verdade em background — o chamador acompanha o progresso via
+    GET /{automation_id}/runs/{run_id}, feito a cada ~1s pelo frontend (polling), e o
+    log preenche em tempo real conforme cada step termina, não tudo de uma vez no final."""
     doc = await studio_automations_col.find_one({"_id": automation_id, "user_id": user["_id"]})
     if not doc:
         raise HTTPException(status_code=404, detail="Automação não encontrada")
-    run = await _execute_automation(doc, body.input, trigger_type="manual", request=request)
+    run_id = str(ObjectId())
+    now = datetime.utcnow()
+    run_doc = {
+        "_id": run_id,
+        "automation_id": automation_id,
+        "automation_name": doc["name"],
+        "user_id": doc["user_id"],
+        "trigger_type": "manual",
+        "input": body.input,
+        "steps_result": [],
+        "output": "",
+        "status": "running",
+        "started_at": now,
+        "finished_at": None,
+        "duration_ms": 0,
+        "cancel_requested": False,
+    }
+    await studio_runs_col.insert_one(run_doc)
+    _spawn_background(_execute_automation(doc, body.input, trigger_type="manual", run_id=run_id))
+    return _run_doc_to_out(run_doc)
+
+
+@router.get("/{automation_id}/runs/{run_id}", response_model=AutomationRunOut)
+async def get_run(automation_id: str, run_id: str, user: dict = Depends(get_current_user)):
+    doc = await studio_automations_col.find_one({"_id": automation_id, "user_id": user["_id"]})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Automação não encontrada")
+    run = await studio_runs_col.find_one({"_id": run_id, "automation_id": automation_id})
+    if not run:
+        raise HTTPException(status_code=404, detail="Execução não encontrada")
     return _run_doc_to_out(run)
+
+
+@router.post("/{automation_id}/runs/{run_id}/cancel", status_code=204)
+async def cancel_run(automation_id: str, run_id: str, user: dict = Depends(get_current_user)):
+    doc = await studio_automations_col.find_one({"_id": automation_id, "user_id": user["_id"]})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Automação não encontrada")
+    result = await studio_runs_col.update_one(
+        {"_id": run_id, "automation_id": automation_id, "status": "running"},
+        {"$set": {"cancel_requested": True}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Execução em andamento não encontrada")
 
 
 @router.get("/{automation_id}/runs", response_model=List[AutomationRunOut])
