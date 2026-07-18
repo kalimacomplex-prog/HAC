@@ -2144,7 +2144,10 @@ function _upCfg(id, field, value) {
     step.config = step.config || {};
     step.config[field] = value;
     _renderBuilderCanvas();
-    if (['operation','type'].includes(field)) _renderPropsPanel(step);
+    // Campos controlados por botão/toggle (não por <input>/<textarea> com onchange)
+    // precisam redesenhar o painel na hora, senão o botão destacado fica mostrando
+    // a opção antiga até o usuário sair e voltar — o dado já mudou, só a tela não.
+    if (['operation','type','run_on','browser_headless'].includes(field)) _renderPropsPanel(step);
   }
 }
 
