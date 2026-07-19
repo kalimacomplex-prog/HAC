@@ -2698,7 +2698,7 @@ function _renderStudioRunResult(run) {
 // ─── Delete / Toggle ──────────────────────────────────────────────
 
 async function deleteStudioAutomation(id, name) {
-  showConfirm(`Excluir automação "${name}"?`, async () => {
+  showConfirm('Excluir automação', `Excluir permanentemente a automação "${name}"?`, async () => {
     try {
       await api('DELETE', `/studio/${id}`);
       showToast('Automação excluída', 'success');
