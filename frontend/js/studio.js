@@ -1264,6 +1264,14 @@ function _studioKbHandler(e) {
     return;
   }
 
+  // Alt+F5 executa o fluxo inteiro (equivalente ao botão Executar), mesmo com o
+  // foco num campo de texto — F5 sozinho continua recarregando a página normalmente.
+  if (e.altKey && e.key === 'F5') {
+    e.preventDefault();
+    if (!_builderRunId) _runBuilderInline();
+    return;
+  }
+
   if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.isContentEditable) return;
   if (!(e.ctrlKey || e.metaKey)) return;
   const k = e.key.toLowerCase();
