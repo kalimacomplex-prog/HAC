@@ -2701,8 +2701,9 @@ async function deleteStudioAutomation(id, name) {
   showConfirm('Excluir automação', `Excluir permanentemente a automação "${name}"?`, async () => {
     try {
       await api('DELETE', `/studio/${id}`);
+      _studioList = (_studioList || []).filter(a => a.id !== id);
+      _renderStudioTable();
       showToast('Automação excluída', 'success');
-      loadStudio();
     } catch (e) {
       showToast('Erro ao excluir: ' + e.message, 'error');
     }
