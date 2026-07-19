@@ -2900,6 +2900,19 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
         cfg = (step.get("config", {}) if isinstance(step, dict) else step.config.__dict__) or {}
         step_id = step.get("id", "") if isinstance(step, dict) else step.id
         step_name = (step.get("name") if isinstance(step, dict) else step.name) or f"Passo {i + 1}"
+
+        enabled = step.get("enabled", True) if isinstance(step, dict) else getattr(step, "enabled", True)
+        if not enabled:
+            skip_result = {
+                "step_id": step_id, "step_name": step_name, "step_type": step_type,
+                "status": "skipped", "output": "[desabilitado]", "error": "",
+                "duration_ms": 0, "condition_result": None,
+            }
+            results.append(skip_result)
+            await _push_live(ctx, skip_result)
+            i += 1
+            continue
+
         step_start = time.time()
 
         result = {
@@ -3287,6 +3300,8 @@ async def delete_automation(automation_id: str, user: dict = Depends(get_current
 
 class RunRequest(BaseModel):
     input: str = ""
+    only_step_id: str = ""
+    from_step_id: str = ""
 
 
 @router.post("/{automation_id}/run", response_model=AutomationRunOut, status_code=202)
@@ -3294,10 +3309,29 @@ async def run_automation(automation_id: str, body: RunRequest, user: dict = Depe
     """Cria o registro da execução e retorna IMEDIATAMENTE (status 'running'), disparando
     a execução de verdade em background — o chamador acompanha o progresso via
     GET /{automation_id}/runs/{run_id}, feito a cada ~1s pelo frontend (polling), e o
-    log preenche em tempo real conforme cada step termina, não tudo de uma vez no final."""
+    log preenche em tempo real conforme cada step termina, não tudo de uma vez no final.
+
+    `only_step_id`/`from_step_id` (usados pelo menu de contexto do Builder — "Executar
+    este passo" / "Executar a partir deste passo") só enxergam o NÍVEL PRINCIPAL do fluxo
+    (não um passo dentro de um branch de condição/loop/try-catch), porque rodar um trecho
+    aninhado fora do laço/condição que o envolve não teria contexto (variável de loop,
+    resultado da condição etc.) pra fazer sentido sozinho."""
     doc = await studio_automations_col.find_one({"_id": automation_id, "user_id": user["_id"]})
     if not doc:
         raise HTTPException(status_code=404, detail="Automação não encontrada")
+
+    steps = doc.get("steps", [])
+    if body.only_step_id or body.from_step_id:
+        target_id = body.only_step_id or body.from_step_id
+        idx = next((i for i, s in enumerate(steps) if s.get("id") == target_id), None)
+        if idx is None:
+            raise HTTPException(status_code=400, detail="Passo não encontrado no nível principal do fluxo")
+        if body.only_step_id:
+            sliced = [dict(steps[idx], enabled=True)]
+        else:
+            sliced = steps[idx:]
+        doc = {**doc, "steps": sliced}
+
     run_id = str(ObjectId())
     now = datetime.utcnow()
     run_doc = {

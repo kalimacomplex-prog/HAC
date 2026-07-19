@@ -314,6 +314,7 @@ class AutomationStep(BaseModel):
     id: str
     type: StepType
     name: str
+    enabled: bool = True
     config: StepConfig = Field(default_factory=StepConfig)
     children: List["AutomationStep"] = Field(default_factory=list)
     children_true: List["AutomationStep"] = Field(default_factory=list)

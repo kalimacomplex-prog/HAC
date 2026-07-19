@@ -104,6 +104,10 @@ const ICONS = {
   wallet: '<rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="17" cy="14" r="1.3"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9c.2.6.7 1 1.6 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1z"/>',
   robot: '<rect x="5" y="9" width="14" height="10" rx="2"/><circle cx="9" cy="14" r="1.3"/><circle cx="15" cy="14" r="1.3"/><line x1="12" y1="5" x2="12" y2="9"/><circle cx="12" cy="3.3" r="1.3"/><line x1="3" y1="13" x2="5" y2="13"/><line x1="19" y1="13" x2="21" y2="13"/>',
+  ban: '<circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/>',
+  play: '<polygon points="6 3 20 12 6 21"/>',
+  'play-forward': '<polygon points="4 4 14 12 4 20"/><line x1="18" y1="4" x2="18" y2="20"/>',
+  paste: '<rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 12h6"/><path d="M9 16h6"/>',
 };
 
 function _icon(key, size, color) {
@@ -648,7 +652,7 @@ function _appendNewRunSteps(run) {
   _builderRenderedStepCount = steps.length;
 }
 
-async function _runBuilderInline() {
+async function _runBuilderInline(extra) {
   const editId = document.getElementById('builder-edit-id')?.value;
   if (!editId) { showToast('Salve a automação antes de executar', 'error'); return; }
   const input = document.getElementById('builder-log-input')?.value || '';
@@ -662,7 +666,7 @@ async function _runBuilderInline() {
   _builderRenderedStepCount = 0;
 
   try {
-    const initial = await api('POST', `/studio/${editId}/run`, { input });
+    const initial = await api('POST', `/studio/${editId}/run`, { input, ...(extra || {}) });
     _builderRunId = initial.id;
     _builderRunAutoId = editId;
 
@@ -835,16 +839,18 @@ function _renderLeaf(step, arr, idx, containerId, branch, depth) {
   const sel = step.id === _buildSelectedId;
   const isFirst = idx === 0;
   const isLast  = idx === arr.length - 1;
+  const disabled = step.enabled === false;
   const pad = depth > 0 ? '.5rem .75rem' : '.65rem .875rem';
   return `<div onclick="selectBuilderStep('${step.id}')"
+    oncontextmenu="showStepContextMenu(event,'${step.id}')"
     draggable="true"
     ondragstart="_onStepDragStart(event,'${step.id}',this)"
     ondragend="_onStepDragEnd(event,this)"
-    style="display:flex;align-items:center;gap:.65rem;padding:${pad};background:${sel ? meta.bg : 'white'};border:2px solid ${sel ? meta.color : '#e2e8f0'};border-radius:10px;cursor:grab;width:100%;box-sizing:border-box;transition:border-color .12s,box-shadow .12s;box-shadow:${sel ? `0 0 0 3px ${meta.color}33` : '0 1px 2px rgba(0,0,0,.05)'}">
+    style="display:flex;align-items:center;gap:.65rem;padding:${pad};background:${sel ? meta.bg : 'white'};border:2px solid ${sel ? meta.color : '#e2e8f0'};border-radius:10px;cursor:grab;width:100%;box-sizing:border-box;transition:border-color .12s,box-shadow .12s;box-shadow:${sel ? `0 0 0 3px ${meta.color}33` : '0 1px 2px rgba(0,0,0,.05)'};opacity:${disabled?.5:1};filter:${disabled?'grayscale(60%)':'none'}">
     <div style="color:#cbd5e1;font-size:.95rem;flex-shrink:0;user-select:none;line-height:1">⠿</div>
     <div style="width:${depth>0?28:32}px;height:${depth>0?28:32}px;border-radius:8px;background:${meta.bg};border:1.5px solid ${meta.color}44;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_icon(meta.icon, depth>0?16:18, meta.color)}</div>
     <div style="flex:1;min-width:0">
-      <div style="font-weight:700;font-size:${depth>0?'.75rem':'.8rem'};color:${meta.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(step.name)}</div>
+      <div style="display:flex;align-items:center;gap:.3rem;font-weight:700;font-size:${depth>0?'.75rem':'.8rem'};color:${meta.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${disabled?_icon('ban',12,'#ef4444'):''}${escapeHtml(step.name)}</div>
       <div style="font-size:.68rem;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_stepBrief(step)}</div>
     </div>
     <div style="display:flex;gap:.18rem;flex-shrink:0">
@@ -863,9 +869,11 @@ function _renderContainer(step, arr, idx, containerId, branch, depth) {
   const sel = step.id === _buildSelectedId;
   const isFirst = idx === 0;
   const isLast  = idx === arr.length - 1;
+  const disabled = step.enabled === false;
 
   const header = `<div
     onclick="selectBuilderStep('${step.id}')"
+    oncontextmenu="showStepContextMenu(event,'${step.id}')"
     draggable="true"
     ondragstart="_onStepDragStart(event,'${step.id}',this)"
     ondragend="_onStepDragEnd(event,this)"
@@ -873,7 +881,7 @@ function _renderContainer(step, arr, idx, containerId, branch, depth) {
     <div style="color:#94a3b8;font-size:.95rem;flex-shrink:0;user-select:none;line-height:1">⠿</div>
     <div style="width:30px;height:30px;border-radius:7px;background:${meta.bg};border:1.5px solid ${meta.color};display:flex;align-items:center;justify-content:center;flex-shrink:0">${_icon(meta.icon, 17, meta.color)}</div>
     <div style="flex:1;min-width:0">
-      <div style="font-weight:700;font-size:.8rem;color:${meta.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(step.name)}</div>
+      <div style="display:flex;align-items:center;gap:.3rem;font-weight:700;font-size:.8rem;color:${meta.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${disabled?_icon('ban',12,'#ef4444'):''}${escapeHtml(step.name)}</div>
       <div style="font-size:.68rem;color:#64748b">${_stepBrief(step)}</div>
     </div>
     <div style="display:flex;gap:.18rem;flex-shrink:0">
@@ -915,7 +923,7 @@ function _renderContainer(step, arr, idx, containerId, branch, depth) {
     </div>`;
   }
 
-  return `<div style="border:2px solid ${sel ? meta.color : meta.color+'55'};border-radius:12px;background:white;width:100%;box-sizing:border-box;overflow:hidden;box-shadow:${sel?`0 0 0 3px ${meta.color}33`:'0 1px 4px rgba(0,0,0,.07)'}">
+  return `<div style="border:2px solid ${sel ? meta.color : meta.color+'55'};border-radius:12px;background:white;width:100%;box-sizing:border-box;overflow:hidden;box-shadow:${sel?`0 0 0 3px ${meta.color}33`:'0 1px 4px rgba(0,0,0,.07)'};opacity:${disabled?.5:1};filter:${disabled?'grayscale(60%)':'none'}">
     ${header}
     ${body}
   </div>`;
@@ -1242,6 +1250,88 @@ function _studioKbHandler(e) {
 function _studioSetupKb() {
   document.removeEventListener('keydown', _studioKbHandler);
   document.addEventListener('keydown', _studioKbHandler);
+}
+
+// ─── Menu de contexto (clique com o botão direito) ────────────────
+
+function toggleBuilderStepEnabled(id) {
+  const step = _findStep(id, _buildSteps);
+  if (!step) return;
+  step.enabled = step.enabled === false ? true : false;
+  _renderBuilderCanvas();
+  if (_buildSelectedId === id) _renderPropsPanel(step);
+}
+
+function runBuilderStepOnly(id) { _runBuilderInline({ only_step_id: id }); }
+function runBuilderFromStep(id) { _runBuilderInline({ from_step_id: id }); }
+
+function _closeStepContextMenu() {
+  const el = document.getElementById('step-ctx-menu');
+  if (el) el.remove();
+  document.removeEventListener('click', _closeStepContextMenu);
+  document.removeEventListener('keydown', _stepCtxMenuEscHandler);
+}
+
+function _stepCtxMenuEscHandler(e) {
+  if (e.key === 'Escape') _closeStepContextMenu();
+}
+
+function _ctxMenuItem(icon, label, onclick, opts) {
+  opts = opts || {};
+  const color = opts.disabled ? '#cbd5e1' : (opts.danger ? '#ef4444' : '#1e293b');
+  const iconColor = opts.disabled ? '#cbd5e1' : (opts.danger ? '#ef4444' : '#64748b');
+  return `<div ${opts.disabled ? '' : `onclick="${onclick}"`}
+    style="display:flex;align-items:center;gap:.55rem;padding:.5rem .75rem;font-size:.8rem;cursor:${opts.disabled ? 'default' : 'pointer'};color:${color};white-space:nowrap;border-radius:6px"
+    ${opts.disabled ? '' : `onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'"`}>
+    <span style="display:inline-flex;flex-shrink:0">${_icon(icon, 15, iconColor)}</span>
+    <span>${label}</span>
+  </div>`;
+}
+
+function showStepContextMenu(evt, id) {
+  evt.preventDefault();
+  evt.stopPropagation();
+  _closeStepContextMenu();
+  selectBuilderStep(id);
+
+  const step = _findStep(id, _buildSteps);
+  if (!step) return;
+  const loc = _findStepLocation(id, _buildSteps);
+  const isTopLevel = !!loc && loc.arr === _buildSteps;
+  const isFirst = !loc || loc.idx === 0;
+  const isLast  = !loc || loc.idx === loc.arr.length - 1;
+  const disabled = step.enabled === false;
+
+  const sep = '<div style="height:1px;background:#f1f5f9;margin:.3rem 0"></div>';
+  const menu = document.createElement('div');
+  menu.id = 'step-ctx-menu';
+  menu.style.cssText = `position:fixed;left:${evt.clientX}px;top:${evt.clientY}px;background:white;border:1px solid #e2e8f0;border-radius:9px;box-shadow:0 10px 28px rgba(15,23,42,.18);z-index:9999;min-width:220px;padding:.3rem;box-sizing:border-box`;
+  menu.innerHTML = [
+    _ctxMenuItem('copy', 'Copiar', `copyBuilderStep('${id}');_closeStepContextMenu()`),
+    _ctxMenuItem('scissors', 'Recortar', `cutBuilderStep('${id}');_closeStepContextMenu()`),
+    _ctxMenuItem('paste', 'Colar', `pasteBuilderStep();_closeStepContextMenu()`, { disabled: !_stepClipboard }),
+    sep,
+    _ctxMenuItem('arrow-up', 'Mover para cima', `moveBuilderStep('${id}',-1);_closeStepContextMenu()`, { disabled: isFirst }),
+    _ctxMenuItem('arrow-down', 'Mover para baixo', `moveBuilderStep('${id}',1);_closeStepContextMenu()`, { disabled: isLast }),
+    sep,
+    _ctxMenuItem(disabled ? 'eye' : 'ban', disabled ? 'Habilitar' : 'Desabilitar', `toggleBuilderStepEnabled('${id}');_closeStepContextMenu()`, { danger: !disabled }),
+    sep,
+    _ctxMenuItem('play', 'Executar este passo', `runBuilderStepOnly('${id}');_closeStepContextMenu()`, { disabled: !isTopLevel }),
+    _ctxMenuItem('play-forward', 'Executar a partir deste passo', `runBuilderFromStep('${id}');_closeStepContextMenu()`, { disabled: !isTopLevel }),
+    !isTopLevel ? `<div style="padding:.3rem .75rem .15rem;font-size:.65rem;color:#94a3b8;line-height:1.4">Executar só funciona com passos no nível principal do fluxo</div>` : '',
+  ].join('');
+  document.body.appendChild(menu);
+
+  requestAnimationFrame(() => {
+    const r = menu.getBoundingClientRect();
+    if (r.right > window.innerWidth) menu.style.left = Math.max(4, window.innerWidth - r.width - 8) + 'px';
+    if (r.bottom > window.innerHeight) menu.style.top = Math.max(4, window.innerHeight - r.height - 8) + 'px';
+  });
+
+  setTimeout(() => {
+    document.addEventListener('click', _closeStepContextMenu, { once: true });
+    document.addEventListener('keydown', _stepCtxMenuEscHandler);
+  }, 0);
 }
 
 // ─── Drag and Drop ────────────────────────────────────────────────
