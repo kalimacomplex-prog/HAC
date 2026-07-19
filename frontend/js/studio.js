@@ -608,7 +608,6 @@ function _appendBuilderLog(html) {
 }
 
 let _builderRunId = null;
-let _builderRunAutoId = null;
 let _builderPollTimer = null;
 let _builderRenderedStepCount = 0;
 
@@ -623,8 +622,8 @@ function _setBuilderRunningUI(running) {
 }
 
 function stopBuilderRun() {
-  if (!_builderRunId || !_builderRunAutoId) return;
-  api('POST', `/studio/${_builderRunAutoId}/runs/${_builderRunId}/cancel`).catch(() => {});
+  if (!_builderRunId) return;
+  api('POST', `/studio/test-run/${_builderRunId}/cancel`).catch(() => {});
   _appendBuilderLog(`<span style="color:#f59e0b">⏹ Parando execução...</span>\n`);
 }
 
@@ -652,28 +651,45 @@ function _appendNewRunSteps(run) {
   _builderRenderedStepCount = steps.length;
 }
 
+function _stepsForInlineRun(extra) {
+  if (extra && extra.only_step_id) {
+    const step = _findStep(extra.only_step_id, _buildSteps);
+    if (!step) return null;
+    const clone = JSON.parse(JSON.stringify(step));
+    clone.enabled = true;
+    return [clone];
+  }
+  if (extra && extra.from_step_id) {
+    const loc = _findStepLocation(extra.from_step_id, _buildSteps);
+    if (!loc) return null;
+    return loc.arr.slice(loc.idx);
+  }
+  return _buildSteps;
+}
+
 async function _runBuilderInline(extra) {
-  const editId = document.getElementById('builder-edit-id')?.value;
-  if (!editId) { showToast('Salve a automação antes de executar', 'error'); return; }
+  const steps = _stepsForInlineRun(extra);
+  if (!steps) { showToast('Passo não encontrado', 'error'); return; }
+
   const input = document.getElementById('builder-log-input')?.value || '';
+  const agentId = document.getElementById('builder-agent-id')?.value || '';
 
   const panel = document.getElementById('builder-log-panel');
   if (panel && panel.offsetHeight < 120) panel.style.height = '260px';
 
-  _appendBuilderLog(`<span style="color:#64748b">[${new Date().toLocaleTimeString()}] Iniciando execução...</span>\n`);
+  _appendBuilderLog(`<span style="color:#64748b">[${new Date().toLocaleTimeString()}] Iniciando execução (testando o fluxo atual do Builder, sem precisar salvar)...</span>\n`);
 
   _setBuilderRunningUI(true);
   _builderRenderedStepCount = 0;
 
   try {
-    const initial = await api('POST', `/studio/${editId}/run`, { input, ...(extra || {}) });
+    const initial = await api('POST', '/studio/test-run', { input, steps, agent_id: agentId });
     _builderRunId = initial.id;
-    _builderRunAutoId = editId;
 
     let run = initial;
     while (run.status === 'running') {
       await new Promise(r => setTimeout(r, 1000));
-      run = await api('GET', `/studio/${editId}/runs/${_builderRunId}`);
+      run = await api('GET', `/studio/test-run/${_builderRunId}`);
       _appendNewRunSteps(run);
     }
 
@@ -686,7 +702,6 @@ async function _runBuilderInline(extra) {
     _appendBuilderLog(`<span style="color:#ef4444">✗ Erro: ${escapeHtml(e.message)}</span>\n`);
   } finally {
     _builderRunId = null;
-    _builderRunAutoId = null;
     _setBuilderRunningUI(false);
   }
 }
@@ -1239,8 +1254,17 @@ function pasteBuilderStep() {
 }
 
 function _studioKbHandler(e) {
-  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.isContentEditable) return;
   if (!document.getElementById('view-studio_builder')?.classList.contains('active')) return;
+
+  // Ctrl+S salva mesmo com o foco num campo de texto (nome, JSON, código etc.) —
+  // é o comportamento esperado de um atalho de salvar em qualquer editor.
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    saveBuilderAutomation(true);
+    return;
+  }
+
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.isContentEditable) return;
   if (!(e.ctrlKey || e.metaKey)) return;
   const k = e.key.toLowerCase();
   if (k === 'c') { e.preventDefault(); copyBuilderStep(); }
@@ -1297,7 +1321,6 @@ function showStepContextMenu(evt, id) {
   const step = _findStep(id, _buildSteps);
   if (!step) return;
   const loc = _findStepLocation(id, _buildSteps);
-  const isTopLevel = !!loc && loc.arr === _buildSteps;
   const isFirst = !loc || loc.idx === 0;
   const isLast  = !loc || loc.idx === loc.arr.length - 1;
   const disabled = step.enabled === false;
@@ -1316,9 +1339,8 @@ function showStepContextMenu(evt, id) {
     sep,
     _ctxMenuItem(disabled ? 'eye' : 'ban', disabled ? 'Habilitar' : 'Desabilitar', `toggleBuilderStepEnabled('${id}');_closeStepContextMenu()`, { danger: !disabled }),
     sep,
-    _ctxMenuItem('play', 'Executar este passo', `runBuilderStepOnly('${id}');_closeStepContextMenu()`, { disabled: !isTopLevel }),
-    _ctxMenuItem('play-forward', 'Executar a partir deste passo', `runBuilderFromStep('${id}');_closeStepContextMenu()`, { disabled: !isTopLevel }),
-    !isTopLevel ? `<div style="padding:.3rem .75rem .15rem;font-size:.65rem;color:#94a3b8;line-height:1.4">Executar só funciona com passos no nível principal do fluxo</div>` : '',
+    _ctxMenuItem('play', 'Executar este passo', `runBuilderStepOnly('${id}');_closeStepContextMenu()`),
+    _ctxMenuItem('play-forward', 'Executar a partir deste passo', `runBuilderFromStep('${id}');_closeStepContextMenu()`),
   ].join('');
   document.body.appendChild(menu);
 
@@ -2511,7 +2533,7 @@ function _upBA(stepId, idx, field, value) {
 
 // ─── Salvar ───────────────────────────────────────────────────────
 
-async function saveBuilderAutomation() {
+async function saveBuilderAutomation(stay) {
   const name = document.getElementById('builder-name')?.value.trim();
   if (!name) { showToast('Informe o nome da automação', 'error'); return; }
 
@@ -2523,14 +2545,14 @@ async function saveBuilderAutomation() {
     showConfirm(
       'Já existe uma automação com esse nome',
       `Já existe uma automação chamada "${name}". Deseja mesmo continuar e salvar assim mesmo?`,
-      () => _doSaveBuilderAutomation(name, editId),
+      () => _doSaveBuilderAutomation(name, editId, stay),
     );
     return;
   }
-  await _doSaveBuilderAutomation(name, editId);
+  await _doSaveBuilderAutomation(name, editId, stay);
 }
 
-async function _doSaveBuilderAutomation(name, editId) {
+async function _doSaveBuilderAutomation(name, editId, stay) {
   const btn = document.getElementById('builder-save-btn');
   if (btn.disabled) return; // trava contra duplo-clique disparando dois saves em paralelo
   btn.disabled = true;
@@ -2567,7 +2589,7 @@ async function _doSaveBuilderAutomation(name, editId) {
       _buildTrigger.webhook_token = saved.trigger?.webhook_token || '';
     }
     showToast(editId ? 'Automação atualizada!' : 'Automação criada!', 'success');
-    if (!saved.webhook_url || triggerType !== 'webhook') {
+    if (!stay && (!saved.webhook_url || triggerType !== 'webhook')) {
       backToStudio();
       return;
     }

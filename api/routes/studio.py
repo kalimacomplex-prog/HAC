@@ -26,7 +26,7 @@ from ..config import settings
 from ..database import pipelines_col, ai_agents_col, studio_automations_col, studio_runs_col, processes_col, jobs_col
 from ..models.studio import (
     AutomationCreate, AutomationUpdate, AutomationOut, AutomationRunOut,
-    StepResult, TriggerType,
+    StepResult, TriggerType, AutomationStep,
 )
 from .ai_agents import call_ai
 
@@ -3385,6 +3385,71 @@ async def list_runs(automation_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Automação não encontrada")
     cursor = studio_runs_col.find({"automation_id": automation_id}).sort("started_at", -1).limit(20)
     return [_run_doc_to_out(d) async for d in cursor]
+
+
+# ─── TESTE (executa o que está no Builder sem precisar salvar) ────
+
+_ADHOC_AUTOMATION_ID = "__adhoc__"
+
+
+class AdHocRunRequest(BaseModel):
+    steps: List[AutomationStep]
+    input: str = ""
+    agent_id: str = ""
+
+
+@router.post("/test-run", response_model=AutomationRunOut, status_code=202)
+async def test_run_adhoc(body: AdHocRunRequest, user: dict = Depends(get_current_user)):
+    """Executa a lista de passos exatamente como está no Builder agora, sem exigir que a
+    automação tenha sido salva antes — usado pelos botões Executar / Executar este passo /
+    Executar a partir deste passo enquanto o usuário ainda está editando o fluxo."""
+    doc = {
+        "_id": _ADHOC_AUTOMATION_ID,
+        "name": "(teste não salvo)",
+        "steps": [s.model_dump() for s in body.steps],
+        "user_id": user["_id"],
+        "agent_id": body.agent_id,
+    }
+    run_id = str(ObjectId())
+    now = datetime.utcnow()
+    run_doc = {
+        "_id": run_id,
+        "automation_id": _ADHOC_AUTOMATION_ID,
+        "automation_name": doc["name"],
+        "user_id": user["_id"],
+        "trigger_type": "manual",
+        "input": body.input,
+        "steps_result": [],
+        "output": "",
+        "status": "running",
+        "started_at": now,
+        "finished_at": None,
+        "duration_ms": 0,
+        "cancel_requested": False,
+    }
+    await studio_runs_col.insert_one(run_doc)
+    _spawn_background(_execute_automation(doc, body.input, trigger_type="manual", run_id=run_id))
+    return _run_doc_to_out(run_doc)
+
+
+@router.get("/test-run/{run_id}", response_model=AutomationRunOut)
+async def get_test_run_adhoc(run_id: str, user: dict = Depends(get_current_user)):
+    run = await studio_runs_col.find_one(
+        {"_id": run_id, "automation_id": _ADHOC_AUTOMATION_ID, "user_id": user["_id"]}
+    )
+    if not run:
+        raise HTTPException(status_code=404, detail="Execução não encontrada")
+    return _run_doc_to_out(run)
+
+
+@router.post("/test-run/{run_id}/cancel", status_code=204)
+async def cancel_test_run_adhoc(run_id: str, user: dict = Depends(get_current_user)):
+    result = await studio_runs_col.update_one(
+        {"_id": run_id, "automation_id": _ADHOC_AUTOMATION_ID, "user_id": user["_id"], "status": "running"},
+        {"$set": {"cancel_requested": True}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Execução em andamento não encontrada")
 
 
 # ─── WEBHOOK ──────────────────────────────────────────────────────
