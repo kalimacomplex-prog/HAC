@@ -54,11 +54,20 @@ async function initApp() {
     document.getElementById('user-avatar').textContent = currentUser.name.charAt(0).toUpperCase();
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'block';
-    navigate('dashboard');
+
+    let savedView = localStorage.getItem('hac_current_view') || 'dashboard';
+    if (!document.getElementById(`view-${savedView}`)) savedView = 'dashboard';
+    if (savedView === 'studio_builder') {
+      const savedAutoId = localStorage.getItem('hac_builder_auto_id');
+      window._builderAutoId = savedAutoId || null;
+    }
+    navigate(savedView);
   } catch(e) { logout(); }
 }
 
 function navigate(view) {
+  localStorage.setItem('hac_current_view', view);
+  if (view === 'studio_builder') localStorage.setItem('hac_builder_auto_id', window._builderAutoId || '');
   // Restaura sidebar e topbar ao sair do builder
   if (view !== 'studio_builder') {
     document.querySelector('.topbar').style.display = '';

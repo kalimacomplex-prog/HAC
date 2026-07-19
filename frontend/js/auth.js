@@ -45,6 +45,8 @@ async function register() {
 function logout() {
   token = null;
   localStorage.removeItem('hac_token');
+  localStorage.removeItem('hac_current_view');
+  localStorage.removeItem('hac_builder_auto_id');
   showAuth();
 }
 
