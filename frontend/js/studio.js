@@ -325,6 +325,7 @@ let _collapsedCats = new Set();
 let _studioRunAutoId = null;
 let _draggedStepId = null;
 let _draggedActionType = null;
+let _stepClipboard = null;
 
 // ─── Step defaults (shared) ───────────────────────────────────────
 const STEP_DEFAULTS = {
@@ -557,6 +558,7 @@ async function initBuilderPage() {
   _renderPropsPanel(null);
   _clearBuilderLog();
   _initBuilderLogResize();
+  _studioSetupKb();
 }
 
 function backToStudio() {
@@ -1171,6 +1173,75 @@ function _moveStepTo(stepId, insertIdx, containerId, branch) {
   if (!step) return;
   let idx = (srcIdx !== -1 && srcIdx < insertIdx) ? insertIdx - 1 : insertIdx;
   targetArr.splice(Math.min(Math.max(0, idx), targetArr.length), 0, step);
+}
+
+// ─── Copiar / Recortar / Colar (Ctrl+C / Ctrl+X / Ctrl+V) ─────────
+
+function _findStepLocation(id, arr) {
+  const idx = arr.findIndex(s => s.id === id);
+  if (idx !== -1) return { arr, idx };
+  for (const s of arr) {
+    if (CONTAINER_TYPES.has(s.type))
+      for (const b of _branches(s)) {
+        const found = _findStepLocation(id, s[b] || []);
+        if (found) return found;
+      }
+  }
+  return null;
+}
+
+function _cloneStepWithNewIds(step) {
+  const clone = JSON.parse(JSON.stringify(step));
+  const assignIds = s => {
+    s.id = 'step_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    if (CONTAINER_TYPES.has(s.type))
+      for (const b of _branches(s)) (s[b] || []).forEach(assignIds);
+  };
+  assignIds(clone);
+  return clone;
+}
+
+function copyBuilderStep(id) {
+  id = id || _buildSelectedId;
+  const step = id && _findStep(id, _buildSteps);
+  if (!step) { showToast('Selecione uma ação para copiar', 'error'); return; }
+  _stepClipboard = JSON.parse(JSON.stringify(step));
+  showToast('Ação copiada');
+}
+
+function cutBuilderStep(id) {
+  id = id || _buildSelectedId;
+  const step = id && _findStep(id, _buildSteps);
+  if (!step) { showToast('Selecione uma ação para recortar', 'error'); return; }
+  _stepClipboard = JSON.parse(JSON.stringify(step));
+  removeBuilderStep(id);
+  showToast('Ação recortada');
+}
+
+function pasteBuilderStep() {
+  if (!_stepClipboard) { showToast('Nada para colar', 'error'); return; }
+  const clone = _cloneStepWithNewIds(_stepClipboard);
+  const loc = _buildSelectedId ? _findStepLocation(_buildSelectedId, _buildSteps) : null;
+  if (loc) loc.arr.splice(loc.idx + 1, 0, clone);
+  else _buildSteps.push(clone);
+  _buildSelectedId = clone.id;
+  _renderBuilderCanvas();
+  _renderPropsPanel(_findStep(clone.id, _buildSteps));
+  showToast('Ação colada');
+}
+
+function _studioKbHandler(e) {
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.isContentEditable) return;
+  if (!document.getElementById('view-studio_builder')?.classList.contains('active')) return;
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const k = e.key.toLowerCase();
+  if (k === 'c') { e.preventDefault(); copyBuilderStep(); }
+  else if (k === 'x') { e.preventDefault(); cutBuilderStep(); }
+  else if (k === 'v') { e.preventDefault(); pasteBuilderStep(); }
+}
+function _studioSetupKb() {
+  document.removeEventListener('keydown', _studioKbHandler);
+  document.addEventListener('keydown', _studioKbHandler);
 }
 
 // ─── Drag and Drop ────────────────────────────────────────────────
