@@ -307,8 +307,8 @@ class StepConfig(BaseModel):
     # imagens / mídia (Fase 7)
     width: int = 0
     height: int = 0
-    # onde executar: "server" (padrão) ou "agent" (roda no agente/worker selecionado)
-    run_on: str = "server"
+    # onde executar: "server" ou "agent" (padrão — roda no agente/worker selecionado)
+    run_on: str = "agent"
 
 
 class AutomationStep(BaseModel):

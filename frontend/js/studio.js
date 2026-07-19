@@ -361,7 +361,7 @@ const STEP_DEFAULTS = {
   api_key: '', api_secret: '', from_number: '', pix_key: '', pix_merchant_name: '', pix_merchant_city: '',
   coord_from: '', coord_to: '',
   width: 0, height: 0,
-  run_on: 'server',
+  run_on: 'agent',
 };
 
 // ─── Container helpers ────────────────────────────────────────────
