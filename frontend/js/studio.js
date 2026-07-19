@@ -124,6 +124,7 @@ const ACTION_CATEGORIES = [
     { type: 'loop_count', icon: 'repeat', label: 'Repetir N vezes',     color: '#0f766e', bg: '#f0fdfa' },
     { type: 'foreach',    icon: 'list', label: 'Para cada item (foreach)', color: '#0f766e', bg: '#f0fdfa' },
     { type: 'while_condition', icon: 'clock-repeat', label: 'Repetir até condição (while)', color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'break_loop', icon: 'stop', label: 'Quebrar loop', color: '#0f766e', bg: '#f0fdfa' },
     { type: 'try_catch',  icon: 'shield-alert', label: 'Tentar / Capturar erro', color: '#b45309', bg: '#fffbeb' },
     { type: 'parallel',   icon: 'layers', label: 'Executar em paralelo', color: '#0f766e', bg: '#f0fdfa' },
     { type: 'call_automation', icon: 'link', label: 'Chamar outra automação', color: '#7c3aed', bg: '#f5f3ff' },
@@ -368,11 +369,13 @@ const CONTAINER_TYPES = new Set(['loop_count', 'condition', 'foreach', 'while_co
 const DOUBLE_BRANCH_TYPES = new Set(['condition', 'try_catch']);
 
 // Tipos que nunca podem rodar num agente: dependem do Mongo direto (IA/pipeline/
-// sub-fluxo) ou já têm seu próprio mecanismo de despacho pro agente (navegador).
+// sub-fluxo), já têm seu próprio mecanismo de despacho pro agente (navegador), ou
+// são controle de fluxo puro que só faz sentido no processo que está iterando o loop.
 const AGENT_EXCLUDED_TYPES = new Set([
   'call_ai_agent', 'call_pipeline', 'call_automation',
   'browser', 'browser_open', 'browser_click', 'browser_type',
   'browser_extract', 'browser_wait', 'browser_screenshot', 'browser_close',
+  'break_loop',
 ]);
 
 function _branches(step) {
@@ -978,6 +981,7 @@ function _stepBriefText(step) {
       return `${c.count||3}x · ${nc} ação${nc!==1?'ões':''}`;
     }
     case 'wait':         return `Aguardar ${c.seconds || 1}s`;
+    case 'break_loop':   return 'Interrompe o loop mais próximo (para de iterar)';
     case 'comment':      return c.text ? c.text.substring(0, 50) : '—';
     case 'set_variable': return `${c.variable_name || 'var'} = "${(c.value || '').substring(0, 30)}"`;
     case 'calculate':    return `${c.variable_name || 'resultado'} = ${(c.expression || '').substring(0, 30)}`;
@@ -1480,6 +1484,10 @@ function _renderPropsPanel(step) {
 
     case 'comment':
       html += _field('TEXTO DO COMENTÁRIO', `<textarea onchange="_upCfg('${step.id}','text',this.value)" rows="3" ${_ta()}>${escapeHtml(c.text||'')}</textarea>`);
+      break;
+
+    case 'break_loop':
+      html += _hint('Sem configuração. Ao rodar, interrompe imediatamente o loop (Repetir N vezes / Para cada item / Repetir até condição) mais próximo que envolve este passo — pula o restante das ações da iteração atual e não entra mais em nenhuma. A automação continua normalmente depois do bloco de loop. Fora de um loop, este passo não faz nada.');
       break;
 
     case 'set_variable':

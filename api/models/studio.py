@@ -70,6 +70,7 @@ class StepType(str, Enum):
     try_catch = "try_catch"
     parallel = "parallel"
     while_condition = "while_condition"
+    break_loop = "break_loop"
     call_automation = "call_automation"
     random_wait = "random_wait"
     # Planilhas & Excel (Fase 2)

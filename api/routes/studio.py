@@ -2954,6 +2954,8 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
                     results.extend(branch_results)
                     if branch_failed:
                         return results, True
+                    if ctx.get("_break_loop"):
+                        return results, False
                     i += 1
                 else:
                     # Legacy else_step_id jump logic
@@ -2978,14 +2980,21 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
                 results.append(result)
                 await _push_live(ctx, result)
 
-                for iter_i in range(count):
-                    ctx["vars"][idx_var] = str(iter_i)
-                    iter_results, iter_failed = await _exec_step_list(children, ctx)
-                    for r in iter_results:
-                        r = {**r, "step_name": f"[{iter_i + 1}/{count}] {r['step_name']}"}
-                        results.append(r)
-                    if iter_failed:
-                        return results, True
+                ctx["_loop_depth"] = ctx.get("_loop_depth", 0) + 1
+                try:
+                    for iter_i in range(count):
+                        ctx["vars"][idx_var] = str(iter_i)
+                        iter_results, iter_failed = await _exec_step_list(children, ctx)
+                        for r in iter_results:
+                            r = {**r, "step_name": f"[{iter_i + 1}/{count}] {r['step_name']}"}
+                            results.append(r)
+                        if iter_failed:
+                            return results, True
+                        if ctx.get("_break_loop"):
+                            ctx["_break_loop"] = False
+                            break
+                finally:
+                    ctx["_loop_depth"] -= 1
                 i += 1
                 continue
 
@@ -3004,15 +3013,22 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
                 results.append(result)
                 await _push_live(ctx, result)
 
-                for iter_i, item in enumerate(items):
-                    ctx["vars"][item_var] = item if isinstance(item, str) else json.dumps(item, ensure_ascii=False)
-                    ctx["vars"][f"{item_var}_index"] = str(iter_i)
-                    iter_results, iter_failed = await _exec_step_list(children, ctx)
-                    for r in iter_results:
-                        r = {**r, "step_name": f"[{iter_i + 1}/{len(items)}] {r['step_name']}"}
-                        results.append(r)
-                    if iter_failed:
-                        return results, True
+                ctx["_loop_depth"] = ctx.get("_loop_depth", 0) + 1
+                try:
+                    for iter_i, item in enumerate(items):
+                        ctx["vars"][item_var] = item if isinstance(item, str) else json.dumps(item, ensure_ascii=False)
+                        ctx["vars"][f"{item_var}_index"] = str(iter_i)
+                        iter_results, iter_failed = await _exec_step_list(children, ctx)
+                        for r in iter_results:
+                            r = {**r, "step_name": f"[{iter_i + 1}/{len(items)}] {r['step_name']}"}
+                            results.append(r)
+                        if iter_failed:
+                            return results, True
+                        if ctx.get("_break_loop"):
+                            ctx["_break_loop"] = False
+                            break
+                finally:
+                    ctx["_loop_depth"] -= 1
                 i += 1
                 continue
 
@@ -3026,15 +3042,22 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
                 results.append(result)
                 await _push_live(ctx, result)
 
-                iter_i = 0
-                while _eval_condition(ctx["output"], operator, cond_value) and iter_i < max_iter:
-                    iter_results, iter_failed = await _exec_step_list(children, ctx)
-                    for r in iter_results:
-                        r = {**r, "step_name": f"[{iter_i + 1}] {r['step_name']}"}
-                        results.append(r)
-                    if iter_failed:
-                        return results, True
-                    iter_i += 1
+                ctx["_loop_depth"] = ctx.get("_loop_depth", 0) + 1
+                try:
+                    iter_i = 0
+                    while _eval_condition(ctx["output"], operator, cond_value) and iter_i < max_iter:
+                        iter_results, iter_failed = await _exec_step_list(children, ctx)
+                        for r in iter_results:
+                            r = {**r, "step_name": f"[{iter_i + 1}] {r['step_name']}"}
+                            results.append(r)
+                        if iter_failed:
+                            return results, True
+                        if ctx.get("_break_loop"):
+                            ctx["_break_loop"] = False
+                            break
+                        iter_i += 1
+                finally:
+                    ctx["_loop_depth"] -= 1
                 i += 1
                 continue
 
@@ -3048,13 +3071,28 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
 
                 try_results, try_failed = await _exec_step_list(try_children, ctx)
                 results.extend(try_results)
-                if try_failed:
+                if try_failed and not ctx.get("_break_loop"):
                     last_err = next((r["error"] for r in reversed(try_results) if r.get("error")), "erro desconhecido")
                     ctx["vars"]["error"] = last_err
                     catch_results, catch_failed = await _exec_step_list(catch_children, ctx)
                     results.extend(catch_results)
                     if catch_failed:
                         return results, True
+                if ctx.get("_break_loop"):
+                    return results, False
+                i += 1
+                continue
+
+            elif step_type == "break_loop":
+                inside_loop = ctx.get("_loop_depth", 0) > 0
+                result["output"] = "Loop interrompido" if inside_loop else "Nenhum loop em execução — passo ignorado"
+                result["status"] = "success" if inside_loop else "skipped"
+                result["duration_ms"] = int((time.time() - step_start) * 1000)
+                results.append(result)
+                await _push_live(ctx, result)
+                if inside_loop:
+                    ctx["_break_loop"] = True
+                    return results, False
                 i += 1
                 continue
 
