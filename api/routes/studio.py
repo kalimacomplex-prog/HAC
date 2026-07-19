@@ -2752,6 +2752,11 @@ def _gen_local_step_script(step: dict, ctx: dict) -> str:
         "",
     ]
 
+    # _is_cancelled é chamado por dentro dos steps 'wait'/'random_wait' — se não for
+    # embutido aqui, um "Aguardar" configurado pra rodar no agente quebra com NameError.
+    # No agente, ctx nunca tem _run_id nem _disconnect_check, então a função só retorna
+    # False de cara (o cancelamento de um step rodando no agente é tratado por fora,
+    # matando o processo do lado do worker — aqui é só pra não faltar o nome).
     body_parts = [
         inspect.getsource(_sub),
         inspect.getsource(_store),
@@ -2762,6 +2767,7 @@ def _gen_local_step_script(step: dict, ctx: dict) -> str:
         f"_NO_AUTO_INSTALL = {_NO_AUTO_INSTALL!r}\n",
         inspect.getsource(_pip_package_for_module),
         inspect.getsource(_try_pip_install),
+        inspect.getsource(_is_cancelled),
         inspect.getsource(_exec_step),
     ]
 
@@ -2784,8 +2790,11 @@ def _gen_local_step_script(step: dict, ctx: dict) -> str:
         "            _pkg = _pip_package_for_module(_missing)",
         "            _ok, _msg = await _try_pip_install(_pkg)",
         "            if not _ok:",
-        "                raise Exception(\"Pacote '\" + _pkg + \"' ausente no agente e nao pode ser instalado: \" + _msg)",
-        "            output = await _run_once(step, ctx)",
+        "                raise Exception(\"Pacote '\" + _pkg + \"' ausente no agente (interpretador \" + sys.executable + \") e nao pode ser instalado: \" + _msg)",
+        "            try:",
+        "                output = await _run_once(step, ctx)",
+        "            except ModuleNotFoundError as _e2:",
+        "                raise Exception(\"Instalei o pacote '\" + _pkg + \"' no agente (pip reportou sucesso), mas o modulo '\" + _missing + \"' continua ausente. Costuma acontecer quando ha mais de um Python nessa maquina (o pip instalou num, mas quem esta rodando e outro) ou quando falta algo alem do pip install. Interpretador usado: \" + sys.executable + \". Tente rodar '\" + sys.executable + \" -m pip install \" + _pkg + \"' manualmente no agente pra ver o erro real.\")",
         "        print('__STEP_RESULT__:' + json.dumps({'ok': True, 'output': str(output), 'vars': ctx['vars']}, ensure_ascii=False, default=str))",
         "    except Exception as _e:",
         "        print('__STEP_RESULT__:' + json.dumps({'ok': False, 'error': str(_e)}, ensure_ascii=False))",
@@ -3082,10 +3091,21 @@ async def _exec_step_list(steps: list, ctx: dict) -> tuple:
                             raise Exception(
                                 f"Esta ação precisa do pacote Python '{package}' (módulo '{missing_module}'), "
                                 f"que não está instalado e não pôde ser instalado automaticamente: {install_msg}. "
-                                f"Adicione '{package}' ao requirements.txt e faça redeploy."
+                                f"Adicione '{package}' ao requirements.txt e faça redeploy. "
+                                f"(interpretador: {sys.executable})"
                             ) from e
                         # reinstalado com sucesso — tenta a ação de novo, uma única vez
-                        output = await _exec_step(step_dict, ctx)
+                        try:
+                            output = await _exec_step(step_dict, ctx)
+                        except ModuleNotFoundError as e2:
+                            raise Exception(
+                                f"Instalei o pacote '{package}' (pip reportou sucesso), mas o módulo "
+                                f"'{missing_module}' continua não encontrado. Isso costuma acontecer quando há "
+                                f"mais de um Python instalado na máquina (o pip instalou num, mas quem está "
+                                f"rodando é outro) ou quando o pacote precisa de mais alguma coisa além do pip "
+                                f"install. Interpretador usado: {sys.executable}. Tente rodar "
+                                f"'{sys.executable} -m pip install {package}' manualmente para ver o erro real."
+                            ) from e2
                         output = f"[pacote '{package}' instalado automaticamente] {output}"
                 result["output"] = str(output)[:3000]
 

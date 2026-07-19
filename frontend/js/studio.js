@@ -1,196 +1,311 @@
+// ─── Ícones vetoriais (substituem os antigos emojis, mesma ideia) ─
+const ICONS = {
+  branch: '<circle cx="6" cy="6" r="2.2"/><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M6 8.2V16"/><path d="M8.2 6H14a4 4 0 0 1 4 4v3.8"/>',
+  repeat: '<path d="M17 2 21 6 17 10"/><path d="M3 12V10a4 4 0 0 1 4-4h14"/><path d="M7 22 3 18 7 14"/><path d="M21 12v2a4 4 0 0 1-4 4H3"/>',
+  list: '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+  'clock-repeat': '<path d="M12 4a8 8 0 1 1-6.9 4"/><path d="M5 4v4h4"/><path d="M12 8v5l3 2"/>',
+  'shield-alert': '<path d="M12 2 4 5v6c0 5 3.5 8.5 8 9 4.5-.5 8-4 8-9V5z"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+  layers: '<path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>',
+  link: '<path d="M9 15 15 9"/><path d="M11 6l1.5-1.5a4 4 0 0 1 5.7 5.7L16.5 12"/><path d="M13 18l-1.5 1.5a4 4 0 0 1-5.7-5.7L7.5 12"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>',
+  dice: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="8.5" cy="8.5" r="1"/><circle cx="15.5" cy="8.5" r="1"/><circle cx="8.5" cy="15.5" r="1"/><circle cx="15.5" cy="15.5" r="1"/><circle cx="12" cy="12" r="1"/>',
+  message: '<path d="M4 5h16v11H8l-4 4V5z"/>',
+  box: '<path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/>',
+  calculator: '<rect x="5" y="2" width="14" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8.01" y2="11"/><line x1="12" y1="11" x2="12.01" y2="11"/><line x1="16" y1="11" x2="16.01" y2="11"/><line x1="8" y1="15" x2="8.01" y2="15"/><line x1="12" y1="15" x2="12.01" y2="15"/><line x1="16" y1="15" x2="16.01" y2="15"/><line x1="8" y1="19" x2="16" y2="19"/>',
+  'book-open': '<path d="M12 5C10 3.5 6 3 3 4v14c3-1 7-.5 9 1 2-1.5 6-2 9-1V4c-3-1-7-.5-9 1z"/><line x1="12" y1="5" x2="12" y2="19"/>',
+  pencil: '<path d="M4 20l1-4 11-11 3 3-11 11-4 1z"/><line x1="14" y1="6" x2="18" y2="10"/>',
+  folder: '<path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6z"/>',
+  trash: '<line x1="4" y1="7" x2="20" y2="7"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/>',
+  copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
+  send: '<path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9z"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="M10.5 12.5 20 3"/><path d="M17 6l2 2"/><path d="M14 9l2 2"/>',
+  info: '<circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+  search: '<circle cx="10.5" cy="10.5" r="6.5"/><line x1="21" y1="21" x2="15.5" y2="15.5"/>',
+  font: '<path d="M6 18 10 6h1l4 12"/><line x1="7.2" y1="14" x2="13.8" y2="14"/><path d="M16 18l2.5-6h.5L21 18"/>',
+  archive: '<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><line x1="10" y1="12" x2="14" y2="12"/>',
+  save: '<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3"/><rect x="8" y="14" width="8" height="6"/>',
+  table: '<rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="4" x2="9" y2="20"/>',
+  'file-text': '<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><line x1="9" y1="13" x2="16" y2="13"/><line x1="9" y1="17" x2="16" y2="17"/>',
+  filter: '<path d="M4 4h16l-6 8v6l-4 2v-8z"/>',
+  broom: '<path d="M19 4 9 14"/><path d="M9 14l-5 5 2 2 5-5"/><path d="M13 10l4-6 3 3-6 4z"/>',
+  sort: '<path d="M8 3v14"/><path d="M4 13l4 4 4-4"/><path d="M16 21V7"/><path d="M20 11l-4-4-4 4"/>',
+  clipboard: '<rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/>',
+  paperclip: '<path d="M8 12V6a4 4 0 0 1 8 0v10a2.5 2.5 0 0 1-5 0V8"/>',
+  scissors: '<circle cx="6" cy="6" r="2.2"/><circle cx="6" cy="18" r="2.2"/><line x1="7.5" y1="7.5" x2="20" y2="20"/><line x1="7.5" y1="16.5" x2="20" y2="4"/>',
+  printer: '<path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1"/><path d="M6 17v4h12v-4"/>',
+  edit: '<path d="M4 21h16"/><path d="M6 17l1-4 9-9 3 3-9 9-4 1z"/>',
+  'check-circle': '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>',
+  network: '<circle cx="12" cy="5" r="2.2"/><circle cx="5" cy="19" r="2.2"/><circle cx="19" cy="19" r="2.2"/><path d="M12 7.2V12"/><path d="M12 12 6.5 17"/><path d="M12 12 17.5 17"/>',
+  database: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  sparkles: '<path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+  'id-card': '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="12" r="2"/><line x1="13" y1="10" x2="18" y2="10"/><line x1="13" y1="14" x2="18" y2="14"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 6l9 7 9-7"/>',
+  phone: '<path d="M6 3h4l1.5 5-2.5 1.5a12 12 0 0 0 5.5 5.5L16 12.5l5 1.5v4a2 2 0 0 1-2 2C10.5 20.5 3.5 13.5 4 5a2 2 0 0 1 2-2z"/>',
+  'map-pin': '<path d="M12 22s7-7.2 7-12a7 7 0 0 0-14 0c0 4.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.4"/>',
+  dollar: '<circle cx="12" cy="12" r="9"/><path d="M12 6v12"/><path d="M15.5 9c0-1.5-1.5-2.5-3.5-2.5S8.5 7.5 8.5 9s1.5 2 3.5 2.5 3.5 1 3.5 2.5-1.5 2.5-3.5 2.5-3.5-1-3.5-2.5"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  unlock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/>',
+  coin: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 8v8"/>',
+  receipt: '<path d="M6 2h12v20l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5-2 1.5z"/><line x1="8.5" y1="7" x2="15.5" y2="7"/><line x1="8.5" y1="11" x2="15.5" y2="11"/>',
+  hash: '<line x1="9" y1="3" x2="7" y2="21"/><line x1="17" y1="3" x2="15" y2="21"/><line x1="4" y1="9" x2="20" y2="9"/><line x1="3" y1="15" x2="19" y2="15"/>',
+  check: '<path d="M4 12l6 6L20 6"/>',
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  scroll: '<path d="M6 3h12v15a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3z"/><path d="M6 3a3 3 0 0 0-3 3v0a3 3 0 0 0 3 3"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/>',
+  signature: '<path d="M3 17c3-1 5-4 5-7 0-2-1-3-2-3s-2 2 0 5 6 5 9 3c1.5-1 1-3 0-3s-2 1-1 3 4 3 5 1"/>',
+  ruler: '<rect x="3" y="8" width="18" height="8" rx="1"/><line x1="7" y1="8" x2="7" y2="11"/><line x1="11" y1="8" x2="11" y2="11"/><line x1="15" y1="8" x2="15" y2="11"/><line x1="19" y1="8" x2="19" y2="11"/>',
+  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3a15 15 0 0 1 0 18"/><path d="M12 3a15 15 0 0 0 0 18"/>',
+  briefcase: '<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="3" y1="13" x2="21" y2="13"/>',
+  'arrow-down': '<line x1="12" y1="4" x2="12" y2="17"/><path d="M6 12l6 6 6-6"/>',
+  'arrow-up': '<line x1="12" y1="20" x2="12" y2="7"/><path d="M6 12l6-6 6 6"/>',
+  'arrow-right': '<line x1="4" y1="12" x2="19" y2="12"/><path d="M13 6l6 6-6 6"/>',
+  'arrow-left': '<line x1="20" y1="12" x2="5" y2="12"/><path d="M11 6l-6 6 6 6"/>',
+  newspaper: '<rect x="3" y="5" width="13" height="15" rx="1"/><path d="M16 8h5v10a2 2 0 0 1-2 2H5"/><line x1="6.5" y1="9" x2="12.5" y2="9"/><line x1="6.5" y1="12" x2="12.5" y2="12"/><line x1="6.5" y1="15" x2="10" y2="15"/>',
+  rss: '<circle cx="6" cy="18" r="1.6"/><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 5a15 15 0 0 1 15 15"/>',
+  sun: '<circle cx="12" cy="12" r="4.5"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="4.5" y1="4.5" x2="6.5" y2="6.5"/><line x1="17.5" y1="17.5" x2="19.5" y2="19.5"/><line x1="4.5" y1="19.5" x2="6.5" y2="17.5"/><line x1="17.5" y1="6.5" x2="19.5" y2="4.5"/>',
+  building: '<rect x="4" y="3" width="10" height="18"/><rect x="14" y="9" width="6" height="12"/><line x1="7" y1="7" x2="7" y2="7.01"/><line x1="11" y1="7" x2="11" y2="7.01"/><line x1="7" y1="11" x2="7" y2="11.01"/><line x1="11" y1="11" x2="11" y2="11.01"/><line x1="7" y1="15" x2="7" y2="15.01"/><line x1="11" y1="15" x2="11" y2="15.01"/>',
+  inbox: '<path d="M3 12h5l2 3h4l2-3h5"/><path d="M5 4h14l2 8v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6z"/>',
+  'paper-plane': '<path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9z"/>',
+  gamepad: '<rect x="2" y="8" width="20" height="10" rx="5"/><line x1="7" y1="11" x2="7" y2="15"/><line x1="5" y1="13" x2="9" y2="13"/><circle cx="16" cy="12" r="1"/><circle cx="18.5" cy="14.5" r="1"/>',
+  bell: '<path d="M6 10a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  'alert-triangle': '<path d="M12 3 22 20H2z"/><line x1="12" y1="9" x2="12" y2="14"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  'credit-card': '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/>',
+  'currency-exchange': '<path d="M4 7h13"/><path d="M13 3l4 4-4 4"/><path d="M20 17H7"/><path d="M11 21l-4-4 4-4"/>',
+  bitcoin: '<circle cx="12" cy="12" r="9"/><path d="M10 7v10"/><path d="M14 7v10"/><path d="M8 8h6a2.5 2.5 0 0 1 0 5H8"/><path d="M8 13h7a2.5 2.5 0 0 1 0 5H8"/>',
+  qrcode: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="14" y1="14" x2="14" y2="14.01"/><line x1="18" y1="14" x2="18" y2="14.01"/><line x1="14" y1="18" x2="14" y2="18.01"/><line x1="18" y1="18" x2="21" y2="18"/><line x1="21" y1="21" x2="21" y2="21.01"/>',
+  terminal: '<polyline points="4 6 10 12 4 18"/><line x1="12" y1="18" x2="20" y2="18"/>',
+  code: '<polyline points="9 6 3 12 9 18"/><polyline points="15 6 21 12 15 18"/>',
+  braces: '<path d="M8 3c-2 0-3 1-3 3v4c0 1-1 2-2 2 1 0 2 1 2 2v4c0 2 1 3 3 3"/><path d="M16 3c2 0 3 1 3 3v4c0 1 1 2 2 2-1 0-2 1-2 2v4c0 2-1 3-3 3"/>',
+  'bar-chart': '<line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="15"/>',
+  plug: '<path d="M9 2v6"/><path d="M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/>',
+  monitor: '<rect x="2" y="4" width="20" height="13" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
+  wrench: '<path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-3 3-2-2z"/>',
+  'heart-pulse': '<path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-1 1.8-2.6 3.5-4.5 5.2"/><polyline points="5 12 8 12 9.5 9 11.5 15 13 12 16 12"/>',
+  brain: '<path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5h1a3 3 0 0 0 2-1"/><path d="M15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5h-1a3 3 0 0 1-2-1"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/>',
+  dna: '<path d="M6 3c0 6 12 12 12 18"/><path d="M18 3c0 6-12 12-12 18"/><line x1="7.5" y1="7" x2="16.5" y2="7"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7.5" y1="17" x2="16.5" y2="17"/>',
+  shield: '<path d="M12 2 4 5v6c0 5 3.5 8.5 8 9 4.5-.5 8-4 8-9V5z"/>',
+  versus: '<path d="M4 12h6"/><path d="M8 8l-4 4 4 4"/><path d="M20 12h-6"/><path d="M16 8l4 4-4 4"/>',
+  'doc-word': '<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><path d="M8 13l1.3 6L11 14l1.7 5L14 13"/>',
+  'doc-slides': '<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><rect x="8.5" y="12" width="7" height="5" rx="1"/>',
+  resize: '<path d="M15 3h6v6"/><path d="M9 21H3v-6"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>',
+  droplet: '<path d="M12 3c4 5 7 8.5 7 12a7 7 0 0 1-14 0c0-3.5 3-7 7-12z"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5.5-5.5L9 17"/>',
+  camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13.5" r="3.2"/>',
+  palette: '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2a4.5 4.5 0 0 0 4.5-4.5C21 6.4 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="9.5" cy="7.5" r="1"/><circle cx="14.5" cy="7" r="1"/><circle cx="17" cy="10.5" r="1"/>',
+  film: '<rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="8" y1="4" x2="8" y2="9"/><line x1="15" y1="4" x2="15" y2="9"/><line x1="8" y1="15" x2="8" y2="20"/><line x1="15" y1="15" x2="15" y2="20"/>',
+  music: '<circle cx="6" cy="18" r="2.5"/><circle cx="17" cy="16" r="2.5"/><path d="M8.5 18V5.5L19.5 3v12.5"/>',
+  speaker: '<polygon points="4 9 8 9 12 5 12 19 8 15 4 15"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M18.5 6.5a9 9 0 0 1 0 11"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.5 3.5-7 8-7s8 2.5 8 7"/>',
+  'mouse-pointer': '<path d="M4 3l7 17 2-7 7-2z"/>',
+  keyboard: '<rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6" y2="10.01"/><line x1="10" y1="10" x2="10" y2="10.01"/><line x1="14" y1="10" x2="14" y2="10.01"/><line x1="18" y1="10" x2="18" y2="10.01"/><line x1="7" y1="14" x2="17" y2="14"/>',
+  stop: '<circle cx="12" cy="12" r="9"/><rect x="9" y="9" width="6" height="6"/>',
+  eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+  wallet: '<rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="17" cy="14" r="1.3"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9c.2.6.7 1 1.6 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1z"/>',
+  robot: '<rect x="5" y="9" width="14" height="10" rx="2"/><circle cx="9" cy="14" r="1.3"/><circle cx="15" cy="14" r="1.3"/><line x1="12" y1="5" x2="12" y2="9"/><circle cx="12" cy="3.3" r="1.3"/><line x1="3" y1="13" x2="5" y2="13"/><line x1="19" y1="13" x2="21" y2="13"/>',
+};
+
+function _icon(key, size, color) {
+  size = size || 16;
+  const inner = ICONS[key] || ICONS.gear;
+  const stroke = color || 'currentColor';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0">${inner}</svg>`;
+}
+
 // ─── Categorias e ações (estilo Automate Fortra) ──────────────────
 const ACTION_CATEGORIES = [
-  { key: 'flow', label: 'Controle de Fluxo', icon: '🔄', actions: [
-    { type: 'condition',  icon: '🔀', label: 'Condição (Se/Senão)', color: '#b45309', bg: '#fffbeb' },
-    { type: 'loop_count', icon: '🔁', label: 'Repetir N vezes',     color: '#0f766e', bg: '#f0fdfa' },
-    { type: 'foreach',    icon: '📜', label: 'Para cada item (foreach)', color: '#0f766e', bg: '#f0fdfa' },
-    { type: 'while_condition', icon: '🔂', label: 'Repetir até condição (while)', color: '#0f766e', bg: '#f0fdfa' },
-    { type: 'try_catch',  icon: '🧯', label: 'Tentar / Capturar erro', color: '#b45309', bg: '#fffbeb' },
-    { type: 'parallel',   icon: '🧩', label: 'Executar em paralelo', color: '#0f766e', bg: '#f0fdfa' },
-    { type: 'call_automation', icon: '🔗', label: 'Chamar outra automação', color: '#7c3aed', bg: '#f5f3ff' },
-    { type: 'wait',       icon: '⏳', label: 'Aguardar (delay)',    color: '#64748b', bg: '#f8fafc' },
-    { type: 'random_wait',icon: '🎲', label: 'Aguardar (aleatório)', color: '#64748b', bg: '#f8fafc' },
-    { type: 'comment',    icon: '💬', label: 'Comentário',          color: '#94a3b8', bg: '#f8fafc' },
+  { key: 'flow', label: 'Controle de Fluxo', icon: 'repeat', actions: [
+    { type: 'condition',  icon: 'branch', label: 'Condição (Se/Senão)', color: '#b45309', bg: '#fffbeb' },
+    { type: 'loop_count', icon: 'repeat', label: 'Repetir N vezes',     color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'foreach',    icon: 'list', label: 'Para cada item (foreach)', color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'while_condition', icon: 'clock-repeat', label: 'Repetir até condição (while)', color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'try_catch',  icon: 'shield-alert', label: 'Tentar / Capturar erro', color: '#b45309', bg: '#fffbeb' },
+    { type: 'parallel',   icon: 'layers', label: 'Executar em paralelo', color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'call_automation', icon: 'link', label: 'Chamar outra automação', color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'wait',       icon: 'clock', label: 'Aguardar (delay)',    color: '#64748b', bg: '#f8fafc' },
+    { type: 'random_wait',icon: 'dice', label: 'Aguardar (aleatório)', color: '#64748b', bg: '#f8fafc' },
+    { type: 'comment',    icon: 'message', label: 'Comentário',          color: '#94a3b8', bg: '#f8fafc' },
   ]},
-  { key: 'variables', label: 'Variáveis', icon: '📦', actions: [
-    { type: 'set_variable', icon: '📦', label: 'Definir variável',     color: '#7c3aed', bg: '#f5f3ff' },
-    { type: 'calculate',    icon: '🧮', label: 'Calcular / Expressar', color: '#7c3aed', bg: '#f5f3ff' },
+  { key: 'variables', label: 'Variáveis', icon: 'box', actions: [
+    { type: 'set_variable', icon: 'box', label: 'Definir variável',     color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'calculate',    icon: 'calculator', label: 'Calcular / Expressar', color: '#7c3aed', bg: '#f5f3ff' },
   ]},
-  { key: 'files', label: 'Arquivos', icon: '📁', actions: [
-    { type: 'read_file',  icon: '📖', label: 'Ler arquivo',     color: '#1d4ed8', bg: '#eff6ff' },
-    { type: 'write_file', icon: '✏️', label: 'Escrever arquivo', color: '#1d4ed8', bg: '#eff6ff' },
-    { type: 'list_files', icon: '📂', label: 'Listar arquivos',  color: '#1d4ed8', bg: '#eff6ff' },
-    { type: 'delete_file',icon: '🗑️', label: 'Deletar arquivo',  color: '#ef4444', bg: '#fef2f2' },
-    { type: 'copy_file',  icon: '📑', label: 'Copiar arquivo',   color: '#1d4ed8', bg: '#eff6ff' },
-    { type: 'move_file',  icon: '📤', label: 'Mover/Renomear arquivo', color: '#1d4ed8', bg: '#eff6ff' },
-    { type: 'file_hash',  icon: '🔑', label: 'Hash de arquivo',  color: '#1d4ed8', bg: '#eff6ff' },
-    { type: 'file_info',  icon: 'ℹ️', label: 'Metadados do arquivo', color: '#1d4ed8', bg: '#eff6ff' },
-    { type: 'search_in_files', icon: '🔍', label: 'Buscar texto em arquivos', color: '#1d4ed8', bg: '#eff6ff' },
-    { type: 'convert_encoding', icon: '🔤', label: 'Converter encoding', color: '#1d4ed8', bg: '#eff6ff' },
-    { type: 'ensure_dir', icon: '📁', label: 'Criar pasta (se não existir)', color: '#1d4ed8', bg: '#eff6ff' },
-    { type: 'delete_folder', icon: '🗑️', label: 'Deletar pasta', color: '#ef4444', bg: '#fef2f2' },
-    { type: 'zip_files',  icon: '🗜️', label: 'Compactar (.zip)', color: '#1d4ed8', bg: '#eff6ff' },
-    { type: 'unzip_file', icon: '📦', label: 'Descompactar (.zip)', color: '#1d4ed8', bg: '#eff6ff' },
-    { type: 'backup_folder', icon: '💾', label: 'Backup de pasta', color: '#1d4ed8', bg: '#eff6ff' },
+  { key: 'files', label: 'Arquivos', icon: 'folder', actions: [
+    { type: 'read_file',  icon: 'book-open', label: 'Ler arquivo',     color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'write_file', icon: 'pencil', label: 'Escrever arquivo', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'list_files', icon: 'folder', label: 'Listar arquivos',  color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'delete_file',icon: 'trash', label: 'Deletar arquivo',  color: '#ef4444', bg: '#fef2f2' },
+    { type: 'copy_file',  icon: 'copy', label: 'Copiar arquivo',   color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'move_file',  icon: 'send', label: 'Mover/Renomear arquivo', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'file_hash',  icon: 'key', label: 'Hash de arquivo',  color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'file_info',  icon: 'info', label: 'Metadados do arquivo', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'search_in_files', icon: 'search', label: 'Buscar texto em arquivos', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'convert_encoding', icon: 'font', label: 'Converter encoding', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'ensure_dir', icon: 'folder', label: 'Criar pasta (se não existir)', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'delete_folder', icon: 'trash', label: 'Deletar pasta', color: '#ef4444', bg: '#fef2f2' },
+    { type: 'zip_files',  icon: 'archive', label: 'Compactar (.zip)', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'unzip_file', icon: 'archive', label: 'Descompactar (.zip)', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'backup_folder', icon: 'save', label: 'Backup de pasta', color: '#1d4ed8', bg: '#eff6ff' },
   ]},
-  { key: 'sheets', label: 'Planilhas & Excel', icon: '📊', actions: [
-    { type: 'read_excel',  icon: '📗', label: 'Ler Excel',    color: '#15803d', bg: '#f0fdf4' },
-    { type: 'write_excel', icon: '📗', label: 'Gerar Excel',  color: '#15803d', bg: '#f0fdf4' },
-    { type: 'read_csv',    icon: '📄', label: 'Ler CSV',      color: '#15803d', bg: '#f0fdf4' },
-    { type: 'write_csv',   icon: '📄', label: 'Gerar CSV',    color: '#15803d', bg: '#f0fdf4' },
-    { type: 'filter_data', icon: '🔎', label: 'Filtrar dados',  color: '#15803d', bg: '#f0fdf4' },
-    { type: 'merge_data',  icon: '🔗', label: 'Mesclar dados (join)', color: '#15803d', bg: '#f0fdf4' },
-    { type: 'dedupe_data', icon: '🧹', label: 'Remover duplicados', color: '#15803d', bg: '#f0fdf4' },
-    { type: 'sort_group_data', icon: '↕️', label: 'Ordenar dados', color: '#15803d', bg: '#f0fdf4' },
+  { key: 'sheets', label: 'Planilhas & Excel', icon: 'table', actions: [
+    { type: 'read_excel',  icon: 'table', label: 'Ler Excel',    color: '#15803d', bg: '#f0fdf4' },
+    { type: 'write_excel', icon: 'table', label: 'Gerar Excel',  color: '#15803d', bg: '#f0fdf4' },
+    { type: 'read_csv',    icon: 'file-text', label: 'Ler CSV',      color: '#15803d', bg: '#f0fdf4' },
+    { type: 'write_csv',   icon: 'file-text', label: 'Gerar CSV',    color: '#15803d', bg: '#f0fdf4' },
+    { type: 'filter_data', icon: 'filter', label: 'Filtrar dados',  color: '#15803d', bg: '#f0fdf4' },
+    { type: 'merge_data',  icon: 'link', label: 'Mesclar dados (join)', color: '#15803d', bg: '#f0fdf4' },
+    { type: 'dedupe_data', icon: 'broom', label: 'Remover duplicados', color: '#15803d', bg: '#f0fdf4' },
+    { type: 'sort_group_data', icon: 'sort', label: 'Ordenar dados', color: '#15803d', bg: '#f0fdf4' },
   ]},
-  { key: 'pdf', label: 'PDF', icon: '📕', actions: [
-    { type: 'pdf_extract_text',   icon: '📖', label: 'Extrair texto de PDF', color: '#b91c1c', bg: '#fef2f2' },
-    { type: 'pdf_extract_tables', icon: '📋', label: 'Extrair tabelas de PDF', color: '#b91c1c', bg: '#fef2f2' },
-    { type: 'pdf_merge',  icon: '🧷', label: 'Mesclar PDFs',   color: '#b91c1c', bg: '#fef2f2' },
-    { type: 'pdf_split',  icon: '✂️', label: 'Dividir PDF',    color: '#b91c1c', bg: '#fef2f2' },
-    { type: 'pdf_generate', icon: '🖨️', label: 'Gerar PDF',    color: '#b91c1c', bg: '#fef2f2' },
-    { type: 'pdf_fill_form', icon: '📝', label: 'Preencher formulário PDF', color: '#b91c1c', bg: '#fef2f2' },
+  { key: 'pdf', label: 'PDF', icon: 'file-text', actions: [
+    { type: 'pdf_extract_text',   icon: 'book-open', label: 'Extrair texto de PDF', color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'pdf_extract_tables', icon: 'clipboard', label: 'Extrair tabelas de PDF', color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'pdf_merge',  icon: 'paperclip', label: 'Mesclar PDFs',   color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'pdf_split',  icon: 'scissors', label: 'Dividir PDF',    color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'pdf_generate', icon: 'printer', label: 'Gerar PDF',    color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'pdf_fill_form', icon: 'edit', label: 'Preencher formulário PDF', color: '#b91c1c', bg: '#fef2f2' },
   ]},
-  { key: 'etl', label: 'Dados & ETL', icon: '🧮', actions: [
-    { type: 'validate_json_schema', icon: '✅', label: 'Validar schema JSON', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'convert_data_format',  icon: '🔄', label: 'Converter formato de dados', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'html_extract', icon: '🕸️', label: 'Extrair de HTML (CSS selector)', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'sql_on_data',  icon: '🗄️', label: 'SQL sobre dados', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'generate_fake_data', icon: '🎭', label: 'Gerar dados de teste', color: '#0891b2', bg: '#f0f9ff' },
+  { key: 'etl', label: 'Dados & ETL', icon: 'calculator', actions: [
+    { type: 'validate_json_schema', icon: 'check-circle', label: 'Validar schema JSON', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'convert_data_format',  icon: 'repeat', label: 'Converter formato de dados', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'html_extract', icon: 'network', label: 'Extrair de HTML (CSS selector)', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'sql_on_data',  icon: 'database', label: 'SQL sobre dados', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'generate_fake_data', icon: 'sparkles', label: 'Gerar dados de teste', color: '#0891b2', bg: '#f0f9ff' },
   ]},
-  { key: 'validation', label: 'Validação BR', icon: '✅', actions: [
-    { type: 'validate_cpf_cnpj', icon: '🪪', label: 'Validar CPF/CNPJ', color: '#b45309', bg: '#fffbeb' },
-    { type: 'validate_email',    icon: '📧', label: 'Validar Email', color: '#b45309', bg: '#fffbeb' },
-    { type: 'validate_phone',    icon: '📱', label: 'Validar Telefone', color: '#b45309', bg: '#fffbeb' },
-    { type: 'lookup_cep',        icon: '📍', label: 'Consultar CEP', color: '#b45309', bg: '#fffbeb' },
-    { type: 'format_currency',   icon: '💵', label: 'Formatar Moeda (BRL)', color: '#b45309', bg: '#fffbeb' },
+  { key: 'validation', label: 'Validação BR', icon: 'check-circle', actions: [
+    { type: 'validate_cpf_cnpj', icon: 'id-card', label: 'Validar CPF/CNPJ', color: '#b45309', bg: '#fffbeb' },
+    { type: 'validate_email',    icon: 'mail', label: 'Validar Email', color: '#b45309', bg: '#fffbeb' },
+    { type: 'validate_phone',    icon: 'phone', label: 'Validar Telefone', color: '#b45309', bg: '#fffbeb' },
+    { type: 'lookup_cep',        icon: 'map-pin', label: 'Consultar CEP', color: '#b45309', bg: '#fffbeb' },
+    { type: 'format_currency',   icon: 'dollar', label: 'Formatar Moeda (BRL)', color: '#b45309', bg: '#fffbeb' },
   ]},
-  { key: 'security', label: 'Segurança & Criptografia', icon: '🔒', actions: [
-    { type: 'encrypt_text',   icon: '🔐', label: 'Criptografar texto', color: '#374151', bg: '#f8fafc' },
-    { type: 'decrypt_text',   icon: '🔓', label: 'Descriptografar texto', color: '#374151', bg: '#f8fafc' },
-    { type: 'generate_jwt',   icon: '🪙', label: 'Gerar JWT', color: '#374151', bg: '#f8fafc' },
-    { type: 'verify_jwt',     icon: '🧾', label: 'Verificar JWT', color: '#374151', bg: '#f8fafc' },
-    { type: 'hash_password',  icon: '#️⃣', label: 'Hash de senha', color: '#374151', bg: '#f8fafc' },
-    { type: 'verify_password',icon: '✔️', label: 'Verificar senha', color: '#374151', bg: '#f8fafc' },
-    { type: 'generate_otp',   icon: '🔢', label: 'Gerar código OTP', color: '#374151', bg: '#f8fafc' },
-    { type: 'verify_otp',     icon: '🔑', label: 'Verificar código OTP', color: '#374151', bg: '#f8fafc' },
-    { type: 'generate_secure_password', icon: '🎲', label: 'Gerar senha segura', color: '#374151', bg: '#f8fafc' },
-    { type: 'check_ssl_cert', icon: '📜', label: 'Verificar certificado SSL', color: '#374151', bg: '#f8fafc' },
-    { type: 'hmac_sign',      icon: '✍️', label: 'Assinar (HMAC)', color: '#374151', bg: '#f8fafc' },
+  { key: 'security', label: 'Segurança & Criptografia', icon: 'lock', actions: [
+    { type: 'encrypt_text',   icon: 'lock', label: 'Criptografar texto', color: '#374151', bg: '#f8fafc' },
+    { type: 'decrypt_text',   icon: 'unlock', label: 'Descriptografar texto', color: '#374151', bg: '#f8fafc' },
+    { type: 'generate_jwt',   icon: 'coin', label: 'Gerar JWT', color: '#374151', bg: '#f8fafc' },
+    { type: 'verify_jwt',     icon: 'receipt', label: 'Verificar JWT', color: '#374151', bg: '#f8fafc' },
+    { type: 'hash_password',  icon: 'hash', label: 'Hash de senha', color: '#374151', bg: '#f8fafc' },
+    { type: 'verify_password',icon: 'check', label: 'Verificar senha', color: '#374151', bg: '#f8fafc' },
+    { type: 'generate_otp',   icon: 'grid', label: 'Gerar código OTP', color: '#374151', bg: '#f8fafc' },
+    { type: 'verify_otp',     icon: 'key', label: 'Verificar código OTP', color: '#374151', bg: '#f8fafc' },
+    { type: 'generate_secure_password', icon: 'dice', label: 'Gerar senha segura', color: '#374151', bg: '#f8fafc' },
+    { type: 'check_ssl_cert', icon: 'scroll', label: 'Verificar certificado SSL', color: '#374151', bg: '#f8fafc' },
+    { type: 'hmac_sign',      icon: 'signature', label: 'Assinar (HMAC)', color: '#374151', bg: '#f8fafc' },
   ]},
-  { key: 'datetime', label: 'Data & Hora', icon: '📅', actions: [
-    { type: 'date_diff',   icon: '📏', label: 'Diferença entre datas', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'date_add',    icon: '➕', label: 'Somar/Subtrair de uma data', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'format_date', icon: '📆', label: 'Formatar data', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'timezone_convert', icon: '🌍', label: 'Converter fuso horário', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'is_business_day', icon: '💼', label: 'É dia útil?', color: '#0891b2', bg: '#f0f9ff' },
+  { key: 'datetime', label: 'Data & Hora', icon: 'calendar', actions: [
+    { type: 'date_diff',   icon: 'ruler', label: 'Diferença entre datas', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'date_add',    icon: 'plus', label: 'Somar/Subtrair de uma data', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'format_date', icon: 'calendar', label: 'Formatar data', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'timezone_convert', icon: 'globe', label: 'Converter fuso horário', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'is_business_day', icon: 'briefcase', label: 'É dia útil?', color: '#0891b2', bg: '#f0f9ff' },
   ]},
-  { key: 'http', label: 'HTTP & Internet', icon: '🌐', actions: [
-    { type: 'http_request', icon: '🌐', label: 'HTTP Request', color: '#0f766e', bg: '#f0fdfa' },
-    { type: 'http_request_retry', icon: '🔁', label: 'HTTP Request (com retry)', color: '#0f766e', bg: '#f0fdfa' },
-    { type: 'parse_json',   icon: '{}', label: 'Parse JSON',   color: '#0f766e', bg: '#f0fdfa' },
-    { type: 'download_file', icon: '⬇️', label: 'Baixar arquivo (URL)', color: '#0f766e', bg: '#f0fdfa' },
-    { type: 'upload_file',   icon: '⬆️', label: 'Enviar arquivo (upload)', color: '#0f766e', bg: '#f0fdfa' },
-    { type: 'scrape_html_table', icon: '📰', label: 'Raspar tabela HTML', color: '#0f766e', bg: '#f0fdfa' },
-    { type: 'read_rss_feed', icon: '📡', label: 'Ler feed RSS', color: '#0f766e', bg: '#f0fdfa' },
+  { key: 'http', label: 'HTTP & Internet', icon: 'globe', actions: [
+    { type: 'http_request', icon: 'globe', label: 'HTTP Request', color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'http_request_retry', icon: 'repeat', label: 'HTTP Request (com retry)', color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'parse_json',   icon: 'braces', label: 'Parse JSON',   color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'download_file', icon: 'arrow-down', label: 'Baixar arquivo (URL)', color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'upload_file',   icon: 'arrow-up', label: 'Enviar arquivo (upload)', color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'scrape_html_table', icon: 'newspaper', label: 'Raspar tabela HTML', color: '#0f766e', bg: '#f0fdfa' },
+    { type: 'read_rss_feed', icon: 'rss', label: 'Ler feed RSS', color: '#0f766e', bg: '#f0fdfa' },
   ]},
-  { key: 'external_apis', label: 'APIs Externas', icon: '🌎', actions: [
-    { type: 'get_weather',     icon: '☀️', label: 'Previsão do tempo', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'geocode_address', icon: '📍', label: 'Geocodificar endereço', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'calculate_distance', icon: '📏', label: 'Distância entre coordenadas', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'shorten_url',     icon: '🔗', label: 'Encurtar URL', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'lookup_cnpj',     icon: '🏢', label: 'Consultar CNPJ', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'translate_text',  icon: '🌐', label: 'Traduzir texto', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'get_holidays',    icon: '📅', label: 'Feriados nacionais', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'detect_language', icon: '🔤', label: 'Detectar idioma', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'count_tokens',    icon: '🧮', label: 'Contar tokens (LLM)', color: '#0891b2', bg: '#f0f9ff' },
+  { key: 'external_apis', label: 'APIs Externas', icon: 'globe', actions: [
+    { type: 'get_weather',     icon: 'sun', label: 'Previsão do tempo', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'geocode_address', icon: 'map-pin', label: 'Geocodificar endereço', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'calculate_distance', icon: 'ruler', label: 'Distância entre coordenadas', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'shorten_url',     icon: 'link', label: 'Encurtar URL', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'lookup_cnpj',     icon: 'building', label: 'Consultar CNPJ', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'translate_text',  icon: 'globe', label: 'Traduzir texto', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'get_holidays',    icon: 'calendar', label: 'Feriados nacionais', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'detect_language', icon: 'font', label: 'Detectar idioma', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'count_tokens',    icon: 'calculator', label: 'Contar tokens (LLM)', color: '#0891b2', bg: '#f0f9ff' },
   ]},
-  { key: 'email', label: 'Email', icon: '📧', actions: [
-    { type: 'send_email', icon: '📧', label: 'Enviar Email', color: '#dc2626', bg: '#fef2f2' },
-    { type: 'read_email_imap', icon: '📥', label: 'Ler caixa de entrada (IMAP)', color: '#dc2626', bg: '#fef2f2' },
+  { key: 'email', label: 'Email', icon: 'mail', actions: [
+    { type: 'send_email', icon: 'mail', label: 'Enviar Email', color: '#dc2626', bg: '#fef2f2' },
+    { type: 'read_email_imap', icon: 'inbox', label: 'Ler caixa de entrada (IMAP)', color: '#dc2626', bg: '#fef2f2' },
   ]},
-  { key: 'messaging', label: 'Comunicação', icon: '💬', actions: [
-    { type: 'send_telegram', icon: '✈️', label: 'Enviar Telegram', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'send_slack',    icon: '💬', label: 'Enviar Slack', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'send_discord',  icon: '🎮', label: 'Enviar Discord', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'send_whatsapp', icon: '📱', label: 'Enviar WhatsApp', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'send_sms',      icon: '💌', label: 'Enviar SMS', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'send_push_notification', icon: '🔔', label: 'Push Notification', color: '#0891b2', bg: '#f0f9ff' },
-    { type: 'create_incident', icon: '🚨', label: 'Criar incidente (PagerDuty)', color: '#dc2626', bg: '#fef2f2' },
+  { key: 'messaging', label: 'Comunicação', icon: 'message', actions: [
+    { type: 'send_telegram', icon: 'paper-plane', label: 'Enviar Telegram', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'send_slack',    icon: 'message', label: 'Enviar Slack', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'send_discord',  icon: 'gamepad', label: 'Enviar Discord', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'send_whatsapp', icon: 'phone', label: 'Enviar WhatsApp', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'send_sms',      icon: 'mail', label: 'Enviar SMS', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'send_push_notification', icon: 'bell', label: 'Push Notification', color: '#0891b2', bg: '#f0f9ff' },
+    { type: 'create_incident', icon: 'alert-triangle', label: 'Criar incidente (PagerDuty)', color: '#dc2626', bg: '#fef2f2' },
   ]},
-  { key: 'payments', label: 'Pagamentos & Financeiro', icon: '💰', actions: [
-    { type: 'asaas_create_charge', icon: '💳', label: 'Criar cobrança (Asaas)', color: '#15803d', bg: '#f0fdf4' },
-    { type: 'asaas_check_payment', icon: '🔍', label: 'Consultar pagamento (Asaas)', color: '#15803d', bg: '#f0fdf4' },
-    { type: 'generate_pix_qr', icon: '📲', label: 'Gerar código Pix', color: '#15803d', bg: '#f0fdf4' },
-    { type: 'get_currency_rate', icon: '💱', label: 'Cotação de moeda', color: '#15803d', bg: '#f0fdf4' },
-    { type: 'get_crypto_price', icon: '₿', label: 'Cotação de criptomoeda', color: '#15803d', bg: '#f0fdf4' },
+  { key: 'payments', label: 'Pagamentos & Financeiro', icon: 'wallet', actions: [
+    { type: 'asaas_create_charge', icon: 'credit-card', label: 'Criar cobrança (Asaas)', color: '#15803d', bg: '#f0fdf4' },
+    { type: 'asaas_check_payment', icon: 'search', label: 'Consultar pagamento (Asaas)', color: '#15803d', bg: '#f0fdf4' },
+    { type: 'generate_pix_qr', icon: 'qrcode', label: 'Gerar código Pix', color: '#15803d', bg: '#f0fdf4' },
+    { type: 'get_currency_rate', icon: 'currency-exchange', label: 'Cotação de moeda', color: '#15803d', bg: '#f0fdf4' },
+    { type: 'get_crypto_price', icon: 'bitcoin', label: 'Cotação de criptomoeda', color: '#15803d', bg: '#f0fdf4' },
   ]},
-  { key: 'system', label: 'Sistema', icon: '⚙️', actions: [
-    { type: 'run_command', icon: '⌨️', label: 'Comando Shell',   color: '#374151', bg: '#f8fafc' },
-    { type: 'run_python',  icon: '🐍', label: 'Script Python',  color: '#15803d', bg: '#f0fdf4' },
-    { type: 'system_stats',    icon: '📊', label: 'Uso de CPU/memória/disco', color: '#374151', bg: '#f8fafc' },
-    { type: 'list_processes',  icon: '📋', label: 'Listar processos', color: '#374151', bg: '#f8fafc' },
-    { type: 'check_port_open', icon: '🔌', label: 'Verificar porta', color: '#374151', bg: '#f8fafc' },
-    { type: 'dns_lookup',      icon: '🌐', label: 'Consultar DNS', color: '#374151', bg: '#f8fafc' },
-    { type: 'whois_lookup',    icon: '🔎', label: 'WHOIS de domínio', color: '#374151', bg: '#f8fafc' },
-    { type: 'ssh_execute',     icon: '🖥️', label: 'Executar via SSH', color: '#374151', bg: '#f8fafc' },
-    { type: 'read_env_var',    icon: '🔧', label: 'Ler variável de ambiente', color: '#374151', bg: '#f8fafc' },
-    { type: 'check_url_uptime',icon: '💚', label: 'Verificar uptime (URL)', color: '#374151', bg: '#f8fafc' },
+  { key: 'system', label: 'Sistema', icon: 'gear', actions: [
+    { type: 'run_command', icon: 'terminal', label: 'Comando Shell',   color: '#374151', bg: '#f8fafc' },
+    { type: 'run_python',  icon: 'code', label: 'Script Python',  color: '#15803d', bg: '#f0fdf4' },
+    { type: 'system_stats',    icon: 'bar-chart', label: 'Uso de CPU/memória/disco', color: '#374151', bg: '#f8fafc' },
+    { type: 'list_processes',  icon: 'clipboard', label: 'Listar processos', color: '#374151', bg: '#f8fafc' },
+    { type: 'check_port_open', icon: 'plug', label: 'Verificar porta', color: '#374151', bg: '#f8fafc' },
+    { type: 'dns_lookup',      icon: 'globe', label: 'Consultar DNS', color: '#374151', bg: '#f8fafc' },
+    { type: 'whois_lookup',    icon: 'search', label: 'WHOIS de domínio', color: '#374151', bg: '#f8fafc' },
+    { type: 'ssh_execute',     icon: 'monitor', label: 'Executar via SSH', color: '#374151', bg: '#f8fafc' },
+    { type: 'read_env_var',    icon: 'wrench', label: 'Ler variável de ambiente', color: '#374151', bg: '#f8fafc' },
+    { type: 'check_url_uptime',icon: 'heart-pulse', label: 'Verificar uptime (URL)', color: '#374151', bg: '#f8fafc' },
   ]},
-  { key: 'database', label: 'Banco de Dados & Fila', icon: '🗄️', actions: [
-    { type: 'redis_get',  icon: '📤', label: 'Redis: Ler', color: '#b91c1c', bg: '#fef2f2' },
-    { type: 'redis_set',  icon: '📥', label: 'Redis: Escrever', color: '#b91c1c', bg: '#fef2f2' },
-    { type: 'queue_push', icon: '➡️', label: 'Enfileirar (Redis)', color: '#b91c1c', bg: '#fef2f2' },
-    { type: 'queue_pop',  icon: '⬅️', label: 'Desenfileirar (Redis)', color: '#b91c1c', bg: '#fef2f2' },
-    { type: 'sql_query_external', icon: '🐘', label: 'SQL externo (Postgres)', color: '#b91c1c', bg: '#fef2f2' },
+  { key: 'database', label: 'Banco de Dados & Fila', icon: 'database', actions: [
+    { type: 'redis_get',  icon: 'arrow-up', label: 'Redis: Ler', color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'redis_set',  icon: 'arrow-down', label: 'Redis: Escrever', color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'queue_push', icon: 'arrow-right', label: 'Enfileirar (Redis)', color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'queue_pop',  icon: 'arrow-left', label: 'Desenfileirar (Redis)', color: '#b91c1c', bg: '#fef2f2' },
+    { type: 'sql_query_external', icon: 'database', label: 'SQL externo (Postgres)', color: '#b91c1c', bg: '#fef2f2' },
   ]},
-  { key: 'ai', label: 'Inteligência Artificial', icon: '🤖', actions: [
-    { type: 'call_ai_agent', icon: '🧠', label: 'Agente IA',   color: '#1d4ed8', bg: '#eff6ff' },
-    { type: 'call_pipeline', icon: '🔗', label: 'Pipeline IA', color: '#1d4ed8', bg: '#eff6ff' },
-    { type: 'generate_embedding', icon: '🧬', label: 'Gerar embedding', color: '#1d4ed8', bg: '#eff6ff' },
-    { type: 'semantic_search',    icon: '🔍', label: 'Busca semântica', color: '#1d4ed8', bg: '#eff6ff' },
-    { type: 'moderate_content',   icon: '🛡️', label: 'Moderar conteúdo', color: '#1d4ed8', bg: '#eff6ff' },
-    { type: 'compare_texts',      icon: '🆚', label: 'Comparar textos', color: '#1d4ed8', bg: '#eff6ff' },
+  { key: 'ai', label: 'Inteligência Artificial', icon: 'robot', actions: [
+    { type: 'call_ai_agent', icon: 'brain', label: 'Agente IA',   color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'call_pipeline', icon: 'link', label: 'Pipeline IA', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'generate_embedding', icon: 'dna', label: 'Gerar embedding', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'semantic_search',    icon: 'search', label: 'Busca semântica', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'moderate_content',   icon: 'shield', label: 'Moderar conteúdo', color: '#1d4ed8', bg: '#eff6ff' },
+    { type: 'compare_texts',      icon: 'versus', label: 'Comparar textos', color: '#1d4ed8', bg: '#eff6ff' },
   ]},
-  { key: 'documents', label: 'Templates & Documentos', icon: '📝', actions: [
-    { type: 'render_template',  icon: '📄', label: 'Renderizar template (Jinja2)', color: '#7c3aed', bg: '#f5f3ff' },
-    { type: 'generate_word_doc',icon: '📘', label: 'Gerar documento Word', color: '#7c3aed', bg: '#f5f3ff' },
-    { type: 'generate_pptx',    icon: '📙', label: 'Gerar apresentação (PPTX)', color: '#7c3aed', bg: '#f5f3ff' },
+  { key: 'documents', label: 'Templates & Documentos', icon: 'file-text', actions: [
+    { type: 'render_template',  icon: 'file-text', label: 'Renderizar template (Jinja2)', color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'generate_word_doc',icon: 'doc-word', label: 'Gerar documento Word', color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'generate_pptx',    icon: 'doc-slides', label: 'Gerar apresentação (PPTX)', color: '#7c3aed', bg: '#f5f3ff' },
   ]},
-  { key: 'data', label: 'Dados', icon: '📊', actions: [
-    { type: 'text_transform', icon: '✂️', label: 'Transformar Texto', color: '#0891b2', bg: '#f0f9ff' },
+  { key: 'data', label: 'Dados', icon: 'bar-chart', actions: [
+    { type: 'text_transform', icon: 'scissors', label: 'Transformar Texto', color: '#0891b2', bg: '#f0f9ff' },
   ]},
-  { key: 'images', label: 'Imagens', icon: '🖼️', actions: [
-    { type: 'resize_image',    icon: '📐', label: 'Redimensionar imagem', color: '#ea580c', bg: '#fff7ed' },
-    { type: 'convert_image_format', icon: '🔄', label: 'Converter formato de imagem', color: '#ea580c', bg: '#fff7ed' },
-    { type: 'add_watermark',   icon: '💧', label: 'Aplicar marca d\'água', color: '#ea580c', bg: '#fff7ed' },
-    { type: 'generate_thumbnail', icon: '🖼️', label: 'Gerar thumbnail', color: '#ea580c', bg: '#fff7ed' },
-    { type: 'generate_qrcode', icon: '⬛', label: 'Gerar QR Code', color: '#ea580c', bg: '#fff7ed' },
-    { type: 'read_qrcode',     icon: '📷', label: 'Ler QR Code', color: '#ea580c', bg: '#fff7ed' },
-    { type: 'compare_images',  icon: '🆚', label: 'Comparar imagens', color: '#ea580c', bg: '#fff7ed' },
-    { type: 'generate_ai_image', icon: '🎨', label: 'Gerar imagem via IA', color: '#ea580c', bg: '#fff7ed' },
+  { key: 'images', label: 'Imagens', icon: 'image', actions: [
+    { type: 'resize_image',    icon: 'resize', label: 'Redimensionar imagem', color: '#ea580c', bg: '#fff7ed' },
+    { type: 'convert_image_format', icon: 'repeat', label: 'Converter formato de imagem', color: '#ea580c', bg: '#fff7ed' },
+    { type: 'add_watermark',   icon: 'droplet', label: 'Aplicar marca d\'água', color: '#ea580c', bg: '#fff7ed' },
+    { type: 'generate_thumbnail', icon: 'image', label: 'Gerar thumbnail', color: '#ea580c', bg: '#fff7ed' },
+    { type: 'generate_qrcode', icon: 'qrcode', label: 'Gerar QR Code', color: '#ea580c', bg: '#fff7ed' },
+    { type: 'read_qrcode',     icon: 'camera', label: 'Ler QR Code', color: '#ea580c', bg: '#fff7ed' },
+    { type: 'compare_images',  icon: 'versus', label: 'Comparar imagens', color: '#ea580c', bg: '#fff7ed' },
+    { type: 'generate_ai_image', icon: 'palette', label: 'Gerar imagem via IA', color: '#ea580c', bg: '#fff7ed' },
   ]},
-  { key: 'media', label: 'Áudio & Vídeo ⚠️ requer ffmpeg', icon: '🎬', actions: [
-    { type: 'transcode_media', icon: '🔁', label: 'Converter áudio/vídeo', color: '#9333ea', bg: '#faf5ff' },
-    { type: 'extract_audio',   icon: '🎵', label: 'Extrair áudio de vídeo', color: '#9333ea', bg: '#faf5ff' },
-    { type: 'trim_media',      icon: '✂️', label: 'Cortar trecho de mídia', color: '#9333ea', bg: '#faf5ff' },
-    { type: 'extract_video_frame', icon: '🖼️', label: 'Extrair frame de vídeo', color: '#9333ea', bg: '#faf5ff' },
-    { type: 'transcribe_audio',icon: '📝', label: 'Transcrever áudio (Whisper)', color: '#9333ea', bg: '#faf5ff' },
-    { type: 'text_to_speech',  icon: '🔊', label: 'Texto para voz (TTS)', color: '#9333ea', bg: '#faf5ff' },
+  { key: 'media', label: 'Áudio & Vídeo ⚠️ requer ffmpeg', icon: 'film', actions: [
+    { type: 'transcode_media', icon: 'repeat', label: 'Converter áudio/vídeo', color: '#9333ea', bg: '#faf5ff' },
+    { type: 'extract_audio',   icon: 'music', label: 'Extrair áudio de vídeo', color: '#9333ea', bg: '#faf5ff' },
+    { type: 'trim_media',      icon: 'scissors', label: 'Cortar trecho de mídia', color: '#9333ea', bg: '#faf5ff' },
+    { type: 'extract_video_frame', icon: 'image', label: 'Extrair frame de vídeo', color: '#9333ea', bg: '#faf5ff' },
+    { type: 'transcribe_audio',icon: 'edit', label: 'Transcrever áudio (Whisper)', color: '#9333ea', bg: '#faf5ff' },
+    { type: 'text_to_speech',  icon: 'speaker', label: 'Texto para voz (TTS)', color: '#9333ea', bg: '#faf5ff' },
   ]},
-  { key: 'ocr', label: 'OCR & Visão ⚠️ requer tesseract', icon: '👁️', actions: [
-    { type: 'ocr_image',       icon: '🔤', label: 'OCR de imagem', color: '#9333ea', bg: '#faf5ff' },
-    { type: 'ocr_pdf_scanned', icon: '📄', label: 'OCR de PDF escaneado', color: '#9333ea', bg: '#faf5ff' },
-    { type: 'detect_face_object', icon: '👤', label: 'Detectar rosto', color: '#ea580c', bg: '#fff7ed' },
+  { key: 'ocr', label: 'OCR & Visão ⚠️ requer tesseract', icon: 'eye', actions: [
+    { type: 'ocr_image',       icon: 'font', label: 'OCR de imagem', color: '#9333ea', bg: '#faf5ff' },
+    { type: 'ocr_pdf_scanned', icon: 'file-text', label: 'OCR de PDF escaneado', color: '#9333ea', bg: '#faf5ff' },
+    { type: 'detect_face_object', icon: 'user', label: 'Detectar rosto', color: '#ea580c', bg: '#fff7ed' },
   ]},
-  { key: 'browser', label: 'Navegador Web', icon: '🌍', actions: [
-    { type: 'browser_open',       icon: '🌐', label: 'Abrir sessão',       color: '#7c3aed', bg: '#f5f3ff' },
-    { type: 'browser_click',      icon: '👆', label: 'Clicar',             color: '#7c3aed', bg: '#f5f3ff' },
-    { type: 'browser_type',       icon: '⌨️', label: 'Digitar',            color: '#7c3aed', bg: '#f5f3ff' },
-    { type: 'browser_extract',    icon: '📋', label: 'Extrair texto',      color: '#7c3aed', bg: '#f5f3ff' },
-    { type: 'browser_wait',       icon: '⏳', label: 'Aguardar elemento',  color: '#7c3aed', bg: '#f5f3ff' },
-    { type: 'browser_screenshot', icon: '📸', label: 'Screenshot',         color: '#7c3aed', bg: '#f5f3ff' },
-    { type: 'browser_close',      icon: '⛔', label: 'Fechar sessão',      color: '#7c3aed', bg: '#f5f3ff' },
+  { key: 'browser', label: 'Navegador Web', icon: 'globe', actions: [
+    { type: 'browser_open',       icon: 'globe', label: 'Abrir sessão',       color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'browser_click',      icon: 'mouse-pointer', label: 'Clicar',             color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'browser_type',       icon: 'keyboard', label: 'Digitar',            color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'browser_extract',    icon: 'clipboard', label: 'Extrair texto',      color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'browser_wait',       icon: 'clock', label: 'Aguardar elemento',  color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'browser_screenshot', icon: 'camera', label: 'Screenshot',         color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'browser_close',      icon: 'stop', label: 'Fechar sessão',      color: '#7c3aed', bg: '#f5f3ff' },
   ]},
 ];
 
@@ -510,7 +625,7 @@ function stopBuilderRun() {
 function _appendNewRunSteps(run) {
   const sc = { success: '#22c55e', failed: '#ef4444', skipped: '#f59e0b', cancelled: '#f59e0b' };
   const si = { success: '✓', failed: '✗', skipped: '⚠', cancelled: '⏹' };
-  const meta_icon = t => (ACTION_MAP[t] || { icon: '⚙' }).icon;
+  const meta_icon = t => { const m = ACTION_MAP[t] || { icon: 'gear', color: '#64748b' }; return _icon(m.icon, 13, m.color); };
   const steps = run.steps_result || [];
 
   for (let idx = _builderRenderedStepCount; idx < steps.length; idx++) {
@@ -649,7 +764,7 @@ function _renderPalette() {
     return `<div>
       <div onclick="togglePaletteCat('${cat.key}')"
         style="padding:.5rem .75rem;font-size:.7rem;font-weight:700;color:#475569;letter-spacing:.04em;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;background:${collapsed ? 'transparent' : '#e8edf2'};border-bottom:1px solid #e2e8f0">
-        <span>${cat.icon} ${cat.label}</span>
+        <span style="display:inline-flex;align-items:center;gap:.4rem">${_icon(cat.icon, 14, '#475569')}${cat.label}</span>
         <span style="font-size:.7rem;color:#94a3b8">${collapsed ? '▶' : '▼'}</span>
       </div>
       ${collapsed ? '' : cat.actions.map(a => `
@@ -659,7 +774,7 @@ function _renderPalette() {
           ondragend="_onPaletteDragEnd(event)"
           style="padding:.42rem .75rem .42rem 1.1rem;font-size:.8rem;cursor:grab;display:flex;align-items:center;gap:.4rem;color:#1e293b;transition:background .1s;border-bottom:1px solid #f1f5f9"
           onmouseover="this.style.background='#dde3eb'" onmouseout="this.style.background='transparent'">
-          <span style="font-size:.95rem">${a.icon}</span>
+          <span style="display:inline-flex">${_icon(a.icon, 16, a.color)}</span>
           <span style="line-height:1.3">${a.label}</span>
         </div>`).join('')}
     </div>`;
@@ -725,7 +840,7 @@ function _renderLeaf(step, arr, idx, containerId, branch, depth) {
     ondragend="_onStepDragEnd(event,this)"
     style="display:flex;align-items:center;gap:.65rem;padding:${pad};background:${sel ? meta.bg : 'white'};border:2px solid ${sel ? meta.color : '#e2e8f0'};border-radius:10px;cursor:grab;width:100%;box-sizing:border-box;transition:border-color .12s,box-shadow .12s;box-shadow:${sel ? `0 0 0 3px ${meta.color}33` : '0 1px 2px rgba(0,0,0,.05)'}">
     <div style="color:#cbd5e1;font-size:.95rem;flex-shrink:0;user-select:none;line-height:1">⠿</div>
-    <div style="width:${depth>0?28:32}px;height:${depth>0?28:32}px;border-radius:8px;background:${meta.bg};border:1.5px solid ${meta.color}44;display:flex;align-items:center;justify-content:center;font-size:${depth>0?'.9rem':'1rem'};flex-shrink:0">${meta.icon}</div>
+    <div style="width:${depth>0?28:32}px;height:${depth>0?28:32}px;border-radius:8px;background:${meta.bg};border:1.5px solid ${meta.color}44;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_icon(meta.icon, depth>0?16:18, meta.color)}</div>
     <div style="flex:1;min-width:0">
       <div style="font-weight:700;font-size:${depth>0?'.75rem':'.8rem'};color:${meta.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(step.name)}</div>
       <div style="font-size:.68rem;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_stepBrief(step)}</div>
@@ -754,7 +869,7 @@ function _renderContainer(step, arr, idx, containerId, branch, depth) {
     ondragend="_onStepDragEnd(event,this)"
     style="display:flex;align-items:center;gap:.65rem;padding:.6rem .875rem;cursor:grab;border-radius:10px 10px 0 0;transition:background .12s">
     <div style="color:#94a3b8;font-size:.95rem;flex-shrink:0;user-select:none;line-height:1">⠿</div>
-    <div style="width:30px;height:30px;border-radius:7px;background:${meta.bg};border:1.5px solid ${meta.color};display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0">${meta.icon}</div>
+    <div style="width:30px;height:30px;border-radius:7px;background:${meta.bg};border:1.5px solid ${meta.color};display:flex;align-items:center;justify-content:center;flex-shrink:0">${_icon(meta.icon, 17, meta.color)}</div>
     <div style="flex:1;min-width:0">
       <div style="font-weight:700;font-size:.8rem;color:${meta.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(step.name)}</div>
       <div style="font-size:.68rem;color:#64748b">${_stepBrief(step)}</div>
@@ -786,12 +901,12 @@ function _renderContainer(step, arr, idx, containerId, branch, depth) {
     const isTry = step.type === 'try_catch';
     const ct = step.children_true || [];
     const cf = step.children_false || [];
-    body = `<div style="border-top:1.5px solid ${meta.color}44;display:grid;grid-template-columns:1fr 1fr;background:${meta.bg}55">
-      <div style="padding:.4rem .5rem;border-right:1px solid ${meta.color}22">
+    body = `<div style="border-top:1.5px solid ${meta.color}44;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);background:${meta.bg}55">
+      <div style="padding:.4rem .5rem;border-right:1px solid ${meta.color}22;min-width:0">
         <div style="font-size:.65rem;font-weight:700;color:#16a34a;margin-bottom:.25rem;letter-spacing:.03em">${isTry ? '▶ TENTAR' : '✓ VERDADEIRO'}</div>
         ${_renderStepList(ct, step.id, 'children_true', depth + 1)}
       </div>
-      <div style="padding:.4rem .5rem">
+      <div style="padding:.4rem .5rem;min-width:0">
         <div style="font-size:.65rem;font-weight:700;color:#ef4444;margin-bottom:.25rem;letter-spacing:.03em">${isTry ? '⚠ SE FALHAR (catch)' : '✗ FALSO'}</div>
         ${_renderStepList(cf, step.id, 'children_false', depth + 1)}
       </div>
@@ -1128,7 +1243,7 @@ function _renderPropsPanel(step) {
 
   let html = `<div style="display:flex;flex-direction:column;gap:.75rem">
     <div style="display:flex;align-items:center;gap:.5rem;padding-bottom:.65rem;border-bottom:1px solid #f1f5f9">
-      <span style="font-size:1.1rem">${meta.icon}</span>
+      <span style="display:inline-flex">${_icon(meta.icon, 20, meta.color)}</span>
       <span style="font-weight:700;font-size:.85rem;color:${meta.color};flex:1">${meta.label}</span>
       <button onclick="closeBuilderProps()" title="Fechar propriedades" style="width:24px;height:24px;border:1px solid #e2e8f0;border-radius:6px;background:white;cursor:pointer;color:#64748b;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
     </div>
@@ -2364,7 +2479,7 @@ function _renderStudioRunResult(run) {
     const isCondition = s.condition_result != null;
     return `<div style="background:white;border:1.5px solid ${s.status==='failed'?'#fca5a5':'#e2e8f0'};border-radius:10px;padding:.6rem .875rem;display:flex;flex-direction:column;gap:.35rem">
       <div style="display:flex;align-items:center;gap:.5rem">
-        <span style="font-size:.95rem">${meta.icon}</span>
+        <span style="display:inline-flex">${_icon(meta.icon, 16, meta.color)}</span>
         <span style="font-weight:600;font-size:.82rem;color:#1e293b;flex:1">${escapeHtml(s.step_name)}</span>
         <span style="font-size:.72rem;font-weight:700;color:${color}">${si[s.status]||'?'} ${s.status.toUpperCase()}</span>
         <span style="font-size:.7rem;color:#94a3b8">${s.duration_ms}ms</span>
