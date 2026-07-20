@@ -278,6 +278,7 @@ class StepConfig(BaseModel):
     # planilhas / dados (Fase 2)
     sheet_name: str = "Sheet1"
     delimiter: str = ","
+    create_column_vars: bool = False
     data_input: str = "{output}"
     data_input2: str = ""
     merge_key: str = ""

@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import time
+import unicodedata
 import zipfile
 from datetime import datetime, timedelta
 from typing import List
@@ -120,6 +121,15 @@ def _store(result: str, variable_name: str, ctx: dict):
     ctx["output"] = result
     if variable_name:
         ctx["vars"][variable_name] = result
+
+
+def _slugify_var(name: str) -> str:
+    """Transforma um cabeçalho de coluna (ex: 'Preço Unitário') num nome de variável
+    previsível (ex: 'preco_unitario') — usado por 'criar variáveis por coluna' em
+    Ler Excel/Ler CSV. Sem acento, minúsculo, só letras/números/underscore."""
+    s = unicodedata.normalize("NFKD", str(name)).encode("ascii", "ignore").decode("ascii")
+    s = re.sub(r"[^a-zA-Z0-9]+", "_", s).strip("_").lower()
+    return s or "coluna"
 
 
 # Nome do módulo Python (o que aparece em "No module named 'X'") -> nome do pacote pip,
@@ -1059,6 +1069,9 @@ async def _exec_step(step: dict, ctx: dict) -> str:
         else:
             headers = [str(h) if h is not None else f"col{i}" for i, h in enumerate(rows[0])]
             data = [dict(zip(headers, r)) for r in rows[1:]]
+            if cfg.get("create_column_vars"):
+                for h in headers:
+                    ctx["vars"][_slugify_var(h)] = json.dumps([row.get(h) for row in data], ensure_ascii=False, default=str)
         result = json.dumps(data, ensure_ascii=False, default=str)
         _store(result, var, ctx)
         return result
@@ -1091,6 +1104,10 @@ async def _exec_step(step: dict, ctx: dict) -> str:
         with open(path, "r", encoding="utf-8", newline="") as f:
             reader = csv_module.DictReader(f, delimiter=delim)
             data = list(reader)
+            headers = reader.fieldnames or []
+        if cfg.get("create_column_vars"):
+            for h in headers:
+                ctx["vars"][_slugify_var(h)] = json.dumps([row.get(h) for row in data], ensure_ascii=False)
         result = json.dumps(data, ensure_ascii=False)
         _store(result, var, ctx)
         return result
@@ -2743,7 +2760,7 @@ def _gen_local_step_script(step: dict, ctx: dict) -> str:
     # o tenha. Por isso o import dele fica dentro de _run_once(), coberto
     # pelo mesmo try/except-e-reinstala que protege os outros pacotes.
     header = [
-        "import sys, os, json, re, asyncio, base64, hashlib, io, secrets, shutil, subprocess, time, zipfile",
+        "import sys, os, json, re, asyncio, base64, hashlib, io, secrets, shutil, subprocess, time, zipfile, unicodedata",
         "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
         "import glob as glob_module",
         "from datetime import datetime, timedelta",
@@ -2760,6 +2777,7 @@ def _gen_local_step_script(step: dict, ctx: dict) -> str:
     body_parts = [
         inspect.getsource(_sub),
         inspect.getsource(_store),
+        inspect.getsource(_slugify_var),
         inspect.getsource(_pix_tlv),
         inspect.getsource(_pix_crc16),
         inspect.getsource(_build_pix_payload),

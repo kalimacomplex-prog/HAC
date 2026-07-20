@@ -356,6 +356,7 @@ const STEP_DEFAULTS = {
   list_source: '{output}', item_variable: 'item', max_iterations: 100,
   automation_id: '', seconds_max: 3,
   sheet_name: 'Sheet1', delimiter: ',', data_input: '{output}', data_input2: '', merge_key: '',
+  create_column_vars: false,
   sort_key: '', sort_desc: false, schema_input: '', format_from: 'json', format_to: 'csv',
   css_selector: '', sql_query: 'SELECT * FROM data', fake_type: 'name', fake_count: 5,
   secret_key: '', password_length: 16, region: 'BR',
@@ -1706,7 +1707,10 @@ function _renderPropsPanel(step) {
       html += _field('CAMINHO DO ARQUIVO', `<input type="text" value="${escapeHtml(c.file_path||'')}" placeholder="/tmp/planilha.xlsx" onchange="_upCfg('${step.id}','file_path',this.value)" ${_inp('font-family:monospace')} />`);
       html += _field('ABA (vazio = primeira)', `<input type="text" value="${escapeHtml(c.sheet_name||'')}" placeholder="Sheet1" onchange="_upCfg('${step.id}','sheet_name',this.value)" ${_inp()} />`);
       html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="linhas (vazio = output)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
-      html += _hint('Retorna JSON: lista de objetos, um por linha, usando a primeira linha como cabeçalho.');
+      html += _field('VARIÁVEIS POR COLUNA', `<label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer">
+        <input type="checkbox" ${c.create_column_vars?'checked':''} onchange="_upCfg('${step.id}','create_column_vars',this.checked)" /> Criar variáveis por coluna
+      </label>`);
+      html += _hint('Retorna JSON: lista de objetos, um por linha, usando a primeira linha como cabeçalho. Com "Criar variáveis por coluna" marcado, cria uma variável pra cada coluna (ex: {preco_unitario}) contendo um array JSON com o valor dessa coluna em todas as linhas.');
       break;
 
     case 'write_excel':
@@ -1719,6 +1723,10 @@ function _renderPropsPanel(step) {
       html += _field('CAMINHO DO ARQUIVO', `<input type="text" value="${escapeHtml(c.file_path||'')}" placeholder="/tmp/dados.csv" onchange="_upCfg('${step.id}','file_path',this.value)" ${_inp('font-family:monospace')} />`);
       html += _field('DELIMITADOR', `<input type="text" value="${escapeHtml(c.delimiter||',')}" maxlength="1" onchange="_upCfg('${step.id}','delimiter',this.value)" ${_inp('font-family:monospace;max-width:60px')} />`);
       html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="linhas (vazio = output)" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
+      html += _field('VARIÁVEIS POR COLUNA', `<label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer">
+        <input type="checkbox" ${c.create_column_vars?'checked':''} onchange="_upCfg('${step.id}','create_column_vars',this.checked)" /> Criar variáveis por coluna
+      </label>`);
+      html += _hint('Usa sempre a primeira linha do arquivo como cabeçalho. Com "Criar variáveis por coluna" marcado, cria uma variável pra cada coluna (ex: {preco_unitario}) contendo um array JSON com o valor dessa coluna em todas as linhas.');
       break;
 
     case 'write_csv':
