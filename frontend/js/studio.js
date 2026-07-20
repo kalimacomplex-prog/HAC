@@ -327,6 +327,7 @@ let _buildPipelines = [];
 let _buildAIAgents = [];
 let _buildAgents = [];
 let _collapsedCats = new Set();
+let _paletteSearch = '';
 let _studioRunAutoId = null;
 let _draggedStepId = null;
 let _draggedActionType = null;
@@ -522,6 +523,9 @@ async function initBuilderPage() {
   _buildSelectedId = null;
   _buildEditId = window._builderAutoId || null;
   _buildTrigger = { type: 'manual', schedule: '', webhook_token: '', schedule_input: '' };
+  _paletteSearch = '';
+  const paletteSearchEl = document.getElementById('builder-palette-search');
+  if (paletteSearchEl) paletteSearchEl.value = '';
 
   try {
     [_buildPipelines, _buildAIAgents, _buildAgents] = await Promise.all([
@@ -780,9 +784,34 @@ function copyBuilderWebhook() {
 
 // ─── Paleta de Ações ──────────────────────────────────────────────
 
+function _renderPaletteAction(a) {
+  return `<div onclick="addBuilderStep('${a.type}')"
+    draggable="true"
+    ondragstart="_onPaletteDragStart(event,'${a.type}')"
+    ondragend="_onPaletteDragEnd(event)"
+    style="padding:.42rem .75rem .42rem 1.1rem;font-size:.8rem;cursor:grab;display:flex;align-items:center;gap:.4rem;color:#1e293b;transition:background .1s;border-bottom:1px solid #f1f5f9"
+    onmouseover="this.style.background='#dde3eb'" onmouseout="this.style.background='transparent'">
+    <span style="display:inline-flex">${_icon(a.icon, 16, a.color)}</span>
+    <span style="line-height:1.3">${a.label}</span>
+  </div>`;
+}
+
 function _renderPalette() {
   const palette = document.getElementById('builder-palette');
   if (!palette) return;
+
+  const query = _paletteSearch.trim().toLowerCase();
+  if (query) {
+    const matches = [];
+    ACTION_CATEGORIES.forEach(cat => {
+      cat.actions.forEach(a => { if (a.label.toLowerCase().includes(query)) matches.push(a); });
+    });
+    palette.innerHTML = matches.length
+      ? matches.map(_renderPaletteAction).join('')
+      : `<div style="padding:1.5rem .75rem;text-align:center;color:#94a3b8;font-size:.8rem">Nenhuma ação encontrada para "${escapeHtml(_paletteSearch.trim())}"</div>`;
+    return;
+  }
+
   palette.innerHTML = ACTION_CATEGORIES.map(cat => {
     const collapsed = _collapsedCats.has(cat.key);
     return `<div>
@@ -791,18 +820,14 @@ function _renderPalette() {
         <span style="display:inline-flex;align-items:center;gap:.4rem">${_icon(cat.icon, 14, '#475569')}${cat.label}</span>
         <span style="font-size:.7rem;color:#94a3b8">${collapsed ? '▶' : '▼'}</span>
       </div>
-      ${collapsed ? '' : cat.actions.map(a => `
-        <div onclick="addBuilderStep('${a.type}')"
-          draggable="true"
-          ondragstart="_onPaletteDragStart(event,'${a.type}')"
-          ondragend="_onPaletteDragEnd(event)"
-          style="padding:.42rem .75rem .42rem 1.1rem;font-size:.8rem;cursor:grab;display:flex;align-items:center;gap:.4rem;color:#1e293b;transition:background .1s;border-bottom:1px solid #f1f5f9"
-          onmouseover="this.style.background='#dde3eb'" onmouseout="this.style.background='transparent'">
-          <span style="display:inline-flex">${_icon(a.icon, 16, a.color)}</span>
-          <span style="line-height:1.3">${a.label}</span>
-        </div>`).join('')}
+      ${collapsed ? '' : cat.actions.map(_renderPaletteAction).join('')}
     </div>`;
   }).join('');
+}
+
+function filterBuilderPalette(value) {
+  _paletteSearch = value || '';
+  _renderPalette();
 }
 
 function togglePaletteCat(key) {

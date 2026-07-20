@@ -654,7 +654,13 @@ print(f"Processando {url} com limite {limit}")</pre>
           <input type="hidden" id="builder-edit-id" />
 
           <!-- Left: Paleta de Ações -->
-          <div id="builder-palette" style="width:185px;overflow-y:auto;border-right:1px solid #e2e8f0;flex-shrink:0;background:#f1f5f9"></div>
+          <div style="width:295px;border-right:1px solid #e2e8f0;flex-shrink:0;background:white;display:flex;flex-direction:column;overflow:hidden">
+            <div style="padding:.65rem .75rem;border-bottom:1px solid #e2e8f0;flex-shrink:0">
+              <input type="text" id="builder-palette-search" placeholder="🔍 Buscar ação..." oninput="filterBuilderPalette(this.value)"
+                style="width:100%;padding:.45rem .7rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.82rem;outline:none;box-sizing:border-box;color:#1e293b" />
+            </div>
+            <div id="builder-palette" style="flex:1;overflow-y:auto;background:white"></div>
+          </div>
 
           <!-- Center: Canvas de Fluxo + Log Panel -->
           <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
@@ -1227,7 +1233,7 @@ print('Concluído!')"></textarea>
 <script src="/static/js/pipelines.js?v=33"></script>
 <script src="/static/js/oraculo.js?v=34"></script>
 <script src="/static/js/queue.js?v=34"></script>
-<script src="/static/js/studio.js?v=60"></script>
+<script src="/static/js/studio.js?v=61"></script>
 <script src="/static/js/workflows.js?v=41"></script>
 
 </body>
