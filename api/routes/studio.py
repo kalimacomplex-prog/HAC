@@ -627,6 +627,25 @@ def _hac_ensure_playwright_chromium():
 """
 
 
+# Usado só por "Resolver captcha de imagem (OCR)". Tesseract "cru" praticamente não
+# lê nada em captcha de imagem real (linhas riscando o texto, ruído de fundo,
+# gradiente) — esse pré-processamento (escala de cinza, ampliação, desruído,
+# binarização por Otsu, abertura morfológica pra apagar as linhas/pontos finos sem
+# apagar o traço das letras) é o que faz a diferença entre ler algo e não ler nada.
+_CAPTCHA_IMAGE_PREP = """
+def _hac_read_captcha_text(img_path):
+    _img = cv2.imread(img_path)
+    _gray = cv2.cvtColor(_img, cv2.COLOR_BGR2GRAY)
+    _gray = cv2.resize(_gray, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
+    _gray = cv2.medianBlur(_gray, 3)
+    _, _bin = cv2.threshold(_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    _kernel = np.ones((2, 2), np.uint8)
+    _clean = cv2.morphologyEx(_bin, cv2.MORPH_OPEN, _kernel)
+    _cfg = "--psm 7 --oem 3 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+    return pytesseract.image_to_string(_clean, config=_cfg).strip()
+"""
+
+
 _SELENIUM_CHROME_FINDER = """
 def _find_chrome_browser():
     import shutil
@@ -834,11 +853,15 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
                 inspect.getsource(_tesseract_installed),
                 "_hac_ensure_pkg('pytesseract')",
                 "_hac_ensure_pkg('Pillow', 'PIL')",
+                "_hac_ensure_pkg('opencv-python-headless<5.0.0', 'cv2')",
+                "_hac_ensure_pkg('numpy')",
                 "_ensure_native_binary('Tesseract OCR', _tesseract_installed, 'UB-Mannheim.TesseractOCR', 'tesseract-ocr', 'tesseract')",
-                "import pytesseract",
+                "import pytesseract, cv2, numpy as np",
                 "from PIL import Image",
                 "_tess_bin = _find_tesseract_binary()",
                 "if _tess_bin: pytesseract.pytesseract.tesseract_cmd = _tess_bin",
+                "",
+                _CAPTCHA_IMAGE_PREP.strip("\n"),
             ]
         lines += [
             "_opts = webdriver.ChromeOptions()",
@@ -929,7 +952,7 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
                 f'{indent}_el = _dr.find_element(*_sel_locator("{tgt}"))',
                 f'{indent}_img_path = tempfile.mktemp(suffix=".png")',
                 f'{indent}_el.screenshot(_img_path)',
-                f'{indent}_captcha_text = pytesseract.image_to_string(Image.open(_img_path), lang="eng", config="--psm 7").strip()',
+                f'{indent}_captcha_text = _hac_read_captcha_text(_img_path)',
                 f'{indent}print(_captcha_text)',
             ]
             if val:
@@ -976,12 +999,15 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
             inspect.getsource(_tesseract_installed),
             "_hac_ensure_pkg('pytesseract')",
             "_hac_ensure_pkg('Pillow', 'PIL')",
+            "_hac_ensure_pkg('opencv-python-headless<5.0.0', 'cv2')",
+            "_hac_ensure_pkg('numpy')",
             "_ensure_native_binary('Tesseract OCR', _tesseract_installed, 'UB-Mannheim.TesseractOCR', 'tesseract-ocr', 'tesseract')",
-            "import pytesseract",
+            "import pytesseract, cv2, numpy as np",
             "from PIL import Image",
             "_tess_bin = _find_tesseract_binary()",
             "if _tess_bin: pytesseract.pytesseract.tesseract_cmd = _tess_bin",
             "",
+            _CAPTCHA_IMAGE_PREP.strip("\n"),
         ]
     lines += [
         "with sync_playwright() as _pw:",
@@ -1061,7 +1087,7 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
             f'{indent}if not _el: raise Exception("Elemento da imagem do captcha não encontrado: {tgt}")',
             f'{indent}_img_path = tempfile.mktemp(suffix=".png")',
             f'{indent}_el.screenshot(path=_img_path)',
-            f'{indent}_captcha_text = pytesseract.image_to_string(Image.open(_img_path), lang="eng", config="--psm 7").strip()',
+            f'{indent}_captcha_text = _hac_read_captcha_text(_img_path)',
             f'{indent}print(_captcha_text)',
         ]
         if val:
