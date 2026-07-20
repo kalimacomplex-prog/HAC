@@ -2353,7 +2353,7 @@ function _renderPropsPanel(step) {
     case 'run_python':
       html += _field('CÓDIGO PYTHON', `<textarea rows="8" placeholder="# {output} e {input} disponíveis\nresult = output.upper()\nprint(result)" onchange="_upCfg('${step.id}','code',this.value)" ${_ta('font-family:monospace;font-size:.78rem;line-height:1.6')}>${escapeHtml(c.code||'')}</textarea>`);
       html += _field('VARIÁVEL DE RETORNO', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="result (vazio = captura print())" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp('font-family:monospace')} />`);
-      html += _hint('output e input_data disponíveis. Defina a variável de retorno e nomeie ela acima.');
+      html += _hint('output e input_data disponíveis, além de todas as variáveis do fluxo pelo nome (ex: item, item_index, ou o nome de uma coluna criada em "Ler Excel/CSV"). Números e JSON (listas/objetos) chegam já convertidos pro tipo certo — item_index é int, uma coluna vira list de verdade — então dá pra indexar direto, ex: minha_coluna[item_index]. Defina a variável de retorno e nomeie ela acima.');
       break;
 
     case 'call_ai_agent':

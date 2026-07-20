@@ -2535,7 +2535,16 @@ async def _exec_step(step: dict, ctx: dict) -> str:
         old_stdout = sys.stdout
         sys.stdout = buffer = io.StringIO()
         exec_globals = dict(__builtins__=__builtins__)
-        exec_globals.update(ctx.get("vars", {}))
+        # ctx['vars'] só guarda strings (usadas em substituição de texto {varname} em
+        # outros steps), mas aqui os valores viram variáveis Python de verdade — então
+        # "0"/"3" (índice de loop/foreach) e listas/objetos JSON (ex: coluna de planilha
+        # via 'criar variáveis por coluna') ficam number/list/dict de verdade, não string,
+        # senão `minha_lista[item_index]` quebra com "indices must be integers".
+        for _k, _v in ctx.get("vars", {}).items():
+            try:
+                exec_globals[_k] = json.loads(_v)
+            except (TypeError, ValueError):
+                exec_globals[_k] = _v
         exec_globals["input_data"] = ctx.get("input", "")
         exec_globals["output"] = ctx.get("output", "")
         try:
