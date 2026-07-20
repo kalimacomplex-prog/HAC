@@ -106,41 +106,18 @@ def _run_doc_to_out(doc: dict) -> AutomationRunOut:
     )
 
 
-def _sub(text: str, ctx: dict) -> str:
-    """Substitui {input}, {output} e {varname} no texto."""
-    text = str(text)
-    text = text.replace("{input}", str(ctx.get("input", "")))
-    text = text.replace("{output}", str(ctx.get("output", "")))
-    for k, v in ctx.get("vars", {}).items():
-        text = text.replace(f"{{{k}}}", str(v))
-    return text
-
-
-def _store(result: str, variable_name: str, ctx: dict):
-    """Salva resultado no contexto. Se variable_name, salva em vars; sempre atualiza output."""
-    ctx["output"] = result
-    if variable_name:
-        ctx["vars"][variable_name] = result
-
-
-def _slugify_var(name: str) -> str:
-    """Transforma um cabeçalho de coluna (ex: 'Preço Unitário') num nome de variável
-    previsível (ex: 'preco_unitario') — usado por 'criar variáveis por coluna' em
-    Ler Excel/Ler CSV. Sem acento, minúsculo, só letras/números/underscore."""
-    s = unicodedata.normalize("NFKD", str(name)).encode("ascii", "ignore").decode("ascii")
-    s = re.sub(r"[^a-zA-Z0-9]+", "_", s).strip("_").lower()
-    return s or "coluna"
-
-
-def _log_resolve_token(token: str, ctx: dict) -> str:
-    """Resolve um token solto do passo 'log': nome de variável (ou output/input),
-    opcionalmente seguido de um ou mais [indice] pra indexar dentro de uma lista/objeto
-    JSON guardado na variável — [indice] pode ser um número, "chave entre aspas" ou o
-    nome de outra variável. Ex: cep[item_index] ou dados["nome"]. Sem correspondência,
-    devolve o token literal (mesma rede de segurança do resto do parser)."""
-    m = re.match(r'^([A-Za-z_]\w*)((?:\[[^\]]*\])*)$', token)
+def _resolve_var_expr(expr: str, ctx: dict):
+    """Resolve uma expressão tipo 'nome' ou 'nome[indice]' (indexação em lista/objeto
+    JSON guardado numa variável — indice pode ser número, "chave entre aspas" ou o
+    nome de outra variável, e dá pra encadear mais de um: nome[i][j]). Usada tanto
+    por {var} / {var[indice]} em _sub() quanto pelas palavras soltas do passo 'log'.
+    Retorna None se a variável base (antes do primeiro colchete) não existe — quem
+    chama decide o que fazer nesse caso (não substituir, manter o texto original etc.),
+    e uma string "expr (erro: ...)" se o índice/chave não bater, em vez de derrubar
+    a automação inteira por causa disso."""
+    m = re.match(r'^([A-Za-z_]\w*)((?:\[[^\]]*\])*)$', expr)
     if not m:
-        return token
+        return None
     base, brackets = m.group(1), m.group(2)
     variables = ctx.get("vars", {})
     if base == "output":
@@ -150,7 +127,7 @@ def _log_resolve_token(token: str, ctx: dict) -> str:
     elif base in variables:
         value = variables[base]
     else:
-        return token
+        return None
 
     indices = re.findall(r'\[([^\]]*)\]', brackets)
     if not indices:
@@ -175,7 +152,36 @@ def _log_resolve_token(token: str, ctx: dict) -> str:
                 raise TypeError(f"'{value}' não é uma lista nem um objeto JSON")
         return str(value)
     except Exception as e:
-        return f"{token} (erro: {e})"
+        return f"{expr} (erro: {e})"
+
+
+def _sub(text: str, ctx: dict) -> str:
+    """Substitui {input}, {output}, {varname} e {varname[indice]} (ver _resolve_var_expr)
+    no texto. Trecho não reconhecido (nome de variável que não existe) fica como estava —
+    não mexe em chaves que não são referência a variável (ex: JSON literal no texto)."""
+    text = str(text)
+
+    def _replace(m):
+        resolved = _resolve_var_expr(m.group(1), ctx)
+        return m.group(0) if resolved is None else resolved
+
+    return re.sub(r'\{([A-Za-z_]\w*(?:\[[^\]]*\])*)\}', _replace, text)
+
+
+def _store(result: str, variable_name: str, ctx: dict):
+    """Salva resultado no contexto. Se variable_name, salva em vars; sempre atualiza output."""
+    ctx["output"] = result
+    if variable_name:
+        ctx["vars"][variable_name] = result
+
+
+def _slugify_var(name: str) -> str:
+    """Transforma um cabeçalho de coluna (ex: 'Preço Unitário') num nome de variável
+    previsível (ex: 'preco_unitario') — usado por 'criar variáveis por coluna' em
+    Ler Excel/Ler CSV. Sem acento, minúsculo, só letras/números/underscore."""
+    s = unicodedata.normalize("NFKD", str(name)).encode("ascii", "ignore").decode("ascii")
+    s = re.sub(r"[^a-zA-Z0-9]+", "_", s).strip("_").lower()
+    return s or "coluna"
 
 
 # Nome do módulo Python (o que aparece em "No module named 'X'") -> nome do pacote pip,
@@ -821,7 +827,7 @@ async def _exec_step(step: dict, ctx: dict) -> str:
     if t == "log":
         # Tipo um print(a, "texto", b): cada palavra solta (sem aspas) é tratada como
         # nome de variável (ou output/input, opcionalmente indexada com [algo] — ver
-        # _log_resolve_token); texto literal precisa vir entre "aspas". Junta tudo com
+        # _resolve_var_expr); texto literal precisa vir entre "aspas". Junta tudo com
         # espaço. Não passa por ctx['output'] — é só uma anotação de debug, não deve
         # mudar o {output} que o próximo passo recebe.
         raw = cfg.get("text", "")
@@ -830,7 +836,8 @@ async def _exec_step(step: dict, ctx: dict) -> str:
             if m.group(1) is not None:
                 parts.append(m.group(1))
             elif m.group(2) is not None:
-                parts.append(_log_resolve_token(m.group(2), ctx))
+                resolved = _resolve_var_expr(m.group(2), ctx)
+                parts.append(m.group(2) if resolved is None else resolved)
             else:
                 parts.append(m.group(3))
         return " ".join(parts)
@@ -2923,10 +2930,10 @@ def _gen_local_step_script(step: dict, ctx: dict) -> str:
     # False de cara (o cancelamento de um step rodando no agente é tratado por fora,
     # matando o processo do lado do worker — aqui é só pra não faltar o nome).
     body_parts = [
+        inspect.getsource(_resolve_var_expr),
         inspect.getsource(_sub),
         inspect.getsource(_store),
         inspect.getsource(_slugify_var),
-        inspect.getsource(_log_resolve_token),
         inspect.getsource(_pix_tlv),
         inspect.getsource(_pix_crc16),
         inspect.getsource(_build_pix_payload),
