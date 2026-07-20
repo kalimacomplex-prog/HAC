@@ -647,7 +647,7 @@ def _hac_read_captcha_text(img_path):
     import math
     _img = cv2.imread(img_path)
     _gray = cv2.cvtColor(_img, cv2.COLOR_BGR2GRAY)
-    _gray = cv2.resize(_gray, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
+    _gray = cv2.resize(_gray, None, fx=4, fy=4, interpolation=cv2.INTER_CUBIC)
     _gray = cv2.medianBlur(_gray, 3)
     _, _bin = cv2.threshold(_gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     _h, _w = _bin.shape
@@ -673,11 +673,22 @@ def _hac_read_captcha_text(img_path):
         if _stats[_i, cv2.CC_STAT_AREA] >= _min_area:
             _clean[_labels == _i] = 255
 
+    # rede de segurança: se o filtro de área comeu praticamente tudo (fonte muito
+    # fina/pequena nessa imagem específica, onde nenhuma letra bate o min_area),
+    # usa a versão sem esse filtro em vez de mandar uma imagem quase em branco pro
+    # Tesseract — pior com ruído sobrando do que sem nenhum texto pra ler.
+    if _work.any() and _clean.sum() < 0.15 * _work.sum():
+        _clean = _work
+
     _clean = cv2.morphologyEx(_clean, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
     _final = cv2.bitwise_not(_clean)
 
+    # psm 8 (palavra única) e 13 (linha crua) concordam entre si na grande maioria
+    # dos casos testados — psm 7 (linha única com segmentação por linha) se provou
+    # instável nesse tipo de fonte distorcida (às vezes lê algo confiante e errado),
+    # então fica só como último recurso se os outros dois vierem vazios.
     _whitelist = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    for _psm in (8, 7, 13):
+    for _psm in (8, 13, 7):
         _cfg = "--psm %d --oem 3 -c tessedit_char_whitelist=%s" % (_psm, _whitelist)
         _txt = pytesseract.image_to_string(_final, config=_cfg).strip()
         if _txt:
