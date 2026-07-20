@@ -635,6 +635,12 @@ function _clearBuilderLog() {
   if (el) el.innerHTML = '<span style="color:#334155">— Log limpo —</span>';
 }
 
+function _copyBuilderLog() {
+  const el = document.getElementById('builder-log-output');
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText).then(() => showToast('Log copiado!'));
+}
+
 function _appendBuilderLog(html) {
   const el = document.getElementById('builder-log-output');
   if (!el) return;

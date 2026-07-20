@@ -679,10 +679,13 @@ print(f"Processando {url} com limite {limit}")</pre>
               <!-- Header -->
               <div style="display:flex;align-items:center;gap:.5rem;padding:.3rem .75rem;background:#1e293b;flex-shrink:0">
                 <span style="font-size:.68rem;font-weight:700;color:#64748b;letter-spacing:.06em;flex-shrink:0">⚡ SAÍDA</span>
-                <input id="builder-log-input" type="text" placeholder="Entrada inicial (opcional)..." style="flex:1;background:#0f172a;border:1px solid #334155;border-radius:5px;padding:.2rem .5rem;font-size:.75rem;color:#94a3b8;outline:none;min-width:0" />
+                <input id="builder-log-input" type="text" placeholder="Entrada inicial (opcional)..." style="flex:0 1 220px;background:#0f172a;border:1px solid #334155;border-radius:5px;padding:.2rem .5rem;font-size:.75rem;color:#94a3b8;outline:none;min-width:0" />
                 <button id="builder-run-btn-bottom" onclick="_runBuilderInline()" style="padding:.2rem .65rem;background:#2563eb;border:none;border-radius:5px;font-size:.75rem;color:white;cursor:pointer;white-space:nowrap;flex-shrink:0">▶ Executar</button>
                 <button id="builder-stop-btn-bottom" onclick="stopBuilderRun()" style="display:none;padding:.2rem .65rem;background:#ef4444;border:none;border-radius:5px;font-size:.75rem;color:white;cursor:pointer;white-space:nowrap;flex-shrink:0">⏹ Parar</button>
                 <button onclick="_clearBuilderLog()" style="padding:.2rem .5rem;background:transparent;border:1px solid #334155;border-radius:5px;font-size:.72rem;color:#64748b;cursor:pointer;flex-shrink:0">Limpar</button>
+                <button onclick="_copyBuilderLog()" title="Copiar log" style="padding:.28rem;background:transparent;border:1px solid #334155;border-radius:5px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#64748b">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
               </div>
               <!-- Output -->
               <div id="builder-log-output" style="flex:1;overflow-y:auto;padding:.5rem .75rem;font-family:monospace;font-size:.76rem;color:#94a3b8;line-height:1.7;white-space:pre-wrap;word-break:break-word">
@@ -1233,7 +1236,7 @@ print('Concluído!')"></textarea>
 <script src="/static/js/pipelines.js?v=33"></script>
 <script src="/static/js/oraculo.js?v=34"></script>
 <script src="/static/js/queue.js?v=34"></script>
-<script src="/static/js/studio.js?v=73"></script>
+<script src="/static/js/studio.js?v=74"></script>
 <script src="/static/js/workflows.js?v=41"></script>
 
 </body>
