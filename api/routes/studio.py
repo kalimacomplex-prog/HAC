@@ -772,6 +772,12 @@ async def _exec_step(step: dict, ctx: dict) -> str:
     if t == "comment":
         return f"# {cfg.get('text', '')}"
 
+    if t == "log":
+        # Igual ao comment, mas COM substituição de {input}/{output}/{variavel} — um
+        # "print" de debug: aparece no output do passo no log, sem alterar ctx['output']
+        # pra não quebrar o {output} do próximo passo (é só uma anotação, não um dado).
+        return _sub(cfg.get("text", ""), ctx)
+
     # condition é tratado no loop principal (precisa controlar índice)
     # loop_count idem — retornamos placeholder aqui
     if t in ("condition", "loop_count"):
@@ -1094,6 +1100,73 @@ async def _exec_step(step: dict, ctx: dict) -> str:
             os.makedirs(os.path.dirname(dst), exist_ok=True)
         wb.save(dst)
         result = f"Excel salvo em: {dst} ({len(data)} linha(s))"
+        _store(result, var, ctx)
+        return result
+
+    if t == "write_row":
+        import openpyxl
+        path = _sub(cfg.get("file_path", ""), ctx)
+        sheet = cfg.get("sheet_name") or None
+        row_values = json.loads(_sub(cfg.get("data_input", "[]"), ctx))
+        if not isinstance(row_values, list):
+            raise Exception('data_input precisa ser uma lista JSON de valores (uma linha), ex: ["Nome", 10]')
+        row_index = int(cfg.get("row_index", 0) or 0)
+        wb = openpyxl.load_workbook(path)
+        ws = wb[sheet] if sheet and sheet in wb.sheetnames else wb.active
+        if row_index > 0:
+            for col_i, val in enumerate(row_values, start=1):
+                ws.cell(row=row_index, column=col_i, value=val)
+            result = f"Linha {row_index} escrita em: {path}"
+        else:
+            ws.append(row_values)
+            result = f"Linha adicionada ao final de: {path}"
+        wb.save(path)
+        _store(result, var, ctx)
+        return result
+
+    if t == "write_cell":
+        import openpyxl
+        path = _sub(cfg.get("file_path", ""), ctx)
+        sheet = cfg.get("sheet_name") or None
+        cell_ref = _sub(cfg.get("cell_ref", ""), ctx).strip().upper()
+        if not cell_ref:
+            raise Exception("Informe a célula (ex: B3)")
+        value = _sub(cfg.get("cell_value", ""), ctx)
+        wb = openpyxl.load_workbook(path)
+        ws = wb[sheet] if sheet and sheet in wb.sheetnames else wb.active
+        ws[cell_ref] = value
+        wb.save(path)
+        result = f"Célula {cell_ref} = '{value}' em: {path}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "remove_row":
+        import openpyxl
+        path = _sub(cfg.get("file_path", ""), ctx)
+        sheet = cfg.get("sheet_name") or None
+        row_index = int(cfg.get("row_index", 0) or 0)
+        if row_index < 1:
+            raise Exception("Informe o número da linha a remover (>= 1)")
+        wb = openpyxl.load_workbook(path)
+        ws = wb[sheet] if sheet and sheet in wb.sheetnames else wb.active
+        ws.delete_rows(row_index)
+        wb.save(path)
+        result = f"Linha {row_index} removida de: {path}"
+        _store(result, var, ctx)
+        return result
+
+    if t == "remove_cell":
+        import openpyxl
+        path = _sub(cfg.get("file_path", ""), ctx)
+        sheet = cfg.get("sheet_name") or None
+        cell_ref = _sub(cfg.get("cell_ref", ""), ctx).strip().upper()
+        if not cell_ref:
+            raise Exception("Informe a célula (ex: B3)")
+        wb = openpyxl.load_workbook(path)
+        ws = wb[sheet] if sheet and sheet in wb.sheetnames else wb.active
+        ws[cell_ref] = None
+        wb.save(path)
+        result = f"Célula {cell_ref} limpa em: {path}"
         _store(result, var, ctx)
         return result
 

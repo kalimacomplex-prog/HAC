@@ -15,6 +15,7 @@ class StepType(str, Enum):
     loop_count = "loop_count"
     wait = "wait"
     comment = "comment"
+    log = "log"
     # Variáveis
     set_variable = "set_variable"
     calculate = "calculate"
@@ -82,6 +83,10 @@ class StepType(str, Enum):
     merge_data = "merge_data"
     dedupe_data = "dedupe_data"
     sort_group_data = "sort_group_data"
+    write_row = "write_row"
+    write_cell = "write_cell"
+    remove_row = "remove_row"
+    remove_cell = "remove_cell"
     # PDF (Fase 2)
     pdf_extract_text = "pdf_extract_text"
     pdf_extract_tables = "pdf_extract_tables"
@@ -282,6 +287,9 @@ class StepConfig(BaseModel):
     data_input: str = "{output}"
     data_input2: str = ""
     merge_key: str = ""
+    row_index: int = 0
+    cell_ref: str = ""
+    cell_value: str = ""
     sort_key: str = ""
     sort_desc: bool = False
     schema_input: str = ""

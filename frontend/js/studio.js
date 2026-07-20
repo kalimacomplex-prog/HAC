@@ -131,6 +131,7 @@ const ACTION_CATEGORIES = [
     { type: 'wait',       icon: 'clock', label: 'Aguardar (delay)',    color: '#64748b', bg: '#f8fafc' },
     { type: 'random_wait',icon: 'dice', label: 'Aguardar (aleatório)', color: '#64748b', bg: '#f8fafc' },
     { type: 'comment',    icon: 'message', label: 'Comentário',          color: '#94a3b8', bg: '#f8fafc' },
+    { type: 'log',        icon: 'terminal', label: 'Log (imprimir texto/variáveis)', color: '#64748b', bg: '#f8fafc' },
   ]},
   { key: 'variables', label: 'Variáveis', icon: 'box', actions: [
     { type: 'set_variable', icon: 'box', label: 'Definir variável',     color: '#7c3aed', bg: '#f5f3ff' },
@@ -156,6 +157,10 @@ const ACTION_CATEGORIES = [
   { key: 'sheets', label: 'Planilhas & Excel', icon: 'table', actions: [
     { type: 'read_excel',  icon: 'table', label: 'Ler Excel',    color: '#15803d', bg: '#f0fdf4' },
     { type: 'write_excel', icon: 'table', label: 'Gerar Excel',  color: '#15803d', bg: '#f0fdf4' },
+    { type: 'write_row',   icon: 'plus', label: 'Escrever linha',  color: '#15803d', bg: '#f0fdf4' },
+    { type: 'write_cell',  icon: 'edit', label: 'Escrever célula', color: '#15803d', bg: '#f0fdf4' },
+    { type: 'remove_row',  icon: 'trash', label: 'Remover linha',  color: '#ef4444', bg: '#fef2f2' },
+    { type: 'remove_cell', icon: 'trash', label: 'Remover célula', color: '#ef4444', bg: '#fef2f2' },
     { type: 'read_csv',    icon: 'file-text', label: 'Ler CSV',      color: '#15803d', bg: '#f0fdf4' },
     { type: 'write_csv',   icon: 'file-text', label: 'Gerar CSV',    color: '#15803d', bg: '#f0fdf4' },
     { type: 'filter_data', icon: 'filter', label: 'Filtrar dados',  color: '#15803d', bg: '#f0fdf4' },
@@ -357,7 +362,7 @@ const STEP_DEFAULTS = {
   list_source: '{output}', item_variable: 'item', max_iterations: 100,
   automation_id: '', seconds_max: 3,
   sheet_name: 'Sheet1', delimiter: ',', data_input: '{output}', data_input2: '', merge_key: '',
-  create_column_vars: false,
+  create_column_vars: false, row_index: 0, cell_ref: '', cell_value: '',
   sort_key: '', sort_desc: false, schema_input: '', format_from: 'json', format_to: 'csv',
   css_selector: '', sql_query: 'SELECT * FROM data', fake_type: 'name', fake_count: 5,
   secret_key: '', password_length: 16, region: 'BR',
@@ -1032,6 +1037,7 @@ function _stepBriefText(step) {
     case 'wait':         return `Aguardar ${c.seconds || 1}s`;
     case 'break_loop':   return 'Interrompe o loop mais próximo (para de iterar)';
     case 'comment':      return c.text ? c.text.substring(0, 50) : '—';
+    case 'log':          return c.text ? c.text.substring(0, 50) : '—';
     case 'set_variable': return `${c.variable_name || 'var'} = "${(c.value || '').substring(0, 30)}"`;
     case 'calculate':    return `${c.variable_name || 'resultado'} = ${(c.expression || '').substring(0, 30)}`;
     case 'read_file':    return c.file_path || 'caminho não definido';
@@ -1062,6 +1068,10 @@ function _stepBriefText(step) {
     case 'random_wait':   return `${c.seconds||1}s a ${c.seconds_max||3}s`;
     case 'read_excel':    return `${c.file_path||'...'} (aba: ${c.sheet_name||'auto'})`;
     case 'write_excel':   return `${c.dest_path||'...'} (aba: ${c.sheet_name||'Sheet1'})`;
+    case 'write_row':     return c.row_index > 0 ? `Linha ${c.row_index} em ${c.file_path||'...'}` : `Adicionar linha em ${c.file_path||'...'}`;
+    case 'write_cell':    return `${c.cell_ref||'?'} = "${(c.cell_value||'').substring(0,20)}" em ${c.file_path||'...'}`;
+    case 'remove_row':    return `Linha ${c.row_index||'?'} de ${c.file_path||'...'}`;
+    case 'remove_cell':   return `${c.cell_ref||'?'} de ${c.file_path||'...'}`;
     case 'read_csv':      return `${c.file_path||'...'} (delim: "${c.delimiter||','}")`;
     case 'write_csv':     return `${c.dest_path||'...'} (delim: "${c.delimiter||','}")`;
     case 'filter_data':   return `${c.sort_key||c.merge_key||'coluna'} ${c.operator||'contains'} "${(c.condition_value||'').substring(0,15)}"`;
@@ -1535,6 +1545,11 @@ function _renderPropsPanel(step) {
       html += _field('TEXTO DO COMENTÁRIO', `<textarea onchange="_upCfg('${step.id}','text',this.value)" rows="3" ${_ta()}>${escapeHtml(c.text||'')}</textarea>`);
       break;
 
+    case 'log':
+      html += _field('TEXTO DO LOG', `<textarea onchange="_upCfg('${step.id}','text',this.value)" rows="3" placeholder="Processando {item}, resultado: {output}" ${_ta()}>${escapeHtml(c.text||'')}</textarea>`);
+      html += _hint('{output} {input} {varname} são substituídos e o texto final aparece na saída deste passo — tipo um print(), só pra acompanhar a execução. Não altera o {output} pro próximo passo.');
+      break;
+
     case 'break_loop':
       html += _hint('Sem configuração. Ao rodar, interrompe imediatamente o loop (Repetir N vezes / Para cada item / Repetir até condição) mais próximo que envolve este passo — pula o restante das ações da iteração atual e não entra mais em nenhuma. A automação continua normalmente depois do bloco de loop. Fora de um loop, este passo não faz nada.');
       break;
@@ -1740,6 +1755,35 @@ function _renderPropsPanel(step) {
       html += _field('DADOS (JSON: lista de objetos)', `<textarea rows="4" placeholder='{output} ou [{"nome":"A","valor":1}]' onchange="_upCfg('${step.id}','data_input',this.value)" ${_ta('font-family:monospace')}>${escapeHtml(c.data_input||'{output}')}</textarea>`);
       html += _field('ARQUIVO DE SAÍDA', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/planilha.xlsx" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
       html += _field('NOME DA ABA', `<input type="text" value="${escapeHtml(c.sheet_name||'Sheet1')}" onchange="_upCfg('${step.id}','sheet_name',this.value)" ${_inp()} />`);
+      break;
+
+    case 'write_row':
+      html += _field('ARQUIVO EXCEL (já existente)', `<input type="text" value="${escapeHtml(c.file_path||'')}" placeholder="/tmp/planilha.xlsx" onchange="_upCfg('${step.id}','file_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('ABA (vazio = ativa)', `<input type="text" value="${escapeHtml(c.sheet_name||'')}" placeholder="Sheet1" onchange="_upCfg('${step.id}','sheet_name',this.value)" ${_inp()} />`);
+      html += _field('NÚMERO DA LINHA (0 = adicionar no final)', `<input type="number" value="${c.row_index||0}" min="0" onchange="_upCfg('${step.id}','row_index',+this.value)" ${_inp()} />`);
+      html += _field('VALORES (JSON: lista)', `<input type="text" value="${escapeHtml(c.data_input||'')}" placeholder='["Nome", 10, "obs"]' onchange="_upCfg('${step.id}','data_input',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _hint('Com o número da linha em branco/0, adiciona uma linha nova no final. Com um número, sobrescreve os valores daquela linha (1 = primeira linha da aba).');
+      break;
+
+    case 'write_cell':
+      html += _field('ARQUIVO EXCEL (já existente)', `<input type="text" value="${escapeHtml(c.file_path||'')}" placeholder="/tmp/planilha.xlsx" onchange="_upCfg('${step.id}','file_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('ABA (vazio = ativa)', `<input type="text" value="${escapeHtml(c.sheet_name||'')}" placeholder="Sheet1" onchange="_upCfg('${step.id}','sheet_name',this.value)" ${_inp()} />`);
+      html += _field('CÉLULA', `<input type="text" value="${escapeHtml(c.cell_ref||'')}" placeholder="B3" onchange="_upCfg('${step.id}','cell_ref',this.value)" ${_inp('font-family:monospace;max-width:100px')} />`);
+      html += _field('VALOR', `<input type="text" value="${escapeHtml(c.cell_value||'')}" placeholder="{output} ou texto fixo" onchange="_upCfg('${step.id}','cell_value',this.value)" ${_inp()} />`);
+      break;
+
+    case 'remove_row':
+      html += _field('ARQUIVO EXCEL (já existente)', `<input type="text" value="${escapeHtml(c.file_path||'')}" placeholder="/tmp/planilha.xlsx" onchange="_upCfg('${step.id}','file_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('ABA (vazio = ativa)', `<input type="text" value="${escapeHtml(c.sheet_name||'')}" placeholder="Sheet1" onchange="_upCfg('${step.id}','sheet_name',this.value)" ${_inp()} />`);
+      html += _field('NÚMERO DA LINHA', `<input type="number" value="${c.row_index||0}" min="1" onchange="_upCfg('${step.id}','row_index',+this.value)" ${_inp()} />`);
+      html += _hint('Remove a linha de verdade — as linhas de baixo sobem uma posição (1 = primeira linha da aba).');
+      break;
+
+    case 'remove_cell':
+      html += _field('ARQUIVO EXCEL (já existente)', `<input type="text" value="${escapeHtml(c.file_path||'')}" placeholder="/tmp/planilha.xlsx" onchange="_upCfg('${step.id}','file_path',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('ABA (vazio = ativa)', `<input type="text" value="${escapeHtml(c.sheet_name||'')}" placeholder="Sheet1" onchange="_upCfg('${step.id}','sheet_name',this.value)" ${_inp()} />`);
+      html += _field('CÉLULA', `<input type="text" value="${escapeHtml(c.cell_ref||'')}" placeholder="B3" onchange="_upCfg('${step.id}','cell_ref',this.value)" ${_inp('font-family:monospace;max-width:100px')} />`);
+      html += _hint('Limpa o valor da célula (não desloca as outras células).');
       break;
 
     case 'read_csv':
