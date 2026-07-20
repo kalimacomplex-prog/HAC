@@ -184,6 +184,110 @@ def _slugify_var(name: str) -> str:
     return s or "coluna"
 
 
+def _find_tesseract_binary():
+    """Acha o executável do tesseract mesmo quando ele está instalado mas NÃO está
+    no PATH do processo — comum no Windows logo após instalar via winget/instalador,
+    já que o PATH do sistema só é atualizado pra processos novos, não pros que já
+    estavam rodando. Sem isso, 'já está instalado' e 'está no PATH' viravam a mesma
+    pergunta, e não são."""
+    found = shutil.which("tesseract")
+    if found:
+        return found
+    candidates = []
+    if sys.platform == "win32":
+        for base in (os.environ.get("PROGRAMFILES", ""), os.environ.get("PROGRAMFILES(X86)", ""),
+                     os.environ.get("LOCALAPPDATA", "")):
+            if base:
+                candidates.append(os.path.join(base, "Tesseract-OCR", "tesseract.exe"))
+    else:
+        candidates += ["/usr/bin/tesseract", "/usr/local/bin/tesseract", "/opt/homebrew/bin/tesseract"]
+    for c in candidates:
+        if c and os.path.exists(c):
+            return c
+    return None
+
+
+def _tesseract_installed() -> bool:
+    return _find_tesseract_binary() is not None
+
+
+def _find_poppler_bin_dir():
+    """Mesma ideia de _find_tesseract_binary, mas devolve a PASTA (pdf2image pede o
+    diretório, não o executável) — poppler no Windows costuma vir de um zip portátil
+    ou do winget, sem entrar no PATH automaticamente."""
+    found = shutil.which("pdftoppm")
+    if found:
+        return os.path.dirname(found)
+    candidates = []
+    if sys.platform == "win32":
+        for base in (os.environ.get("PROGRAMFILES", ""), os.environ.get("LOCALAPPDATA", "")):
+            if base and os.path.isdir(base):
+                for entry in os.listdir(base):
+                    if "poppler" in entry.lower():
+                        for sub in ("Library/bin", "bin"):
+                            cand = os.path.join(base, entry, *sub.split("/"))
+                            if os.path.exists(os.path.join(cand, "pdftoppm.exe")):
+                                candidates.append(cand)
+    else:
+        candidates += ["/usr/bin", "/usr/local/bin", "/opt/homebrew/bin"]
+    for c in candidates:
+        if c and os.path.exists(os.path.join(c, "pdftoppm" + (".exe" if sys.platform == "win32" else ""))):
+            return c
+    return None
+
+
+def _poppler_installed() -> bool:
+    return _find_poppler_bin_dir() is not None
+
+
+def _ensure_native_binary(name: str, check, winget_id: str, apt_pkg: str, brew_pkg: str) -> None:
+    """Garante que um binário nativo que NÃO é instalável via pip (tesseract, poppler)
+    existe na máquina, tentando o instalador certo pro SO do agente antes de desistir —
+    winget no Windows, apt/dnf/yum/pacman no Linux (com sudo -n, nunca trava esperando
+    senha), brew no macOS. `check()` diz se já está instalado. Se a instalação
+    automática não funcionar (falta admin/sudo, sem gerenciador suportado etc.),
+    levanta um erro explicando como instalar manualmente em vez de travar sem dizer o
+    que fazer."""
+    if check():
+        return
+    print(f"'{name}' ausente no agente — tentando instalar automaticamente...")
+    try:
+        if sys.platform == "win32" and shutil.which("winget"):
+            subprocess.run(
+                ["winget", "install", "--id", winget_id, "-e", "--silent",
+                 "--accept-package-agreements", "--accept-source-agreements"],
+                capture_output=True, text=True, timeout=300, stdin=subprocess.DEVNULL,
+            )
+        elif sys.platform == "darwin" and shutil.which("brew"):
+            subprocess.run(["brew", "install", brew_pkg], capture_output=True, text=True,
+                            timeout=300, stdin=subprocess.DEVNULL)
+        elif shutil.which("apt-get"):
+            subprocess.run(["sudo", "-n", "apt-get", "update", "-q"], capture_output=True, text=True,
+                            timeout=120, stdin=subprocess.DEVNULL)
+            subprocess.run(["sudo", "-n", "apt-get", "install", "-y", apt_pkg], capture_output=True, text=True,
+                            timeout=300, stdin=subprocess.DEVNULL)
+        elif shutil.which("dnf"):
+            subprocess.run(["sudo", "-n", "dnf", "install", "-y", apt_pkg], capture_output=True, text=True,
+                            timeout=300, stdin=subprocess.DEVNULL)
+        elif shutil.which("yum"):
+            subprocess.run(["sudo", "-n", "yum", "install", "-y", apt_pkg], capture_output=True, text=True,
+                            timeout=300, stdin=subprocess.DEVNULL)
+        elif shutil.which("pacman"):
+            subprocess.run(["sudo", "-n", "pacman", "-Sy", "--noconfirm", apt_pkg], capture_output=True, text=True,
+                            timeout=300, stdin=subprocess.DEVNULL)
+    except Exception:
+        pass
+    if not check():
+        raise Exception(
+            f"'{name}' não está instalado no agente e a instalação automática não funcionou "
+            f"(pode faltar permissão de admin/sudo, ou nenhum gerenciador de pacotes suportado foi "
+            f"encontrado nesta máquina). Instale manualmente e reinicie o agente: "
+            f"Windows -> winget install --id {winget_id} -e ; "
+            f"Linux -> sudo apt install {apt_pkg} (ou dnf/yum/pacman equivalente) ; "
+            f"macOS -> brew install {brew_pkg}."
+        )
+
+
 # Nome do módulo Python (o que aparece em "No module named 'X'") -> nome do pacote pip,
 # só para os casos em que os dois divergem. Usado pelo auto-instalador abaixo.
 _MODULE_TO_PACKAGE = {
@@ -2597,18 +2701,28 @@ async def _exec_step(step: dict, ctx: dict) -> str:
     # ── OCR & Visão (requer tesseract/poppler no host do agente) ───
 
     if t == "ocr_image":
+        _ensure_native_binary("Tesseract OCR", _tesseract_installed, "UB-Mannheim.TesseractOCR", "tesseract-ocr", "tesseract")
         import pytesseract
         from PIL import Image
+        _tess_bin = _find_tesseract_binary()
+        if _tess_bin:
+            pytesseract.pytesseract.tesseract_cmd = _tess_bin
         src = _sub(cfg.get("source_path", ""), ctx)
         result = pytesseract.image_to_string(Image.open(src), lang="por+eng")
         _store(result, var, ctx)
         return result
 
     if t == "ocr_pdf_scanned":
+        _ensure_native_binary("Tesseract OCR", _tesseract_installed, "UB-Mannheim.TesseractOCR", "tesseract-ocr", "tesseract")
+        _ensure_native_binary("Poppler (pdftoppm)", _poppler_installed, "oschwartz10612.Poppler", "poppler-utils", "poppler")
         import pytesseract
         from pdf2image import convert_from_path
+        _tess_bin = _find_tesseract_binary()
+        if _tess_bin:
+            pytesseract.pytesseract.tesseract_cmd = _tess_bin
+        _poppler_dir = _find_poppler_bin_dir()
         src = _sub(cfg.get("source_path", ""), ctx)
-        pages = convert_from_path(src)
+        pages = convert_from_path(src, poppler_path=_poppler_dir)
         result = "\n\n".join(pytesseract.image_to_string(p, lang="por+eng") for p in pages)
         _store(result, var, ctx)
         return result
@@ -2988,6 +3102,11 @@ def _gen_local_step_script(step: dict, ctx: dict) -> str:
         inspect.getsource(_sub),
         inspect.getsource(_store),
         inspect.getsource(_slugify_var),
+        inspect.getsource(_find_tesseract_binary),
+        inspect.getsource(_tesseract_installed),
+        inspect.getsource(_find_poppler_bin_dir),
+        inspect.getsource(_poppler_installed),
+        inspect.getsource(_ensure_native_binary),
         inspect.getsource(_pix_tlv),
         inspect.getsource(_pix_crc16),
         inspect.getsource(_build_pix_payload),
