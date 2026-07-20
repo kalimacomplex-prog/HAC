@@ -356,7 +356,7 @@ const STEP_DEFAULTS = {
   agent_id: '', input_template: '{output}',
   pipeline_id: '',
   text_input: '{output}', operation: 'upper', search: '', replace_with: '',
-  browser_actions: [], browser_engine: 'playwright', browser_headless: true,
+  browser_actions: [], browser_engine: 'playwright', browser_headless: true, browser_profile: '',
   session_name: '', target: '',
   source_path: '', dest_path: '', hash_algo: 'sha256', encoding_from: 'utf-8', encoding_to: 'utf-8',
   date_value: '', date_value2: '', date_unit: 'days', date_amount: 0,
@@ -2527,8 +2527,11 @@ function _renderPropsPanel(step) {
       };
       html += `<p style="font-size:.7rem;color:#7c3aed;margin:-.35rem 0 .1rem;line-height:1.5">ℹ️ ${sessEngineHints[sessEngine]}</p>`;
       html += _field('URL INICIAL (opcional)', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="https://exemplo.com" onchange="_upCfg('${step.id}','target',this.value)" ${_inp()} />`);
-      const headlessOpen = c.browser_headless !== false;
-      html += _field('MODO HEADLESS', `<div style="display:flex;gap:.5rem">
+      html += _field('PERFIL DO NAVEGADOR (opcional)', `<input type="text" value="${escapeHtml(c.browser_profile||'')}" placeholder="ex: perfil_captcha" onchange="_upCfg('${step.id}','browser_profile',this.value)" ${_inp()} />`);
+      html += _hint('Se preenchido, essa sessão reaproveita uma pasta de profile FIXA no agente entre execuções (em vez de uma vazia e descartável) — instale extensões licenciadas (ex: resolvedor de captcha) uma única vez, manualmente, e elas continuam disponíveis nas próximas aberturas. Sessões com perfil rodam sempre em modo visível (headless desativado), pois extensões não funcionam em modo headless.');
+      const hasProfile = !!(c.browser_profile || '').trim();
+      const headlessOpen = c.browser_headless !== false && !hasProfile;
+      html += _field('MODO HEADLESS', `<div style="display:flex;gap:.5rem;${hasProfile?'opacity:.5;pointer-events:none':''}">
         <label style="display:flex;align-items:center;gap:.35rem;padding:.38rem .75rem;border:1.5px solid ${headlessOpen?'#2563eb':'#e2e8f0'};border-radius:7px;cursor:pointer;font-size:.8rem;background:${headlessOpen?'#eff6ff':'white'};flex:1;justify-content:center" onclick="_upCfg('${step.id}','browser_headless',true)">
           <span style="font-size:.95rem">🖥️</span> <span style="color:${headlessOpen?'#2563eb':'#64748b'};font-weight:${headlessOpen?'700':'400'}">Headless (true)</span>
         </label>
@@ -2536,6 +2539,7 @@ function _renderPropsPanel(step) {
           <span style="font-size:.95rem">👁️</span> <span style="color:${!headlessOpen?'#2563eb':'#64748b'};font-weight:${!headlessOpen?'700':'400'}">Visível (false)</span>
         </label>
       </div>`);
+      if (hasProfile) html += _hint('Desativado porque um perfil persistente foi definido acima.');
       break;
     }
 
@@ -2650,7 +2654,7 @@ function _upCfg(id, field, value) {
     // Campos controlados por botão/toggle (não por <input>/<textarea> com onchange)
     // precisam redesenhar o painel na hora, senão o botão destacado fica mostrando
     // a opção antiga até o usuário sair e voltar — o dado já mudou, só a tela não.
-    if (['operation','type','run_on','browser_headless'].includes(field)) _renderPropsPanel(step);
+    if (['operation','type','run_on','browser_headless','browser_profile'].includes(field)) _renderPropsPanel(step);
   }
 }
 

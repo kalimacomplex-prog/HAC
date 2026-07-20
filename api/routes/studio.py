@@ -681,17 +681,27 @@ def _find_chrome_browser():
 
 
 def _gen_session_open_script(session_name: str, target: str, headless: bool, ctx: dict,
-                             engine: str = "playwright") -> str:
+                             engine: str = "playwright", profile_name: str = "") -> str:
     """Gera script que lança um Chrome/Chromium 'destacado' (sobrevive ao fim do
     processo que o lançou) escutando numa porta de depuração remota (CDP), e
     imprime `__SESSION__:{json com port/pid/user_data_dir}` para a API capturar.
 
     As duas engines ficam INDEPENDENTES: cada uma localiza e controla o navegador
     com sua própria biblioteca — Playwright nunca é importado para sessões Selenium
-    e vice-versa."""
+    e vice-versa.
+
+    Se `profile_name` for informado, o profile do Chrome (user-data-dir) é uma pasta
+    FIXA reaproveitada entre execuções (em vez de uma pasta temporária apagada ao
+    fim da sessão) — assim extensões licenciadas instaladas manualmente uma vez
+    (ex: para resolver captcha) continuam presentes nas próximas aberturas dessa
+    mesma sessão nomeada. Extensões não funcionam em modo headless, então um
+    profile persistente força headless=False."""
     url = _sub(target, ctx).strip()
     url_lit = json.dumps(url)
     name_lit = json.dumps(session_name)
+    profile_name = (profile_name or "").strip()
+    if profile_name:
+        headless = False
 
     lines = ["import sys, os, json, socket, subprocess, tempfile, time, urllib.request",
              "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
@@ -727,7 +737,20 @@ def _gen_session_open_script(session_name: str, target: str, headless: bool, ctx
         "_port = _sock.getsockname()[1]",
         "_sock.close()",
         "",
-        "_udd = tempfile.mkdtemp(prefix='hac_session_')",
+    ]
+    if profile_name:
+        safe_profile = re.sub(r'[^A-Za-z0-9_-]+', '_', profile_name)[:80] or "default"
+        lines += [
+            "_udd = os.path.join(os.path.expanduser('~'), '.hac_browser_profiles', " + json.dumps(safe_profile) + ")",
+            "os.makedirs(_udd, exist_ok=True)",
+            "_udd_persistent = True",
+        ]
+    else:
+        lines += [
+            "_udd = tempfile.mkdtemp(prefix='hac_session_')",
+            "_udd_persistent = False",
+        ]
+    lines += [
         "_args = [_exe, '--remote-debugging-port=%d' % _port, '--user-data-dir=' + _udd,",
         "         '--no-first-run', '--no-default-browser-check']",
         f"if {bool(headless)}:",
@@ -748,8 +771,8 @@ def _gen_session_open_script(session_name: str, target: str, headless: bool, ctx
         "    \"    subprocess.run(['taskkill','/F','/T','/PID','%d'])\\n\"",
         "    \"else:\\n\"",
         "    \"    subprocess.run(['kill','-9','%d'])\\n\"",
-        "    \"shutil.rmtree(r'%s', ignore_errors=True)\\n\"",
-        f") % ({_SESSION_LIFETIME_SECONDS}, _proc.pid, _proc.pid, _udd)",
+        "    \"if not %s: shutil.rmtree(r'%s', ignore_errors=True)\\n\"",
+        f") % ({_SESSION_LIFETIME_SECONDS}, _proc.pid, _proc.pid, _udd_persistent, _udd)",
         "subprocess.Popen([sys.executable, '-c', _wd], **_kw)",
         "",
         "# espera o endpoint de depuração remota (CDP) responder",
@@ -795,7 +818,8 @@ def _gen_session_open_script(session_name: str, target: str, headless: bool, ctx
         "    except Exception as _e:",
         "        print('aviso: falha ao abrir URL inicial: ' + str(_e))",
         "",
-        f"print('__SESSION__:' + json.dumps({{'port': _port, 'pid': _proc.pid, 'user_data_dir': _udd, 'session_name': {name_lit}}}))",
+        f"print('__SESSION__:' + json.dumps({{'port': _port, 'pid': _proc.pid, 'user_data_dir': _udd, "
+        f"'session_name': {name_lit}, 'persistent': _udd_persistent}}))",
     ]
     return "\n".join(lines)
 
@@ -1099,10 +1123,14 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
     return "\n".join(lines)
 
 
-def _gen_session_close_script(pid: int, port: int, user_data_dir: str, engine: str = "playwright") -> str:
+def _gen_session_close_script(pid: int, port: int, user_data_dir: str, engine: str = "playwright",
+                               persistent: bool = False) -> str:
     """Gera script que tenta fechar as páginas da sessão (melhor esforço, usando a
     MESMA biblioteca da engine escolhida — sem depender da outra) e então mata o
-    processo do navegador pelo PID e remove o diretório temporário de perfil."""
+    processo do navegador pelo PID e remove o diretório temporário de perfil.
+
+    Se `persistent` for True, o diretório NÃO é removido — é um profile fixo
+    reaproveitado nas próximas aberturas dessa sessão (ver `_gen_session_open_script`)."""
     udd = user_data_dir.replace("\\", "\\\\").replace('"', '\\"')
     lines = ["import sys, subprocess, shutil", "sys.stdout.reconfigure(encoding='utf-8', errors='replace')"]
 
@@ -1131,9 +1159,10 @@ def _gen_session_close_script(pid: int, port: int, user_data_dir: str, engine: s
         f"    subprocess.run(['taskkill', '/F', '/T', '/PID', '{pid}'])",
         "else:",
         f"    subprocess.run(['kill', '-9', '{pid}'])",
-        f'shutil.rmtree("{udd}", ignore_errors=True)',
-        'print("Sessão encerrada")',
     ]
+    if not persistent:
+        lines.append(f'shutil.rmtree("{udd}", ignore_errors=True)')
+    lines.append('print("Sessão encerrada")')
     return "\n".join(lines)
 
 
@@ -3167,7 +3196,9 @@ async def _exec_step(step: dict, ctx: dict) -> str:
             engine = cfg.get("browser_engine", "playwright")
             if engine not in ("playwright", "selenium"):
                 engine = "playwright"
-            script = _gen_session_open_script(session_name, cfg.get("target", ""), headless, ctx, engine=engine)
+            profile_name = _sub(cfg.get("browser_profile", ""), ctx).strip()
+            script = _gen_session_open_script(session_name, cfg.get("target", ""), headless, ctx, engine=engine,
+                                              profile_name=profile_name)
             raw = await _run_agent_script(
                 script, agent_id, user_id, timeout_seconds=90,
                 name_prefix="__studio_session_open_", process_label="Studio: abrir sessão",
@@ -3184,7 +3215,8 @@ async def _exec_step(step: dict, ctx: dict) -> str:
             if not info:
                 raise Exception("Não foi possível abrir a sessão do navegador no agente.")
             sessions[session_name] = {**info, "agent_id": agent_id, "engine": engine}
-            result = f"Sessão '{session_name}' aberta ({engine})."
+            note = " — profile persistente reaproveitado, extensões instaladas continuam disponíveis" if profile_name else ""
+            result = f"Sessão '{session_name}' aberta ({engine}){note}."
             _store(result, var, ctx)
             return result
 
@@ -3198,7 +3230,8 @@ async def _exec_step(step: dict, ctx: dict) -> str:
 
         if t == "browser_close":
             script = _gen_session_close_script(session["pid"], session["port"], session["user_data_dir"],
-                                                engine=session.get("engine", "playwright"))
+                                                engine=session.get("engine", "playwright"),
+                                                persistent=session.get("persistent", False))
             await _run_agent_script(
                 script, session.get("agent_id", agent_id), user_id, timeout_seconds=60,
                 name_prefix="__studio_session_close_", process_label="Studio: fechar sessão",
@@ -3723,7 +3756,8 @@ async def _close_remaining_sessions(ctx: dict):
     for name, session in list(sessions.items()):
         try:
             script = _gen_session_close_script(session["pid"], session["port"], session["user_data_dir"],
-                                                engine=session.get("engine", "playwright"))
+                                                engine=session.get("engine", "playwright"),
+                                                persistent=session.get("persistent", False))
             await _run_agent_script(
                 script, session.get("agent_id", ctx.get("agent_id", "")), user_id, timeout_seconds=60,
                 name_prefix="__studio_session_close_", process_label="Studio: fechar sessão (limpeza)",
