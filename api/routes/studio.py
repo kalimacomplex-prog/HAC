@@ -295,9 +295,12 @@ def _gen_browser_script(actions: list, engine: str, headless: bool, ctx: dict) -
 
     if engine == "playwright":
         lines = [
-            "import sys, json",
+            "import sys, os, json, subprocess",
             "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
+            _HAC_ENSURE_PKG.strip("\n"),
+            "_hac_ensure_pkg('playwright')",
             "from playwright.sync_api import sync_playwright",
+            "_hac_ensure_playwright_chromium()",
             "_vars = {}",
             "with sync_playwright() as _pw:",
             f'    _br = _pw.chromium.launch(headless={str(headless)})',
@@ -336,8 +339,10 @@ def _gen_browser_script(actions: list, engine: str, headless: bool, ctx: dict) -
         ]
     else:  # selenium
         lines = [
-            "import sys, json, time",
+            "import sys, os, json, time, subprocess",
             "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
+            _HAC_ENSURE_PKG.strip("\n"),
+            "_hac_ensure_pkg('selenium')",
             "from selenium import webdriver",
             "from selenium.webdriver.common.by import By",
             "from selenium.webdriver.chrome.options import Options",
@@ -476,6 +481,48 @@ async def _exec_browser_via_agent(actions: list, engine: str, headless: bool, ct
 _SESSION_LIFETIME_SECONDS = 30 * 60  # watchdog mata o navegador sozinho após esse tempo
 
 
+# Embutido em TODOS os scripts de navegador (legado composto + sessão abrir/ação) —
+# instala sozinho o pacote pip que falta (playwright/selenium) e, no caso do
+# Playwright, também o próprio binário do Chromium quando ele ainda não foi baixado
+# (equivalente a rodar "playwright install chromium" manualmente). Sem isso, faltar
+# qualquer um dos dois derrubava o passo com ModuleNotFoundError/erro cru.
+_HAC_ENSURE_PKG = """
+import importlib as _hac_importlib
+
+def _hac_ensure_pkg(pkg, import_name=None):
+    import_name = import_name or pkg
+    try:
+        _hac_importlib.import_module(import_name)
+        return
+    except ModuleNotFoundError:
+        pass
+    print("Pacote '" + pkg + "' ausente no agente — instalando automaticamente...")
+    _r = subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", pkg],
+                         capture_output=True, text=True, timeout=180)
+    if _r.returncode != 0:
+        raise ModuleNotFoundError(
+            "Pacote '" + pkg + "' ausente no agente (interpretador " + sys.executable +
+            ") e nao pode ser instalado automaticamente: " + (_r.stderr or _r.stdout)[-500:]
+        )
+    _hac_importlib.import_module(import_name)
+
+
+def _hac_ensure_playwright_chromium():
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as _pw:
+        _exe = _pw.chromium.executable_path
+    if _exe and os.path.exists(_exe):
+        return
+    print("Chromium do Playwright ausente no agente — instalando automaticamente (pode demorar)...")
+    _r = subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"],
+                         capture_output=True, text=True, timeout=300)
+    if _r.returncode != 0:
+        raise RuntimeError(
+            "Nao foi possivel instalar o Chromium do Playwright automaticamente: " + (_r.stderr or _r.stdout)[-500:]
+        )
+"""
+
+
 _SELENIUM_CHROME_FINDER = """
 def _find_chrome_browser():
     import shutil
@@ -524,7 +571,8 @@ def _gen_session_open_script(session_name: str, target: str, headless: bool, ctx
     name_lit = json.dumps(session_name)
 
     lines = ["import sys, os, json, socket, subprocess, tempfile, time, urllib.request",
-             "sys.stdout.reconfigure(encoding='utf-8', errors='replace')", ""]
+             "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
+             _HAC_ENSURE_PKG.strip("\n"), ""]
 
     if engine == "selenium":
         lines += [_SELENIUM_CHROME_FINDER.strip("\n")]
@@ -538,15 +586,15 @@ def _gen_session_open_script(session_name: str, target: str, headless: bool, ctx
         ]
     else:
         lines += [
+            "_hac_ensure_pkg('playwright')",
             "from playwright.sync_api import sync_playwright",
+            "try:",
+            "    _hac_ensure_playwright_chromium()",
+            "except Exception as _e:",
+            "    print('__SESSION_ERROR__: ' + str(_e))",
+            "    sys.exit(1)",
             "with sync_playwright() as _pw:",
             "    _exe = _pw.chromium.executable_path",
-            "",
-            "if not _exe or not os.path.exists(_exe):",
-            "    print('__SESSION_ERROR__: Navegador Chromium do Playwright não encontrado em \"%s\". '",
-            "          'Rode \"playwright install chromium\" (ou \"python -m playwright install chromium\") '",
-            "          'no mesmo ambiente Python usado pelo agente e tente novamente.' % _exe)",
-            "    sys.exit(1)",
             "",
         ]
 
@@ -601,6 +649,7 @@ def _gen_session_open_script(session_name: str, target: str, headless: bool, ctx
     ]
     if engine == "selenium":
         lines += [
+            "        _hac_ensure_pkg('selenium')",
             "        from selenium import webdriver",
             "        _opts = webdriver.ChromeOptions()",
             "        _opts.add_experimental_option('debuggerAddress', '127.0.0.1:%d' % _port)",
@@ -639,8 +688,10 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
 
     if engine == "selenium":
         lines = [
-            "import sys, time, re",
+            "import sys, os, time, re, subprocess",
             "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
+            _HAC_ENSURE_PKG.strip("\n"),
+            "_hac_ensure_pkg('selenium')",
             "from selenium import webdriver",
             "from selenium.webdriver.common.by import By",
             "from selenium.webdriver.support.ui import WebDriverWait",
@@ -709,9 +760,12 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
         return "\n".join(lines)
 
     lines = [
-        "import sys, re",
+        "import sys, os, re, subprocess",
         "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
+        _HAC_ENSURE_PKG.strip("\n"),
+        "_hac_ensure_pkg('playwright')",
         "from playwright.sync_api import sync_playwright",
+        "_hac_ensure_playwright_chromium()",
         "",
         "# Playwright já detecta XPath nativamente quando o seletor começa com '//' ou '..',",
         "# e suporta prefixos explícitos de engine (css=, xpath=, text=, role= etc). A única",
