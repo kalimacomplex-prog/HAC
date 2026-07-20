@@ -15,6 +15,10 @@ def run_script(script: str, params: Dict[str, Any], timeout: int) -> Tuple[str, 
     env = os.environ.copy()
     for key, value in params.items():
         env[f"HAC_PARAM_{key.upper()}"] = str(value)
+    # Força o processo filho a escrever (e nós a ler) em UTF-8 — sem isso, no Windows
+    # o stdout/stderr do script usa a codepage ANSI (ex: cp1252) e qualquer acento
+    # sai errado.
+    env["PYTHONIOENCODING"] = "utf-8"
 
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False, encoding="utf-8") as f:
         f.write(script)
@@ -25,6 +29,8 @@ def run_script(script: str, params: Dict[str, Any], timeout: int) -> Tuple[str, 
             [sys.executable, tmp_path],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=timeout,
             env=env,
         )

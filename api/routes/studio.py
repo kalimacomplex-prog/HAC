@@ -2076,7 +2076,7 @@ async def _exec_step(step: dict, ctx: dict) -> str:
         try:
             client.connect(host, port=port, username=username, password=password, timeout=10)
             _, stdout, stderr = client.exec_command(command, timeout=30)
-            result = stdout.read().decode() + stderr.read().decode()
+            result = stdout.read().decode("utf-8", errors="replace") + stderr.read().decode("utf-8", errors="replace")
         finally:
             client.close()
         _store(result, var, ctx)
@@ -2525,7 +2525,16 @@ async def _exec_step(step: dict, ctx: dict) -> str:
 
     if t == "run_command":
         command = _sub(cfg.get("command", ""), ctx)
-        proc = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=30)
+        run_env = os.environ.copy()
+        run_env["PYTHONIOENCODING"] = "utf-8"
+        if sys.platform == "win32":
+            # No Windows o cmd.exe escreve na codepage ANSI ativa (ex: cp1252) por
+            # padrão — decodificar como utf-8 sem isso só troca um tipo de acento
+            # errado por outro. "chcp 65001" muda a codepage do subshell pra UTF-8
+            # antes de rodar o comando de verdade.
+            command = f"chcp 65001>nul & {command}"
+        proc = subprocess.run(command, shell=True, capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", timeout=30, env=run_env)
         result = proc.stdout + proc.stderr
         _store(result, var, ctx)
         return result

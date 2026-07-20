@@ -176,6 +176,9 @@ def _run_script(script: str, params: dict, timeout: int):
     env = os.environ.copy()
     for k, v in params.items():
         env[f"HAC_PARAM_{k.upper()}"] = str(v)
+    # Sem isso, no Windows o Python filho decide a codepage sozinho (ex: cp1252) e
+    # qualquer acento no print() do script sai errado.
+    env["PYTHONIOENCODING"] = "utf-8"
 
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False, encoding="utf-8") as f:
         f.write(script)
@@ -184,7 +187,8 @@ def _run_script(script: str, params: dict, timeout: int):
     try:
         result = subprocess.run(
             [VENV_PYTHON, tmp],
-            capture_output=True, text=True, timeout=timeout, env=env,
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=timeout, env=env,
         )
         return result.stdout, result.stderr
     except subprocess.TimeoutExpired:
