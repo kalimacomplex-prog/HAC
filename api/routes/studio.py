@@ -628,15 +628,23 @@ def _hac_ensure_playwright_chromium():
 
 
 # Usado só por "Resolver captcha de imagem (OCR)". Tesseract "cru" praticamente não
-# lê nada em captcha de imagem real (linhas grossas riscando o texto, manchas de
-# ruído de fundo) — a abertura morfológica sozinha não distingue traço de letra de
-# traço de linha quando têm espessura parecida. Em vez disso: detecta as linhas
-# retas longas via Hough (nenhum traço de letra chega a 35% da largura da imagem)
-# e apaga só elas, depois descarta manchas/pontos pequenos por área de componente
-# conectado (letras são blobs bem maiores que ruído de fundo), e fecha as pequenas
-# quebras que a remoção da linha deixa no meio das letras.
+# lê nada em captcha de imagem real — dois tipos de ruído aparecem em sites
+# diferentes e cada um exige uma tática:
+#  1) linhas GROSSAS e retas (ex: um X reto cruzando o texto) — sobrevivem a uma
+#     abertura morfológica pequena porque têm espessura parecida com a letra.
+#  2) linhas FINAS e curvas/onduladas — a letra (em negrito) é bem mais grossa que
+#     elas, então uma abertura morfológica com um kernel maior já apaga a maior
+#     parte sozinha, sem precisar reconhecer a forma da linha.
+# A combinação que funciona nos dois casos: abertura com kernel grande primeiro
+# (resolve o caso 2 e afina o caso 1), depois Hough por cima do resultado pra achar
+# o que sobrou de reto e comprido (nenhuma letra isolada chega a 30% da largura da
+# imagem) — só apaga o que tiver ângulo claramente diagonal (12°–80°), pra não
+# confundir com a base quase-horizontal das próprias letras. Por fim descarta
+# manchas pequenas por área de componente conectado e fecha as quebras que a
+# remoção da linha deixa no meio das letras.
 _CAPTCHA_IMAGE_PREP = """
 def _hac_read_captcha_text(img_path):
+    import math
     _img = cv2.imread(img_path)
     _gray = cv2.cvtColor(_img, cv2.COLOR_BGR2GRAY)
     _gray = cv2.resize(_gray, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
@@ -644,17 +652,23 @@ def _hac_read_captcha_text(img_path):
     _, _bin = cv2.threshold(_gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     _h, _w = _bin.shape
 
-    _lines = cv2.HoughLinesP(_bin, 1, np.pi / 180, threshold=150,
-                              minLineLength=int(_w * 0.35), maxLineGap=10)
-    _line_thickness = max(8, int(_h * 0.05))
+    _open_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+    _opened = cv2.morphologyEx(_bin, cv2.MORPH_OPEN, _open_kernel)
+
+    _lines = cv2.HoughLinesP(_opened, 1, np.pi / 180, threshold=100,
+                              minLineLength=int(_w * 0.3), maxLineGap=15)
+    _line_thickness = max(10, int(_h * 0.06))
+    _work = _opened.copy()
     if _lines is not None:
         for _l in _lines:
             _x1, _y1, _x2, _y2 = _l[0]
-            cv2.line(_bin, (_x1, _y1), (_x2, _y2), 0, thickness=_line_thickness)
+            _ang = abs(math.degrees(math.atan2(_y2 - _y1, _x2 - _x1)))
+            if 12 < _ang < 80:
+                cv2.line(_work, (_x1, _y1), (_x2, _y2), 0, thickness=_line_thickness)
 
-    _n, _labels, _stats, _ = cv2.connectedComponentsWithStats(_bin, connectivity=8)
+    _n, _labels, _stats, _ = cv2.connectedComponentsWithStats(_work, connectivity=8)
     _min_area = max(30, int(0.0003 * _h * _w))
-    _clean = np.zeros_like(_bin)
+    _clean = np.zeros_like(_work)
     for _i in range(1, _n):
         if _stats[_i, cv2.CC_STAT_AREA] >= _min_area:
             _clean[_labels == _i] = 255
