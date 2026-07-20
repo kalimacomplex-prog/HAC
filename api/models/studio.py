@@ -263,6 +263,8 @@ class StepConfig(BaseModel):
     session_name: str = ""
     target: str = ""
     browser_profile: str = ""
+    browser_window_state: str = "normal"
+    browser_focus: bool = False
     # arquivos / compactação (Fase 1)
     source_path: str = ""
     dest_path: str = ""

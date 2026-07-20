@@ -357,6 +357,7 @@ const STEP_DEFAULTS = {
   pipeline_id: '',
   text_input: '{output}', operation: 'upper', search: '', replace_with: '',
   browser_actions: [], browser_engine: 'playwright', browser_headless: true, browser_profile: '',
+  browser_window_state: 'normal', browser_focus: false,
   session_name: '', target: '',
   source_path: '', dest_path: '', hash_algo: 'sha256', encoding_from: 'utf-8', encoding_to: 'utf-8',
   date_value: '', date_value2: '', date_unit: 'days', date_amount: 0,
@@ -2540,6 +2541,22 @@ function _renderPropsPanel(step) {
         </label>
       </div>`);
       if (hasProfile) html += _hint('Desativado porque um perfil persistente foi definido acima.');
+
+      const windowState = c.browser_window_state || 'normal';
+      const windowDisabled = headlessOpen;
+      html += _field('ESTADO DA JANELA', `<select onchange="_upCfg('${step.id}','browser_window_state',this.value)" ${_sel(windowDisabled?'opacity:.5':'')} ${windowDisabled?'disabled':''}>
+        <option value="normal"     ${windowState==='normal'?'selected':''}>Normal</option>
+        <option value="maximized"  ${windowState==='maximized'?'selected':''}>Maximizada</option>
+        <option value="minimized"  ${windowState==='minimized'?'selected':''}>Minimizada</option>
+      </select>`);
+      const focusOn = !!c.browser_focus;
+      html += _field('ABRIR COM FOCO', `<label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;color:#334155;${windowDisabled?'opacity:.5;pointer-events:none':''}">
+        <input type="checkbox" ${focusOn?'checked':''} onchange="_upCfg('${step.id}','browser_focus',this.checked)" />
+        Trazer a janela pra frente ao abrir
+      </label>`);
+      html += _hint(windowDisabled
+        ? 'Esses controles só se aplicam com o navegador visível (modo headless desativado) — não existe janela pra focar/maximizar em modo headless.'
+        : 'Por padrão do Windows, uma janela aberta por um processo em segundo plano não ganha foco sozinha. "Minimizada" e "Abrir com foco" funcionam apenas no Windows por enquanto.');
       break;
     }
 

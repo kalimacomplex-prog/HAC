@@ -731,8 +731,58 @@ def _find_chrome_browser():
 """
 
 
+# Usado só por "Abrir sessão" quando a janela precisa ficar maximizada/minimizada
+# ou vir com foco. O navegador é lançado "destacado" (subprocess independente) e,
+# por padrão do próprio Windows, um processo em segundo plano que abre uma janela
+# NÃO ganha foco automaticamente (proteção contra apps roubarem o foco) — por isso
+# abre sem foco mesmo sem nenhuma flag "de fundo" explícita. Não existe flag de
+# linha de comando confiável pro Chrome pra maximizar/minimizar/focar em todas as
+# versões recentes, então isso é feito via API do Windows (user32) depois que a
+# janela já existe. Windows-only por enquanto — em Linux/Mac vira no-op silencioso.
+_HAC_WINDOW_CONTROL = """
+def _hac_set_window_state(pid, state, focus):
+    if sys.platform != 'win32' or (state == 'normal' and not focus):
+        return
+    import ctypes
+    from ctypes import wintypes
+    _user32 = ctypes.windll.user32
+    _SW_MINIMIZE = 6
+    _SW_MAXIMIZE = 3
+    _SW_RESTORE = 9
+    _hwnds = []
+    def _hac_wnd_cb(hwnd, _lparam):
+        _wpid = wintypes.DWORD()
+        _user32.GetWindowThreadProcessId(hwnd, ctypes.byref(_wpid))
+        if _wpid.value == pid and _user32.IsWindowVisible(hwnd) and _user32.GetWindowTextLengthW(hwnd) > 0:
+            _hwnds.append(hwnd)
+        return True
+    _WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_int, wintypes.HWND, wintypes.LPARAM)
+    _cb = _WNDENUMPROC(_hac_wnd_cb)
+    for _ in range(20):
+        _hwnds.clear()
+        _user32.EnumWindows(_cb, 0)
+        if _hwnds:
+            break
+        time.sleep(0.25)
+    if not _hwnds:
+        return
+    # pode haver mais de uma janela visível com esse PID (ex: uma janela auxiliar
+    # pequena) — a principal do navegador é a de maior área
+    def _hac_win_area(hwnd):
+        _rect = wintypes.RECT()
+        _user32.GetWindowRect(hwnd, ctypes.byref(_rect))
+        return max(0, _rect.right - _rect.left) * max(0, _rect.bottom - _rect.top)
+    _hwnd = max(_hwnds, key=_hac_win_area)
+    _show_map = {'minimized': _SW_MINIMIZE, 'maximized': _SW_MAXIMIZE, 'normal': _SW_RESTORE}
+    _user32.ShowWindow(_hwnd, _show_map.get(state, _SW_RESTORE))
+    if focus and state != 'minimized':
+        _user32.SetForegroundWindow(_hwnd)
+"""
+
+
 def _gen_session_open_script(session_name: str, target: str, headless: bool, ctx: dict,
-                             engine: str = "playwright", profile_name: str = "") -> str:
+                             engine: str = "playwright", profile_name: str = "",
+                             window_state: str = "normal", focus: bool = False) -> str:
     """Gera script que lança um Chrome/Chromium 'destacado' (sobrevive ao fim do
     processo que o lançou) escutando numa porta de depuração remota (CDP), e
     imprime `__SESSION__:{json com port/pid/user_data_dir}` para a API capturar.
@@ -746,7 +796,13 @@ def _gen_session_open_script(session_name: str, target: str, headless: bool, ctx
     fim da sessão) — assim extensões licenciadas instaladas manualmente uma vez
     (ex: para resolver captcha) continuam presentes nas próximas aberturas dessa
     mesma sessão nomeada. Extensões não funcionam em modo headless, então um
-    profile persistente força headless=False."""
+    profile persistente força headless=False.
+
+    `window_state` ("normal" | "maximized" | "minimized") e `focus` controlam a
+    janela do navegador via API do Windows logo após ela existir — sem isso, um
+    navegador aberto por um processo em segundo plano fica sem foco por padrão
+    do próprio Windows. Ignorado (no-op) quando headless=True (não existe janela)
+    ou fora do Windows."""
     url = _sub(target, ctx).strip()
     url_lit = json.dumps(url)
     name_lit = json.dumps(session_name)
@@ -839,6 +895,14 @@ def _gen_session_open_script(session_name: str, target: str, headless: bool, ctx
         "    print('__SESSION_ERROR__: navegador não respondeu na porta de depuração a tempo')",
         "    sys.exit(1)",
         "",
+    ]
+    if not headless and (window_state != "normal" or focus):
+        lines += [
+            _HAC_WINDOW_CONTROL.strip("\n"),
+            f"_hac_set_window_state(_proc.pid, {json.dumps(window_state)}, {bool(focus)})",
+            "",
+        ]
+    lines += [
         f"_url = {url_lit}",
         "if _url:",
         "    _full = _url if _url.startswith(('http://', 'https://')) else 'https://' + _url",
@@ -3248,8 +3312,12 @@ async def _exec_step(step: dict, ctx: dict) -> str:
             if engine not in ("playwright", "selenium"):
                 engine = "playwright"
             profile_name = _sub(cfg.get("browser_profile", ""), ctx).strip()
+            window_state = cfg.get("browser_window_state", "normal")
+            if window_state not in ("normal", "maximized", "minimized"):
+                window_state = "normal"
+            focus = bool(cfg.get("browser_focus", False))
             script = _gen_session_open_script(session_name, cfg.get("target", ""), headless, ctx, engine=engine,
-                                              profile_name=profile_name)
+                                              profile_name=profile_name, window_state=window_state, focus=focus)
             raw = await _run_agent_script(
                 script, agent_id, user_id, timeout_seconds=90,
                 name_prefix="__studio_session_open_", process_label="Studio: abrir sessão",
