@@ -69,9 +69,15 @@ function navigate(view) {
   localStorage.setItem('hac_current_view', view);
   if (view === 'studio_builder') localStorage.setItem('hac_builder_auto_id', window._builderAutoId || '');
   // Restaura sidebar e topbar ao sair do builder
+  const mainEl = document.querySelector('.main');
   if (view !== 'studio_builder') {
     document.querySelector('.topbar').style.display = '';
     document.getElementById('sidebar').style.display = '';
+    if (mainEl) mainEl.style.marginLeft = '';
+  } else if (mainEl) {
+    // O sidebar some (display:none), mas .main mantém margin-left:240px reservado
+    // pra ele — sem isso sobra uma faixa em branco à esquerda do Builder.
+    mainEl.style.marginLeft = '0';
   }
   // Restaura padding do content ao sair do modelador
   const contentEl = document.querySelector('.content');
