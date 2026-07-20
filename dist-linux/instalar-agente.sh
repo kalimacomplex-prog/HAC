@@ -61,11 +61,13 @@ def run_script(script, params, timeout):
     env = os.environ.copy()
     for k, v in params.items():
         env[f"HAC_PARAM_{k.upper()}"] = str(v)
+    env["PYTHONIOENCODING"] = "utf-8"
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False, encoding="utf-8") as f:
         f.write(script)
         tmp = f.name
     try:
-        r = subprocess.run([sys.executable, tmp], capture_output=True, text=True, timeout=timeout, env=env)
+        r = subprocess.run([sys.executable, tmp], capture_output=True, text=True,
+                            encoding="utf-8", errors="replace", timeout=timeout, env=env)
         return r.stdout, r.stderr
     except subprocess.TimeoutExpired:
         return "", f"Timeout: execução ultrapassou {timeout}s"
