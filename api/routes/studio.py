@@ -628,21 +628,47 @@ def _hac_ensure_playwright_chromium():
 
 
 # Usado só por "Resolver captcha de imagem (OCR)". Tesseract "cru" praticamente não
-# lê nada em captcha de imagem real (linhas riscando o texto, ruído de fundo,
-# gradiente) — esse pré-processamento (escala de cinza, ampliação, desruído,
-# binarização por Otsu, abertura morfológica pra apagar as linhas/pontos finos sem
-# apagar o traço das letras) é o que faz a diferença entre ler algo e não ler nada.
+# lê nada em captcha de imagem real (linhas grossas riscando o texto, manchas de
+# ruído de fundo) — a abertura morfológica sozinha não distingue traço de letra de
+# traço de linha quando têm espessura parecida. Em vez disso: detecta as linhas
+# retas longas via Hough (nenhum traço de letra chega a 35% da largura da imagem)
+# e apaga só elas, depois descarta manchas/pontos pequenos por área de componente
+# conectado (letras são blobs bem maiores que ruído de fundo), e fecha as pequenas
+# quebras que a remoção da linha deixa no meio das letras.
 _CAPTCHA_IMAGE_PREP = """
 def _hac_read_captcha_text(img_path):
     _img = cv2.imread(img_path)
     _gray = cv2.cvtColor(_img, cv2.COLOR_BGR2GRAY)
     _gray = cv2.resize(_gray, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
     _gray = cv2.medianBlur(_gray, 3)
-    _, _bin = cv2.threshold(_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    _kernel = np.ones((2, 2), np.uint8)
-    _clean = cv2.morphologyEx(_bin, cv2.MORPH_OPEN, _kernel)
-    _cfg = "--psm 7 --oem 3 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    return pytesseract.image_to_string(_clean, config=_cfg).strip()
+    _, _bin = cv2.threshold(_gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    _h, _w = _bin.shape
+
+    _lines = cv2.HoughLinesP(_bin, 1, np.pi / 180, threshold=150,
+                              minLineLength=int(_w * 0.35), maxLineGap=10)
+    _line_thickness = max(8, int(_h * 0.05))
+    if _lines is not None:
+        for _l in _lines:
+            _x1, _y1, _x2, _y2 = _l[0]
+            cv2.line(_bin, (_x1, _y1), (_x2, _y2), 0, thickness=_line_thickness)
+
+    _n, _labels, _stats, _ = cv2.connectedComponentsWithStats(_bin, connectivity=8)
+    _min_area = max(30, int(0.0003 * _h * _w))
+    _clean = np.zeros_like(_bin)
+    for _i in range(1, _n):
+        if _stats[_i, cv2.CC_STAT_AREA] >= _min_area:
+            _clean[_labels == _i] = 255
+
+    _clean = cv2.morphologyEx(_clean, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+    _final = cv2.bitwise_not(_clean)
+
+    _whitelist = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+    for _psm in (8, 7, 13):
+        _cfg = "--psm %d --oem 3 -c tessedit_char_whitelist=%s" % (_psm, _whitelist)
+        _txt = pytesseract.image_to_string(_final, config=_cfg).strip()
+        if _txt:
+            return _txt
+    return ""
 """
 
 
