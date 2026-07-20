@@ -332,6 +332,7 @@ let _studioRunAutoId = null;
 let _draggedStepId = null;
 let _draggedActionType = null;
 let _stepClipboard = null;
+let _stepNumbers = {};
 
 // ─── Step defaults (shared) ───────────────────────────────────────
 const STEP_DEFAULTS = {
@@ -443,6 +444,23 @@ function _countSteps(steps) {
       for (const b of _branches(s)) n += _countSteps(s[b] || []);
   }
   return n;
+}
+
+// Numeração sequencial (pré-ordem, de cima pra baixo, entrando em containers) —
+// recalculada a cada render do canvas, então mover/adicionar/remover um passo
+// atualiza os números na hora, sem lógica extra além do próprio re-render.
+function _computeStepNumbers() {
+  const map = {};
+  let n = 0;
+  (function walk(steps) {
+    for (const s of steps) {
+      n++;
+      map[s.id] = n;
+      if (CONTAINER_TYPES.has(s.type))
+        for (const b of _branches(s)) walk(s[b] || []);
+    }
+  })(_buildSteps);
+  return map;
 }
 
 function _getTargetArr(containerId, branch) {
@@ -645,8 +663,10 @@ function _appendNewRunSteps(run) {
     const s = steps[idx];
     const color = sc[s.status] || '#94a3b8';
     const icon  = si[s.status] || '?';
+    const num   = _stepNumbers[s.step_id];
+    const numTag = num ? `<span style="color:#818cf8;font-weight:700">[${num}]</span> ` : '';
     _appendBuilderLog(
-      `<span style="color:${color}">${icon} ${meta_icon(s.step_type)} ${escapeHtml(s.step_name)}</span>` +
+      `<span style="color:${color}">${icon} ${numTag}${meta_icon(s.step_type)} ${escapeHtml(s.step_name)}</span>` +
       `<span style="color:#475569"> (${s.duration_ms}ms)</span>\n`
     );
     if (s.output) _appendBuilderLog(
@@ -842,6 +862,7 @@ function togglePaletteCat(key) {
 function _renderBuilderCanvas() {
   const canvas = document.getElementById('builder-canvas');
   if (!canvas) return;
+  _stepNumbers = _computeStepNumbers();
   const total = _countSteps(_buildSteps);
   const count = document.getElementById('builder-step-count');
   if (count) count.textContent = `${total} ação${total !== 1 ? 'ões' : ''}`;
@@ -892,6 +913,7 @@ function _renderLeaf(step, arr, idx, containerId, branch, depth) {
     ondragend="_onStepDragEnd(event,this)"
     style="display:flex;align-items:center;gap:.65rem;padding:${pad};background:${sel ? meta.bg : 'white'};border:2px solid ${sel ? meta.color : '#e2e8f0'};border-radius:10px;cursor:grab;width:100%;box-sizing:border-box;transition:border-color .12s,box-shadow .12s;box-shadow:${sel ? `0 0 0 3px ${meta.color}33` : '0 1px 2px rgba(0,0,0,.05)'};opacity:${disabled?.5:1};filter:${disabled?'grayscale(60%)':'none'}">
     <div style="color:#cbd5e1;font-size:.95rem;flex-shrink:0;user-select:none;line-height:1">⠿</div>
+    <div title="Passo ${_stepNumbers[step.id]||''} do fluxo" style="min-width:18px;height:18px;padding:0 3px;border-radius:5px;background:#eef2ff;color:#4f46e5;font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_stepNumbers[step.id]||''}</div>
     <div style="width:${depth>0?28:32}px;height:${depth>0?28:32}px;border-radius:8px;background:${meta.bg};border:1.5px solid ${meta.color}44;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_icon(meta.icon, depth>0?16:18, meta.color)}</div>
     <div style="flex:1;min-width:0">
       <div style="display:flex;align-items:center;gap:.3rem;font-weight:700;font-size:${depth>0?'.75rem':'.8rem'};color:${meta.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${disabled?_icon('ban',12,'#ef4444'):''}${escapeHtml(step.name)}</div>
@@ -923,6 +945,7 @@ function _renderContainer(step, arr, idx, containerId, branch, depth) {
     ondragend="_onStepDragEnd(event,this)"
     style="display:flex;align-items:center;gap:.65rem;padding:.6rem .875rem;cursor:grab;border-radius:10px 10px 0 0;transition:background .12s">
     <div style="color:#94a3b8;font-size:.95rem;flex-shrink:0;user-select:none;line-height:1">⠿</div>
+    <div title="Passo ${_stepNumbers[step.id]||''} do fluxo" style="min-width:18px;height:18px;padding:0 3px;border-radius:5px;background:#eef2ff;color:#4f46e5;font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_stepNumbers[step.id]||''}</div>
     <div style="width:30px;height:30px;border-radius:7px;background:${meta.bg};border:1.5px solid ${meta.color};display:flex;align-items:center;justify-content:center;flex-shrink:0">${_icon(meta.icon, 17, meta.color)}</div>
     <div style="flex:1;min-width:0">
       <div style="display:flex;align-items:center;gap:.3rem;font-weight:700;font-size:.8rem;color:${meta.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${disabled?_icon('ban',12,'#ef4444'):''}${escapeHtml(step.name)}</div>
