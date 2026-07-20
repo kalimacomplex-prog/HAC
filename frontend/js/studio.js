@@ -357,7 +357,7 @@ const STEP_DEFAULTS = {
   pipeline_id: '',
   text_input: '{output}', operation: 'upper', search: '', replace_with: '',
   browser_actions: [], browser_engine: 'playwright', browser_headless: true, browser_profile: '',
-  browser_window_state: 'normal', browser_focus: false,
+  browser_window_state: 'normal', browser_focus: false, ocr_engine: 'tesseract',
   session_name: '', target: '',
   source_path: '', dest_path: '', hash_algo: 'sha256', encoding_from: 'utf-8', encoding_to: 'utf-8',
   date_value: '', date_value2: '', date_unit: 'days', date_amount: 0,
@@ -2627,7 +2627,17 @@ function _renderPropsPanel(step) {
       html += _field('SELETOR DA IMAGEM DO CAPTCHA', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="#captcha-img" onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
       html += _SELECTOR_HINT;
       html += _field('SELETOR DO CAMPO PRA DIGITAR O RESULTADO (opcional)', `<input type="text" value="${escapeHtml(c.value||'')}" placeholder="#captcha-input (vazio = só lê, não digita)" onchange="_upCfg('${step.id}','value',this.value)" ${_inp('font-family:monospace')} />`);
-      html += _hint('Tira um print só da imagem do captcha e lê o texto via OCR (Tesseract, instalado automaticamente se faltar). Funciona bem só em captcha de texto distorcido "clássico" — reCAPTCHA e hCaptcha não são feitos de imagem de texto, então não dá pra ler assim; use "Aguardar resolução manual" pra esses.');
+      const ocrEngine = c.ocr_engine || 'tesseract';
+      html += _field('MOTOR DE OCR', `<select onchange="_upCfg('${step.id}','ocr_engine',this.value)" ${_sel()}>
+        <option value="tesseract" ${ocrEngine==='tesseract'?'selected':''}>Tesseract (rápido, mais leve)</option>
+        <option value="easyocr"   ${ocrEngine==='easyocr'  ?'selected':''}>EasyOCR (deep learning, mais preciso em texto distorcido)</option>
+      </select>`);
+      const ocrHints = {
+        tesseract: 'OCR clássico baseado em regras. Instala sozinho no agente se faltar, é rápido (frações de segundo por chamada) e leve. Usa um pré-processamento próprio (remoção de linhas de ruído, filtro de manchas) pra compensar as limitações dele em captcha real.',
+        easyocr: 'Modelo de deep learning (PyTorch) — geralmente bem mais tolerante a texto distorcido/riscado que OCR clássico, sem precisar de tanto pré-processamento manual. Trade-off real: primeira execução nesse agente instala o PyTorch e baixa os pesos do modelo (pode levar alguns minutos, só uma vez); toda chamada depois disso recarrega o modelo do zero (cada ação roda num processo novo), então é sempre mais lento por chamada que o Tesseract — poucos segundos, não frações de segundo.',
+      };
+      html += `<p style="font-size:.7rem;color:#7c3aed;margin:-.35rem 0 .1rem;line-height:1.5">ℹ️ ${ocrHints[ocrEngine]}</p>`;
+      html += _hint('Tira um print só da imagem do captcha e lê o texto via OCR. Funciona bem só em captcha de texto distorcido "clássico" — reCAPTCHA e hCaptcha não são feitos de imagem de texto, então não dá pra ler assim; use "Aguardar resolução manual" pra esses.');
       break;
     }
 
@@ -2671,7 +2681,7 @@ function _upCfg(id, field, value) {
     // Campos controlados por botão/toggle (não por <input>/<textarea> com onchange)
     // precisam redesenhar o painel na hora, senão o botão destacado fica mostrando
     // a opção antiga até o usuário sair e voltar — o dado já mudou, só a tela não.
-    if (['operation','type','run_on','browser_headless','browser_profile'].includes(field)) _renderPropsPanel(step);
+    if (['operation','type','run_on','browser_headless','browser_profile','ocr_engine'].includes(field)) _renderPropsPanel(step);
   }
 }
 

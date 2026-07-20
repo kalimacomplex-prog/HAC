@@ -593,16 +593,16 @@ _SESSION_LIFETIME_SECONDS = 30 * 60  # watchdog mata o navegador sozinho após e
 _HAC_ENSURE_PKG = """
 import importlib as _hac_importlib
 
-def _hac_ensure_pkg(pkg, import_name=None):
+def _hac_ensure_pkg(pkg, import_name=None, timeout=180):
     import_name = import_name or pkg
     try:
         _hac_importlib.import_module(import_name)
         return
     except ModuleNotFoundError:
         pass
-    print("Pacote '" + pkg + "' ausente no agente — instalando automaticamente...")
+    print("Pacote '" + pkg + "' ausente no agente — instalando automaticamente (pode demorar alguns minutos em pacotes grandes)...")
     _r = subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", pkg],
-                         capture_output=True, text=True, timeout=180)
+                         capture_output=True, text=True, timeout=timeout)
     if _r.returncode != 0:
         raise ModuleNotFoundError(
             "Pacote '" + pkg + "' ausente no agente (interpretador " + sys.executable +
@@ -694,6 +694,31 @@ def _hac_read_captcha_text(img_path):
         if _txt:
             return _txt
     return ""
+"""
+
+
+# Alternativa ao Tesseract pra "Resolver captcha de imagem (OCR)" — EasyOCR é um
+# modelo de deep learning (PyTorch), geralmente bem mais tolerante a texto
+# distorcido/riscado do que OCR clássico baseado em regras, sem precisar de todo
+# aquele pré-processamento manual (linhas, componente conectado etc): o modelo já
+# aprendeu a ignorar ruído parecido durante o treino. Trade-off: instalação pesada
+# (puxa PyTorch, várias centenas de MB) e mais lento por chamada — cada ação roda
+# num processo novo, então o modelo é recarregado do zero toda vez.
+_CAPTCHA_EASYOCR_PREP = """
+_hac_easyocr_reader = None
+def _hac_read_captcha_text(img_path):
+    global _hac_easyocr_reader
+    if _hac_easyocr_reader is None:
+        _hac_easyocr_reader = easyocr.Reader(["en"], gpu=False, verbose=False)
+    _img = cv2.imread(img_path)
+    _gray = cv2.cvtColor(_img, cv2.COLOR_BGR2GRAY)
+    _gray = cv2.resize(_gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+    _whitelist = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+    _results = _hac_easyocr_reader.readtext(_gray, detail=1, paragraph=False, allowlist=_whitelist)
+    if not _results:
+        return ""
+    _results.sort(key=lambda _r: _r[0][0][0])
+    return "".join(_r[1] for _r in _results).strip()
 """
 
 
@@ -940,10 +965,14 @@ def _gen_session_open_script(session_name: str, target: str, headless: bool, ctx
 
 
 def _gen_session_action_script(action_type: str, port: int, target: str, value: str, ctx: dict,
-                               engine: str = "playwright") -> str:
+                               engine: str = "playwright", ocr_engine: str = "tesseract") -> str:
     """Gera script pequeno que se RECONECTA numa sessão já aberta — via CDP
     (Playwright) ou via `debuggerAddress` (Selenium) —, executa uma única ação
-    e se desconecta SEM encerrar o navegador remoto (a sessão continua viva)."""
+    e se desconecta SEM encerrar o navegador remoto (a sessão continua viva).
+
+    `ocr_engine` ("tesseract" | "easyocr") só é usado por captcha_solve_image —
+    troca qual implementação de `_hac_read_captcha_text` é embutida no script,
+    o resto do código (que só CHAMA essa função) não muda."""
     tgt = _sub(target, ctx).replace("\\", "\\\\").replace('"', '\\"')
     val = _sub(value, ctx).replace("\\", "\\\\").replace('"', '\\"')
     indent = "    "
@@ -986,22 +1015,32 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
             "",
         ]
         if action_type == "captcha_solve_image":
-            lines += [
-                inspect.getsource(_ensure_native_binary),
-                inspect.getsource(_find_tesseract_binary),
-                inspect.getsource(_tesseract_installed),
-                "_hac_ensure_pkg('pytesseract')",
-                "_hac_ensure_pkg('Pillow', 'PIL')",
-                "_hac_ensure_pkg('opencv-python-headless<5.0.0', 'cv2')",
-                "_hac_ensure_pkg('numpy')",
-                "_ensure_native_binary('Tesseract OCR', _tesseract_installed, 'UB-Mannheim.TesseractOCR', 'tesseract-ocr', 'tesseract')",
-                "import pytesseract, cv2, numpy as np",
-                "from PIL import Image",
-                "_tess_bin = _find_tesseract_binary()",
-                "if _tess_bin: pytesseract.pytesseract.tesseract_cmd = _tess_bin",
-                "",
-                _CAPTCHA_IMAGE_PREP.strip("\n"),
-            ]
+            if ocr_engine == "easyocr":
+                lines += [
+                    "_hac_ensure_pkg('opencv-python-headless<5.0.0', 'cv2')",
+                    "_hac_ensure_pkg('numpy')",
+                    "_hac_ensure_pkg('easyocr', timeout=600)",
+                    "import cv2, numpy as np, easyocr",
+                    "",
+                    _CAPTCHA_EASYOCR_PREP.strip("\n"),
+                ]
+            else:
+                lines += [
+                    inspect.getsource(_ensure_native_binary),
+                    inspect.getsource(_find_tesseract_binary),
+                    inspect.getsource(_tesseract_installed),
+                    "_hac_ensure_pkg('pytesseract')",
+                    "_hac_ensure_pkg('Pillow', 'PIL')",
+                    "_hac_ensure_pkg('opencv-python-headless<5.0.0', 'cv2')",
+                    "_hac_ensure_pkg('numpy')",
+                    "_ensure_native_binary('Tesseract OCR', _tesseract_installed, 'UB-Mannheim.TesseractOCR', 'tesseract-ocr', 'tesseract')",
+                    "import pytesseract, cv2, numpy as np",
+                    "from PIL import Image",
+                    "_tess_bin = _find_tesseract_binary()",
+                    "if _tess_bin: pytesseract.pytesseract.tesseract_cmd = _tess_bin",
+                    "",
+                    _CAPTCHA_IMAGE_PREP.strip("\n"),
+                ]
         lines += [
             "_opts = webdriver.ChromeOptions()",
             f"_opts.add_experimental_option('debuggerAddress', '127.0.0.1:{port}')",
@@ -1132,22 +1171,32 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
         "",
     ]
     if action_type == "captcha_solve_image":
-        lines += [
-            inspect.getsource(_ensure_native_binary),
-            inspect.getsource(_find_tesseract_binary),
-            inspect.getsource(_tesseract_installed),
-            "_hac_ensure_pkg('pytesseract')",
-            "_hac_ensure_pkg('Pillow', 'PIL')",
-            "_hac_ensure_pkg('opencv-python-headless<5.0.0', 'cv2')",
-            "_hac_ensure_pkg('numpy')",
-            "_ensure_native_binary('Tesseract OCR', _tesseract_installed, 'UB-Mannheim.TesseractOCR', 'tesseract-ocr', 'tesseract')",
-            "import pytesseract, cv2, numpy as np",
-            "from PIL import Image",
-            "_tess_bin = _find_tesseract_binary()",
-            "if _tess_bin: pytesseract.pytesseract.tesseract_cmd = _tess_bin",
-            "",
-            _CAPTCHA_IMAGE_PREP.strip("\n"),
-        ]
+        if ocr_engine == "easyocr":
+            lines += [
+                "_hac_ensure_pkg('opencv-python-headless<5.0.0', 'cv2')",
+                "_hac_ensure_pkg('numpy')",
+                "_hac_ensure_pkg('easyocr', timeout=600)",
+                "import cv2, numpy as np, easyocr",
+                "",
+                _CAPTCHA_EASYOCR_PREP.strip("\n"),
+            ]
+        else:
+            lines += [
+                inspect.getsource(_ensure_native_binary),
+                inspect.getsource(_find_tesseract_binary),
+                inspect.getsource(_tesseract_installed),
+                "_hac_ensure_pkg('pytesseract')",
+                "_hac_ensure_pkg('Pillow', 'PIL')",
+                "_hac_ensure_pkg('opencv-python-headless<5.0.0', 'cv2')",
+                "_hac_ensure_pkg('numpy')",
+                "_ensure_native_binary('Tesseract OCR', _tesseract_installed, 'UB-Mannheim.TesseractOCR', 'tesseract-ocr', 'tesseract')",
+                "import pytesseract, cv2, numpy as np",
+                "from PIL import Image",
+                "_tess_bin = _find_tesseract_binary()",
+                "if _tess_bin: pytesseract.pytesseract.tesseract_cmd = _tess_bin",
+                "",
+                _CAPTCHA_IMAGE_PREP.strip("\n"),
+            ]
     lines += [
         "with sync_playwright() as _pw:",
         f"    _br = _pw.chromium.connect_over_cdp('http://127.0.0.1:{port}')",
@@ -3361,14 +3410,21 @@ async def _exec_step(step: dict, ctx: dict) -> str:
             return result
 
         action_type = t[len("browser_"):]  # click | type | extract | wait | screenshot | captcha_*
+        ocr_engine = cfg.get("ocr_engine", "tesseract")
+        if ocr_engine not in ("tesseract", "easyocr"):
+            ocr_engine = "tesseract"
         script = _gen_session_action_script(action_type, session["port"], cfg.get("target", ""), cfg.get("value", ""),
-                                             ctx, engine=session.get("engine", "playwright"))
+                                             ctx, engine=session.get("engine", "playwright"), ocr_engine=ocr_engine)
         # captcha_wait espera alguém resolver na tela — pode legitimamente demorar mais
         # que as demais ações (padrão 120s configurável no campo 'value'); o timeout de
         # polling aqui precisa ser maior que o deadline interno do script, senão a HAC
-        # desiste antes do próprio script.
+        # desiste antes do próprio script. captcha_solve_image com EasyOCR pode levar
+        # minutos na PRIMEIRA vez nesse agente (instala PyTorch + baixa os pesos do
+        # modelo) — depois disso fica rápido (poucos segundos por chamada).
         if action_type == "captcha_wait":
             dispatch_timeout = int(float(cfg.get("value") or 120)) + 30
+        elif action_type == "captcha_solve_image" and ocr_engine == "easyocr":
+            dispatch_timeout = 600
         else:
             dispatch_timeout = 60
         raw = await _run_agent_script(

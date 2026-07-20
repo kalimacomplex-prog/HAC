@@ -265,6 +265,7 @@ class StepConfig(BaseModel):
     browser_profile: str = ""
     browser_window_state: str = "normal"
     browser_focus: bool = False
+    ocr_engine: str = "tesseract"
     # arquivos / compactação (Fase 1)
     source_path: str = ""
     dest_path: str = ""
