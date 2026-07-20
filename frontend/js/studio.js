@@ -1546,8 +1546,8 @@ function _renderPropsPanel(step) {
       break;
 
     case 'log':
-      html += _field('TEXTO DO LOG', `<textarea onchange="_upCfg('${step.id}','text',this.value)" rows="3" placeholder="Processando {item}, resultado: {output}" ${_ta()}>${escapeHtml(c.text||'')}</textarea>`);
-      html += _hint('{output} {input} {varname} são substituídos e o texto final aparece na saída deste passo — tipo um print(), só pra acompanhar a execução. Não altera o {output} pro próximo passo.');
+      html += _field('TEXTO DO LOG', `<textarea onchange="_upCfg('${step.id}','text',this.value)" rows="3" placeholder='"Processando item" item_index "de" total "- resultado:" output' ${_ta()}>${escapeHtml(c.text||'')}</textarea>`);
+      html += _hint('Tipo um print(): cada palavra SEM aspas é tratada como nome de variável (ou output/input) — texto literal precisa ir entre "aspas". Tudo é juntado com espaço e aparece na saída deste passo, sem alterar o {output} que o próximo passo recebe. Ex: "Item" item_index "->" output');
       break;
 
     case 'break_loop':

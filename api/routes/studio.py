@@ -773,10 +773,26 @@ async def _exec_step(step: dict, ctx: dict) -> str:
         return f"# {cfg.get('text', '')}"
 
     if t == "log":
-        # Igual ao comment, mas COM substituição de {input}/{output}/{variavel} — um
-        # "print" de debug: aparece no output do passo no log, sem alterar ctx['output']
-        # pra não quebrar o {output} do próximo passo (é só uma anotação, não um dado).
-        return _sub(cfg.get("text", ""), ctx)
+        # Tipo um print(a, "texto", b): cada palavra solta (sem aspas) é tratada como
+        # nome de variável (ou output/input); texto literal precisa vir entre "aspas".
+        # Junta tudo com espaço. Não passa por ctx['output'] — é só uma anotação de
+        # debug, não deve mudar o {output} que o próximo passo recebe.
+        raw = cfg.get("text", "")
+        parts = []
+        for m in re.finditer(r'"([^"]*)"|(\S+)', raw):
+            if m.group(1) is not None:
+                parts.append(m.group(1))
+            else:
+                word = m.group(2)
+                if word == "output":
+                    parts.append(str(ctx.get("output", "")))
+                elif word == "input":
+                    parts.append(str(ctx.get("input", "")))
+                elif word in ctx.get("vars", {}):
+                    parts.append(str(ctx["vars"][word]))
+                else:
+                    parts.append(word)
+        return " ".join(parts)
 
     # condition é tratado no loop principal (precisa controlar índice)
     # loop_count idem — retornamos placeholder aqui
