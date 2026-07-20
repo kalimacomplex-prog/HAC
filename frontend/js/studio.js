@@ -1563,7 +1563,7 @@ function _renderPropsPanel(step) {
     case 'calculate':
       html += _field('NOME DA VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" placeholder="resultado" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
       html += _field('EXPRESSÃO PYTHON', `<input type="text" value="${escapeHtml(c.expression||'')}" placeholder="len(output) * 2" onchange="_upCfg('${step.id}','expression',this.value)" ${_inp('font-family:monospace')} />`);
-      html += _hint('math, abs, round, len, str, int, float, min, max disponíveis. Variáveis pelo nome.');
+      html += _hint('math, abs, round, len, str, int, float, min, max disponíveis. Variáveis pelo nome (ex: int(item_index) + 1) — NÃO coloque chaves { } aqui, isso já é Python puro e { } vira um conjunto (set), não uma variável.');
       break;
 
     case 'read_file':
@@ -1768,8 +1768,9 @@ function _renderPropsPanel(step) {
     case 'write_cell':
       html += _field('ARQUIVO EXCEL (já existente)', `<input type="text" value="${escapeHtml(c.file_path||'')}" placeholder="/tmp/planilha.xlsx" onchange="_upCfg('${step.id}','file_path',this.value)" ${_inp('font-family:monospace')} />`);
       html += _field('ABA (vazio = ativa)', `<input type="text" value="${escapeHtml(c.sheet_name||'')}" placeholder="Sheet1" onchange="_upCfg('${step.id}','sheet_name',this.value)" ${_inp()} />`);
-      html += _field('CÉLULA', `<input type="text" value="${escapeHtml(c.cell_ref||'')}" placeholder="B3" onchange="_upCfg('${step.id}','cell_ref',this.value)" ${_inp('font-family:monospace;max-width:100px')} />`);
+      html += _field('CÉLULA', `<input type="text" value="${escapeHtml(c.cell_ref||'')}" placeholder="B3 ou C{novoindex}" onchange="_upCfg('${step.id}','cell_ref',this.value)" ${_inp('font-family:monospace;max-width:140px')} />`);
       html += _field('VALOR', `<input type="text" value="${escapeHtml(c.cell_value||'')}" placeholder="{output} ou texto fixo" onchange="_upCfg('${step.id}','cell_value',this.value)" ${_inp()} />`);
+      html += _hint('Célula aceita texto fixo misturado com {variavel} (ex: C{novoindex} → C1, C2...), mas não avalia expressões como "C" + novoindex — isso fica como digitado e dá erro de célula inválida.');
       break;
 
     case 'remove_row':
