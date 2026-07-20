@@ -5,12 +5,12 @@ import tempfile
 from typing import Dict, Any, Tuple
 
 
-def run_script(script: str, params: Dict[str, Any], timeout: int) -> Tuple[str, str]:
+def run_script(script: str, params: Dict[str, Any], timeout: int) -> Tuple[str, str, int]:
     """
     Executa um script Python em subprocess isolado.
     Parâmetros são passados como variáveis de ambiente HAC_PARAM_<KEY>=<VALUE>.
     O script pode acessá-los com os.environ.get('HAC_PARAM_NOME').
-    Retorna (stdout, stderr).
+    Retorna (stdout, stderr, returncode).
     """
     env = os.environ.copy()
     for key, value in params.items():
@@ -34,10 +34,10 @@ def run_script(script: str, params: Dict[str, Any], timeout: int) -> Tuple[str, 
             timeout=timeout,
             env=env,
         )
-        return result.stdout, result.stderr
+        return result.stdout, result.stderr, result.returncode
     except subprocess.TimeoutExpired:
-        return "", f"Timeout: execução ultrapassou {timeout}s"
+        return "", f"Timeout: execução ultrapassou {timeout}s", 1
     except Exception as e:
-        return "", str(e)
+        return "", str(e), 1
     finally:
         os.unlink(tmp_path)

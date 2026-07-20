@@ -94,9 +94,13 @@ def main():
             job = claim_job(token)
             if job:
                 log.info(f"Executando job {job['job_id']} | processo: {job['process_name']}")
-                output, error = run_script(job["script"], job.get("params", {}), job.get("timeout_seconds", 300))
-                status = "failed" if error else "done"
-                finish_job(token, job["job_id"], status, output, error)
+                output, error, returncode = run_script(job["script"], job.get("params", {}), job.get("timeout_seconds", 300))
+                # status vem do returncode do processo, NÃO de "stderr tem algo escrito" —
+                # bibliotecas como PyTorch imprimem warnings inofensivos em stderr mesmo
+                # numa execução bem-sucedida (ex: EasyOCR), o que marcava o job como
+                # "failed" mesmo quando o script rodou e retornou o resultado certo.
+                status = "failed" if returncode != 0 else "done"
+                finish_job(token, job["job_id"], status, output, error if status == "failed" else None)
                 log.info(f"Job {job['job_id']} finalizado: {status}")
             else:
                 time.sleep(POLL_INTERVAL)

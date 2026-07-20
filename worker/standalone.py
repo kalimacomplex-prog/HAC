@@ -190,11 +190,11 @@ def _run_script(script: str, params: dict, timeout: int):
             capture_output=True, text=True, encoding="utf-8", errors="replace",
             timeout=timeout, env=env,
         )
-        return result.stdout, result.stderr
+        return result.stdout, result.stderr, result.returncode
     except subprocess.TimeoutExpired:
-        return "", f"Timeout: execucao ultrapassou {timeout}s"
+        return "", f"Timeout: execucao ultrapassou {timeout}s", 1
     except Exception as e:
-        return "", str(e)
+        return "", str(e), 1
     finally:
         os.unlink(tmp)
 
@@ -317,11 +317,15 @@ def main():
             job = _claim(api_url, token, agent_id)
             if job:
                 log.info(f"Executando job {job['job_id']} | processo: {job['process_name']}")
-                output, error = _run_script(
+                output, error, returncode = _run_script(
                     job["script"], job.get("params", {}), job.get("timeout_seconds", 300)
                 )
-                status = "failed" if error else "done"
-                _finish(api_url, token, job["job_id"], status, output, error)
+                # status vem do returncode, não de "stderr tem algo escrito" — libs como
+                # PyTorch imprimem warnings inofensivos em stderr mesmo numa execução
+                # bem-sucedida (ex: EasyOCR), o que marcava o job como "failed" mesmo
+                # quando o script rodou e retornou o resultado certo.
+                status = "failed" if returncode != 0 else "done"
+                _finish(api_url, token, job["job_id"], status, output, error if status == "failed" else None)
                 log.info(f"Job {job['job_id']} finalizado: {status}")
             else:
                 time.sleep(POLL_INTERVAL)
