@@ -681,9 +681,13 @@ function _appendNewRunSteps(run) {
     if (s.output) _appendBuilderLog(
       `<span style="color:#64748b">  → ${escapeHtml(s.output.replace(/\n/g,'↵ ').substring(0, 200))}${s.output.length > 200 ? '…' : ''}</span>\n`
     );
-    if (s.error)  _appendBuilderLog(
-      `<span style="color:#ef4444">  ✗ ${escapeHtml(s.error.substring(0, 800))}</span>\n`
-    );
+    if (s.error) {
+      // Corta do INÍCIO, não do fim — num traceback Python a exceção de verdade
+      // (o que interessa) sempre fica nas últimas linhas; cortar o final é a pior
+      // forma de truncar isso.
+      const errText = s.error.length > 1200 ? '…(início cortado)…\n' + s.error.slice(-1200) : s.error;
+      _appendBuilderLog(`<span style="color:#ef4444">  ✗ ${escapeHtml(errText)}</span>\n`);
+    }
   }
   _builderRenderedStepCount = steps.length;
 }
