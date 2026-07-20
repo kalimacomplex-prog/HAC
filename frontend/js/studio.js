@@ -2637,10 +2637,12 @@ function _renderPropsPanel(step) {
       html += _field('MOTOR DE OCR', `<select onchange="_upCfg('${step.id}','ocr_engine',this.value)" ${_sel()}>
         <option value="tesseract" ${ocrEngine==='tesseract'?'selected':''}>Tesseract (rápido, mais leve)</option>
         <option value="easyocr"   ${ocrEngine==='easyocr'  ?'selected':''}>EasyOCR (deep learning, mais preciso em texto distorcido)</option>
+        <option value="doctr"     ${ocrEngine==='doctr'    ?'selected':''}>docTR (deep learning, melhor resultado nos nossos testes)</option>
       </select>`);
       const ocrHints = {
         tesseract: 'OCR clássico baseado em regras. Instala sozinho no agente se faltar, é rápido (frações de segundo por chamada) e leve. Usa um pré-processamento próprio (remoção de linhas de ruído, filtro de manchas) pra compensar as limitações dele em captcha real.',
         easyocr: 'Modelo de deep learning (PyTorch) — geralmente bem mais tolerante a texto distorcido/riscado que OCR clássico, sem precisar de tanto pré-processamento manual. Trade-off real: primeira execução nesse agente instala o PyTorch e baixa os pesos do modelo (pode levar alguns minutos, só uma vez); toda chamada depois disso recarrega o modelo do zero (cada ação roda num processo novo), então é sempre mais lento por chamada que o Tesseract — poucos segundos, não frações de segundo.',
+        doctr: 'Modelo de deep learning (PyTorch, biblioteca docTR) — nos nossos testes com captchas reais foi o que deu o resultado mais preciso e com maior confiança entre os três motores. Reaproveita o mesmo pré-processamento do Tesseract (remoção de linha de ruído) antes de ler. Mesmo trade-off de instalação/velocidade do EasyOCR — primeira execução no agente demora mais (baixa PyTorch + pesos do modelo), chamadas seguintes levam alguns segundos cada.',
       };
       html += `<p style="font-size:.7rem;color:#7c3aed;margin:-.35rem 0 .1rem;line-height:1.5">ℹ️ ${ocrHints[ocrEngine]}</p>`;
       html += _hint('Tira um print só da imagem do captcha e lê o texto via OCR. Funciona bem só em captcha de texto distorcido "clássico" — reCAPTCHA e hCaptcha não são feitos de imagem de texto, então não dá pra ler assim; use "Aguardar resolução manual" pra esses.');

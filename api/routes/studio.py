@@ -635,15 +635,17 @@ def _hac_ensure_playwright_chromium():
 #  2) linhas FINAS e curvas/onduladas — a letra (em negrito) é bem mais grossa que
 #     elas, então uma abertura morfológica com um kernel maior já apaga a maior
 #     parte sozinha, sem precisar reconhecer a forma da linha.
-# A combinação que funciona nos dois casos: abertura com kernel grande primeiro
-# (resolve o caso 2 e afina o caso 1), depois Hough por cima do resultado pra achar
-# o que sobrou de reto e comprido (nenhuma letra isolada chega a 30% da largura da
-# imagem) — só apaga o que tiver ângulo claramente diagonal (12°–80°), pra não
-# confundir com a base quase-horizontal das próprias letras. Por fim descarta
-# manchas pequenas por área de componente conectado e fecha as quebras que a
-# remoção da linha deixa no meio das letras.
-_CAPTCHA_IMAGE_PREP = """
-def _hac_read_captcha_text(img_path):
+# Limpeza de imagem compartilhada por QUALQUER motor de OCR do captcha (Tesseract,
+# EasyOCR, docTR) — a combinação que funciona nos dois estilos de ruído mais comuns:
+# abertura com kernel grande primeiro (apaga sozinha linhas finas/onduladas, já que
+# a letra em negrito é bem mais grossa que elas), depois Hough por cima do que
+# sobrou pra achar linhas retas e compridas (nenhuma letra isolada chega a 30% da
+# largura da imagem) — só apaga o que tiver ângulo claramente diagonal (12°–80°),
+# pra não confundir com a base quase-horizontal das próprias letras. Por fim
+# descarta manchas pequenas por área de componente conectado e fecha as quebras
+# que a remoção da linha deixa no meio das letras.
+_CAPTCHA_CLEAN_PREP = """
+def _hac_clean_captcha_image(img_path):
     import math
     _img = cv2.imread(img_path)
     _gray = cv2.cvtColor(_img, cv2.COLOR_BGR2GRAY)
@@ -676,13 +678,18 @@ def _hac_read_captcha_text(img_path):
     # rede de segurança: se o filtro de área comeu praticamente tudo (fonte muito
     # fina/pequena nessa imagem específica, onde nenhuma letra bate o min_area),
     # usa a versão sem esse filtro em vez de mandar uma imagem quase em branco pro
-    # Tesseract — pior com ruído sobrando do que sem nenhum texto pra ler.
+    # OCR — pior com ruído sobrando do que sem nenhum texto pra ler.
     if _work.any() and _clean.sum() < 0.15 * _work.sum():
         _clean = _work
 
     _clean = cv2.morphologyEx(_clean, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
-    _final = cv2.bitwise_not(_clean)
+    return cv2.bitwise_not(_clean)
+"""
 
+
+_CAPTCHA_IMAGE_PREP = """
+def _hac_read_captcha_text(img_path):
+    _final = _hac_clean_captcha_image(img_path)
     # psm 8 (palavra única) e 13 (linha crua) concordam entre si na grande maioria
     # dos casos testados — psm 7 (linha única com segmentação por linha) se provou
     # instável nesse tipo de fonte distorcida (às vezes lê algo confiante e errado),
@@ -719,6 +726,30 @@ def _hac_read_captcha_text(img_path):
         return ""
     _results.sort(key=lambda _r: _r[0][0][0])
     return "".join(_r[1] for _r in _results).strip()
+"""
+
+
+# Terceira opção de motor pra "Resolver captcha de imagem" — docTR (deep learning,
+# PyTorch, biblioteca da Mindee) tem um modelo de RECONHECIMENTO (não o pipeline
+# completo de detecção+reconhecimento, que se mostrou ruim em testes reais — a
+# detecção padrão dele fragmenta o captcha em vários pedaços errados por causa do
+# ruído) que, alimentado com a MESMA imagem já limpa que o Tesseract usa, teve o
+# melhor resultado entre os três motores nos testes reais (ex: leu "mh4rec" com
+# 97% de confiança contra resultados parciais dos outros dois motores na mesma
+# imagem). Reaproveita _hac_clean_captcha_image — por isso continua precisando de
+# opencv/numpy, mesmo sem chamar tesseract.
+_CAPTCHA_DOCTR_PREP = """
+_hac_doctr_reco = None
+def _hac_read_captcha_text(img_path):
+    global _hac_doctr_reco
+    if _hac_doctr_reco is None:
+        _hac_doctr_reco = doctr_recognition_predictor(pretrained=True)
+    _final = _hac_clean_captcha_image(img_path)
+    _rgb = cv2.cvtColor(_final, cv2.COLOR_GRAY2RGB)
+    _results = _hac_doctr_reco([_rgb])
+    if not _results:
+        return ""
+    return _results[0][0].strip()
 """
 
 
@@ -1024,6 +1055,17 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
                     "",
                     _CAPTCHA_EASYOCR_PREP.strip("\n"),
                 ]
+            elif ocr_engine == "doctr":
+                lines += [
+                    "_hac_ensure_pkg('opencv-python-headless<5.0.0', 'cv2')",
+                    "_hac_ensure_pkg('numpy')",
+                    "_hac_ensure_pkg('python-doctr', 'doctr', timeout=600)",
+                    "import cv2, numpy as np",
+                    "from doctr.models import recognition_predictor as doctr_recognition_predictor",
+                    "",
+                    _CAPTCHA_CLEAN_PREP.strip("\n"),
+                    _CAPTCHA_DOCTR_PREP.strip("\n"),
+                ]
             else:
                 lines += [
                     inspect.getsource(_ensure_native_binary),
@@ -1039,6 +1081,7 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
                     "_tess_bin = _find_tesseract_binary()",
                     "if _tess_bin: pytesseract.pytesseract.tesseract_cmd = _tess_bin",
                     "",
+                    _CAPTCHA_CLEAN_PREP.strip("\n"),
                     _CAPTCHA_IMAGE_PREP.strip("\n"),
                 ]
         lines += [
@@ -1180,6 +1223,17 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
                 "",
                 _CAPTCHA_EASYOCR_PREP.strip("\n"),
             ]
+        elif ocr_engine == "doctr":
+            lines += [
+                "_hac_ensure_pkg('opencv-python-headless<5.0.0', 'cv2')",
+                "_hac_ensure_pkg('numpy')",
+                "_hac_ensure_pkg('python-doctr', 'doctr', timeout=600)",
+                "import cv2, numpy as np",
+                "from doctr.models import recognition_predictor as doctr_recognition_predictor",
+                "",
+                _CAPTCHA_CLEAN_PREP.strip("\n"),
+                _CAPTCHA_DOCTR_PREP.strip("\n"),
+            ]
         else:
             lines += [
                 inspect.getsource(_ensure_native_binary),
@@ -1195,6 +1249,7 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
                 "_tess_bin = _find_tesseract_binary()",
                 "if _tess_bin: pytesseract.pytesseract.tesseract_cmd = _tess_bin",
                 "",
+                _CAPTCHA_CLEAN_PREP.strip("\n"),
                 _CAPTCHA_IMAGE_PREP.strip("\n"),
             ]
     lines += [
@@ -3411,19 +3466,19 @@ async def _exec_step(step: dict, ctx: dict) -> str:
 
         action_type = t[len("browser_"):]  # click | type | extract | wait | screenshot | captcha_*
         ocr_engine = cfg.get("ocr_engine", "tesseract")
-        if ocr_engine not in ("tesseract", "easyocr"):
+        if ocr_engine not in ("tesseract", "easyocr", "doctr"):
             ocr_engine = "tesseract"
         script = _gen_session_action_script(action_type, session["port"], cfg.get("target", ""), cfg.get("value", ""),
                                              ctx, engine=session.get("engine", "playwright"), ocr_engine=ocr_engine)
         # captcha_wait espera alguém resolver na tela — pode legitimamente demorar mais
         # que as demais ações (padrão 120s configurável no campo 'value'); o timeout de
         # polling aqui precisa ser maior que o deadline interno do script, senão a HAC
-        # desiste antes do próprio script. captcha_solve_image com EasyOCR pode levar
-        # minutos na PRIMEIRA vez nesse agente (instala PyTorch + baixa os pesos do
-        # modelo) — depois disso fica rápido (poucos segundos por chamada).
+        # desiste antes do próprio script. captcha_solve_image com EasyOCR/docTR pode
+        # levar minutos na PRIMEIRA vez nesse agente (instala PyTorch + baixa os pesos
+        # do modelo) — depois disso fica rápido (poucos segundos por chamada).
         if action_type == "captcha_wait":
             dispatch_timeout = int(float(cfg.get("value") or 120)) + 30
-        elif action_type == "captcha_solve_image" and ocr_engine == "easyocr":
+        elif action_type == "captcha_solve_image" and ocr_engine in ("easyocr", "doctr"):
             dispatch_timeout = 600
         else:
             dispatch_timeout = 60
