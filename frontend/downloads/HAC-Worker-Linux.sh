@@ -68,11 +68,11 @@ def run_script(script, params, timeout):
     try:
         r = subprocess.run([sys.executable, tmp], capture_output=True, text=True,
                             encoding="utf-8", errors="replace", timeout=timeout, env=env)
-        return r.stdout, r.stderr
+        return r.stdout, r.stderr, r.returncode
     except subprocess.TimeoutExpired:
-        return "", f"Timeout: execução ultrapassou {timeout}s"
+        return "", f"Timeout: execução ultrapassou {timeout}s", 1
     except Exception as e:
-        return "", str(e)
+        return "", str(e), 1
     finally:
         os.unlink(tmp)
 PYEOF
@@ -171,9 +171,9 @@ def main():
             job = _claim(url, token, agent_id)
             if job:
                 log.info(f"Executando job {job['job_id']} | processo: {job['process_name']}")
-                output, error = run_script(job["script"], job.get("params", {}), job.get("timeout_seconds", 300))
-                status = "failed" if error else "done"
-                _finish(url, token, job["job_id"], status, output, error)
+                output, error, returncode = run_script(job["script"], job.get("params", {}), job.get("timeout_seconds", 300))
+                status = "failed" if returncode != 0 else "done"
+                _finish(url, token, job["job_id"], status, output, error if status == "failed" else None)
                 log.info(f"Job {job['job_id']} finalizado: {status}")
             else:
                 time.sleep(POLL_INTERVAL)
