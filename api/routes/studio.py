@@ -132,6 +132,52 @@ def _slugify_var(name: str) -> str:
     return s or "coluna"
 
 
+def _log_resolve_token(token: str, ctx: dict) -> str:
+    """Resolve um token solto do passo 'log': nome de variável (ou output/input),
+    opcionalmente seguido de um ou mais [indice] pra indexar dentro de uma lista/objeto
+    JSON guardado na variável — [indice] pode ser um número, "chave entre aspas" ou o
+    nome de outra variável. Ex: cep[item_index] ou dados["nome"]. Sem correspondência,
+    devolve o token literal (mesma rede de segurança do resto do parser)."""
+    m = re.match(r'^([A-Za-z_]\w*)((?:\[[^\]]*\])*)$', token)
+    if not m:
+        return token
+    base, brackets = m.group(1), m.group(2)
+    variables = ctx.get("vars", {})
+    if base == "output":
+        value = ctx.get("output", "")
+    elif base == "input":
+        value = ctx.get("input", "")
+    elif base in variables:
+        value = variables[base]
+    else:
+        return token
+
+    indices = re.findall(r'\[([^\]]*)\]', brackets)
+    if not indices:
+        return str(value)
+
+    try:
+        for idx_raw in indices:
+            idx_raw = idx_raw.strip()
+            if isinstance(value, str):
+                value = json.loads(value)
+            if idx_raw.startswith('"') and idx_raw.endswith('"'):
+                key = idx_raw[1:-1]
+            elif idx_raw in variables:
+                key = variables[idx_raw]
+            else:
+                key = idx_raw
+            if isinstance(value, list):
+                value = value[int(key)]
+            elif isinstance(value, dict):
+                value = value.get(str(key))
+            else:
+                raise TypeError(f"'{value}' não é uma lista nem um objeto JSON")
+        return str(value)
+    except Exception as e:
+        return f"{token} (erro: {e})"
+
+
 # Nome do módulo Python (o que aparece em "No module named 'X'") -> nome do pacote pip,
 # só para os casos em que os dois divergem. Usado pelo auto-instalador abaixo.
 _MODULE_TO_PACKAGE = {
@@ -774,24 +820,19 @@ async def _exec_step(step: dict, ctx: dict) -> str:
 
     if t == "log":
         # Tipo um print(a, "texto", b): cada palavra solta (sem aspas) é tratada como
-        # nome de variável (ou output/input); texto literal precisa vir entre "aspas".
-        # Junta tudo com espaço. Não passa por ctx['output'] — é só uma anotação de
-        # debug, não deve mudar o {output} que o próximo passo recebe.
+        # nome de variável (ou output/input, opcionalmente indexada com [algo] — ver
+        # _log_resolve_token); texto literal precisa vir entre "aspas". Junta tudo com
+        # espaço. Não passa por ctx['output'] — é só uma anotação de debug, não deve
+        # mudar o {output} que o próximo passo recebe.
         raw = cfg.get("text", "")
         parts = []
-        for m in re.finditer(r'"([^"]*)"|(\S+)', raw):
+        for m in re.finditer(r'"([^"]*)"|([A-Za-z_]\w*(?:\[[^\]]*\])*)|(\S+)', raw):
             if m.group(1) is not None:
                 parts.append(m.group(1))
+            elif m.group(2) is not None:
+                parts.append(_log_resolve_token(m.group(2), ctx))
             else:
-                word = m.group(2)
-                if word == "output":
-                    parts.append(str(ctx.get("output", "")))
-                elif word == "input":
-                    parts.append(str(ctx.get("input", "")))
-                elif word in ctx.get("vars", {}):
-                    parts.append(str(ctx["vars"][word]))
-                else:
-                    parts.append(word)
+                parts.append(m.group(3))
         return " ".join(parts)
 
     # condition é tratado no loop principal (precisa controlar índice)
@@ -2885,6 +2926,7 @@ def _gen_local_step_script(step: dict, ctx: dict) -> str:
         inspect.getsource(_sub),
         inspect.getsource(_store),
         inspect.getsource(_slugify_var),
+        inspect.getsource(_log_resolve_token),
         inspect.getsource(_pix_tlv),
         inspect.getsource(_pix_crc16),
         inspect.getsource(_build_pix_payload),

@@ -1547,7 +1547,7 @@ function _renderPropsPanel(step) {
 
     case 'log':
       html += _field('TEXTO DO LOG', `<textarea onchange="_upCfg('${step.id}','text',this.value)" rows="3" placeholder='"Processando item" item_index "de" total "- resultado:" output' ${_ta()}>${escapeHtml(c.text||'')}</textarea>`);
-      html += _hint('Tipo um print(): cada palavra SEM aspas é tratada como nome de variável (ou output/input) — texto literal precisa ir entre "aspas". Tudo é juntado com espaço e aparece na saída deste passo, sem alterar o {output} que o próximo passo recebe. Ex: "Item" item_index "->" output');
+      html += _hint('Tipo um print(): cada palavra SEM aspas é tratada como nome de variável (ou output/input) — texto literal precisa ir entre "aspas". Pra pegar um item de dentro de uma lista/objeto JSON guardado numa variável, indexe com colchetes: coluna[item_index] ou dados["chave"] — sem chaves { }. Tudo é juntado com espaço e aparece na saída deste passo, sem alterar o {output} que o próximo passo recebe.');
       break;
 
     case 'break_loop':
