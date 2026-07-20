@@ -790,9 +790,19 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
     val = _sub(value, ctx).replace("\\", "\\\\").replace('"', '\\"')
     indent = "    "
 
+    # Ações de captcha (detectar/aguardar resolução manual/OCR em captcha de imagem)
+    # usam esse trecho de JS pra checar se o token de resposta do reCAPTCHA/hCaptcha
+    # já foi preenchido — é assim que dá pra saber que um humano resolveu o desafio
+    # sem precisar de nenhum serviço pago de terceiro.
+    _captcha_check_js = (
+        "() => { const g = document.querySelector('textarea[name=\"g-recaptcha-response\"]'); "
+        "const h = document.querySelector('textarea[name=\"h-captcha-response\"]'); "
+        "return !!((g && g.value) || (h && h.value)); }"
+    )
+
     if engine == "selenium":
         lines = [
-            "import sys, os, time, re, subprocess",
+            "import sys, os, time, re, subprocess, tempfile",
             "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
             _HAC_ENSURE_PKG.strip("\n"),
             "_hac_ensure_pkg('selenium')",
@@ -816,6 +826,21 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
             "        return (By.XPATH, s)",
             "    return (By.CSS_SELECTOR, s)",
             "",
+        ]
+        if action_type == "captcha_solve_image":
+            lines += [
+                inspect.getsource(_ensure_native_binary),
+                inspect.getsource(_find_tesseract_binary),
+                inspect.getsource(_tesseract_installed),
+                "_hac_ensure_pkg('pytesseract')",
+                "_hac_ensure_pkg('Pillow', 'PIL')",
+                "_ensure_native_binary('Tesseract OCR', _tesseract_installed, 'UB-Mannheim.TesseractOCR', 'tesseract-ocr', 'tesseract')",
+                "import pytesseract",
+                "from PIL import Image",
+                "_tess_bin = _find_tesseract_binary()",
+                "if _tess_bin: pytesseract.pytesseract.tesseract_cmd = _tess_bin",
+            ]
+        lines += [
             "_opts = webdriver.ChromeOptions()",
             f"_opts.add_experimental_option('debuggerAddress', '127.0.0.1:{port}')",
             "_dr = webdriver.Chrome(options=_opts)",
@@ -853,6 +878,66 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
         elif action_type == "screenshot":
             path = tgt or "hac_screenshot.png"
             lines += [f'{indent}_dr.save_screenshot("{path}")', f'{indent}print("Screenshot salvo em: {path}")']
+        elif action_type == "captcha_detect":
+            # Não existe forma gratuita de RESOLVER reCAPTCHA/hCaptcha automaticamente
+            # (são desafios anti-bot de propósito) — mas dá pra DETECTAR qual apareceu,
+            # pra decidir o que fazer a seguir (ex: pausar pra alguém resolver).
+            lines += [
+                f'{indent}_type = "nenhum"',
+                f'{indent}for _fr in _dr.find_elements(By.TAG_NAME, "iframe"):',
+                f'{indent}    _src = (_fr.get_attribute("src") or "").lower()',
+                f'{indent}    if "recaptcha" in _src: _type = "recaptcha"; break',
+                f'{indent}    if "hcaptcha" in _src: _type = "hcaptcha"; break',
+                f'{indent}if _type == "nenhum" and "{tgt}":',
+                f'{indent}    try:',
+                f'{indent}        _dr.find_element(*_sel_locator("{tgt}"))',
+                f'{indent}        _type = "imagem"',
+                f'{indent}    except Exception:',
+                f'{indent}        pass',
+                f'{indent}print(_type)',
+            ]
+        elif action_type == "captcha_wait":
+            # Espera alguém resolver o captcha NA TELA (a sessão precisa estar com
+            # 'Onde executar: Agente' e sem headless pra um humano conseguir ver e
+            # interagir) — sem seletor customizado, checa o token padrão do reCAPTCHA/
+            # hCaptcha; com seletor, espera esse elemento aparecer (ex: mensagem de sucesso).
+            check_js_lit = json.dumps(f"return ({_captcha_check_js})();")
+            lines += [
+                f'{indent}_timeout_s = float("{val}" or 120)',
+                f'{indent}_deadline = time.time() + _timeout_s',
+                f'{indent}_solved = False',
+                f'{indent}while time.time() < _deadline:',
+                f'{indent}    if "{tgt}":',
+                f'{indent}        try:',
+                f'{indent}            _dr.find_element(*_sel_locator("{tgt}"))',
+                f'{indent}            _solved = True',
+                f'{indent}            break',
+                f'{indent}        except Exception:',
+                f'{indent}            pass',
+                f'{indent}    elif _dr.execute_script({check_js_lit}):',
+                f'{indent}        _solved = True',
+                f'{indent}        break',
+                f'{indent}    time.sleep(1.5)',
+                f'{indent}if not _solved:',
+                f'{indent}    raise Exception("Tempo esgotado esperando a resolução manual do captcha (" + str(_timeout_s) + "s)")',
+                f'{indent}print("Captcha resolvido")',
+            ]
+        elif action_type == "captcha_solve_image":
+            # Só funciona bem em captcha de imagem "clássico" (texto distorcido) —
+            # reCAPTCHA/hCaptcha não dá pra ler por OCR, foram feitos pra impedir isso.
+            lines += [
+                f'{indent}_el = _dr.find_element(*_sel_locator("{tgt}"))',
+                f'{indent}_img_path = tempfile.mktemp(suffix=".png")',
+                f'{indent}_el.screenshot(_img_path)',
+                f'{indent}_captcha_text = pytesseract.image_to_string(Image.open(_img_path), lang="eng", config="--psm 7").strip()',
+                f'{indent}print(_captcha_text)',
+            ]
+            if val:
+                lines += [
+                    f'{indent}if _captcha_text:',
+                    f'{indent}    _el2 = _dr.find_element(*_sel_locator("{val}"))',
+                    f'{indent}    _el2.clear(); _el2.send_keys(_captcha_text)',
+                ]
         lines += [
             "finally:",
             # Importante: NUNCA chamar _dr.quit() aqui — numa sessão anexada via
@@ -864,7 +949,7 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
         return "\n".join(lines)
 
     lines = [
-        "import sys, os, re, subprocess",
+        "import sys, os, re, time, tempfile, subprocess",
         "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
         _HAC_ENSURE_PKG.strip("\n"),
         "_hac_ensure_pkg('playwright')",
@@ -883,6 +968,22 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
         "        return 'xpath=' + s",
         "    return s",
         "",
+    ]
+    if action_type == "captcha_solve_image":
+        lines += [
+            inspect.getsource(_ensure_native_binary),
+            inspect.getsource(_find_tesseract_binary),
+            inspect.getsource(_tesseract_installed),
+            "_hac_ensure_pkg('pytesseract')",
+            "_hac_ensure_pkg('Pillow', 'PIL')",
+            "_ensure_native_binary('Tesseract OCR', _tesseract_installed, 'UB-Mannheim.TesseractOCR', 'tesseract-ocr', 'tesseract')",
+            "import pytesseract",
+            "from PIL import Image",
+            "_tess_bin = _find_tesseract_binary()",
+            "if _tess_bin: pytesseract.pytesseract.tesseract_cmd = _tess_bin",
+            "",
+        ]
+    lines += [
         "with sync_playwright() as _pw:",
         f"    _br = _pw.chromium.connect_over_cdp('http://127.0.0.1:{port}')",
         "    _bc = _br.contexts[0] if _br.contexts else _br.new_context()",
@@ -917,6 +1018,57 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
     elif action_type == "screenshot":
         path = tgt or "hac_screenshot.png"
         lines += [f'{indent}_pg.screenshot(path="{path}", full_page=True)', f'{indent}print("Screenshot salvo em: {path}")']
+    elif action_type == "captcha_detect":
+        # Não existe forma gratuita de RESOLVER reCAPTCHA/hCaptcha automaticamente
+        # (são desafios anti-bot de propósito) — mas dá pra DETECTAR qual apareceu,
+        # pra decidir o que fazer a seguir (ex: pausar pra alguém resolver).
+        lines += [
+            f'{indent}_type = "nenhum"',
+            f'{indent}for _fr in _pg.query_selector_all("iframe"):',
+            f'{indent}    _src = (_fr.get_attribute("src") or "").lower()',
+            f'{indent}    if "recaptcha" in _src: _type = "recaptcha"; break',
+            f'{indent}    if "hcaptcha" in _src: _type = "hcaptcha"; break',
+            f'{indent}if _type == "nenhum" and "{tgt}" and _pg.query_selector(_sel("{tgt}")):',
+            f'{indent}    _type = "imagem"',
+            f'{indent}print(_type)',
+        ]
+    elif action_type == "captcha_wait":
+        # Espera alguém resolver o captcha NA TELA (a sessão precisa estar com
+        # 'Onde executar: Agente' e sem headless pra um humano conseguir ver e
+        # interagir) — sem seletor customizado, checa o token padrão do reCAPTCHA/
+        # hCaptcha; com seletor, espera esse elemento aparecer (ex: mensagem de sucesso).
+        lines += [
+            f'{indent}_timeout_s = float("{val}" or 120)',
+            f'{indent}_deadline = time.time() + _timeout_s',
+            f'{indent}_solved = False',
+            f'{indent}while time.time() < _deadline:',
+            f'{indent}    if "{tgt}" and _pg.query_selector(_sel("{tgt}")):',
+            f'{indent}        _solved = True',
+            f'{indent}        break',
+            f'{indent}    elif not "{tgt}" and _pg.evaluate({json.dumps(_captcha_check_js)}):',
+            f'{indent}        _solved = True',
+            f'{indent}        break',
+            f'{indent}    time.sleep(1.5)',
+            f'{indent}if not _solved:',
+            f'{indent}    raise Exception("Tempo esgotado esperando a resolução manual do captcha (" + str(_timeout_s) + "s)")',
+            f'{indent}print("Captcha resolvido")',
+        ]
+    elif action_type == "captcha_solve_image":
+        # Só funciona bem em captcha de imagem "clássico" (texto distorcido) —
+        # reCAPTCHA/hCaptcha não dá pra ler por OCR, foram feitos pra impedir isso.
+        lines += [
+            f'{indent}_el = _pg.query_selector(_sel("{tgt}"))',
+            f'{indent}if not _el: raise Exception("Elemento da imagem do captcha não encontrado: {tgt}")',
+            f'{indent}_img_path = tempfile.mktemp(suffix=".png")',
+            f'{indent}_el.screenshot(path=_img_path)',
+            f'{indent}_captcha_text = pytesseract.image_to_string(Image.open(_img_path), lang="eng", config="--psm 7").strip()',
+            f'{indent}print(_captcha_text)',
+        ]
+        if val:
+            lines += [
+                f'{indent}if _captcha_text:',
+                f'{indent}    _pg.fill(_sel("{val}"), _captcha_text, timeout=10000)',
+            ]
     lines.append(f"{indent}_br.close()")
     return "\n".join(lines)
 
@@ -2964,7 +3116,8 @@ async def _exec_step(step: dict, ctx: dict) -> str:
     # ── Navegador (sessão persistente) ─────────────────────
 
     if t in ("browser_open", "browser_click", "browser_type", "browser_extract",
-             "browser_wait", "browser_screenshot", "browser_close"):
+             "browser_wait", "browser_screenshot", "browser_close",
+             "browser_captcha_detect", "browser_captcha_wait", "browser_captcha_solve_image"):
         session_name = _sub(cfg.get("session_name", ""), ctx).strip()
         if not session_name:
             raise Exception("Informe um nome para a sessão no campo 'Nome da sessão'.")
@@ -3029,11 +3182,19 @@ async def _exec_step(step: dict, ctx: dict) -> str:
             _store(result, var, ctx)
             return result
 
-        action_type = t[len("browser_"):]  # click | type | extract | wait | screenshot
+        action_type = t[len("browser_"):]  # click | type | extract | wait | screenshot | captcha_*
         script = _gen_session_action_script(action_type, session["port"], cfg.get("target", ""), cfg.get("value", ""),
                                              ctx, engine=session.get("engine", "playwright"))
+        # captcha_wait espera alguém resolver na tela — pode legitimamente demorar mais
+        # que as demais ações (padrão 120s configurável no campo 'value'); o timeout de
+        # polling aqui precisa ser maior que o deadline interno do script, senão a HAC
+        # desiste antes do próprio script.
+        if action_type == "captcha_wait":
+            dispatch_timeout = int(float(cfg.get("value") or 120)) + 30
+        else:
+            dispatch_timeout = 60
         raw = await _run_agent_script(
-            script, session.get("agent_id", agent_id), user_id, timeout_seconds=60,
+            script, session.get("agent_id", agent_id), user_id, timeout_seconds=dispatch_timeout,
             name_prefix="__studio_session_act_", process_label="Studio: ação na sessão",
         )
         result = raw.strip()
@@ -3056,6 +3217,7 @@ _AGENT_EXCLUDED_TYPES = {
     "call_ai_agent", "call_pipeline", "call_automation",
     "browser", "browser_open", "browser_click", "browser_type",
     "browser_extract", "browser_wait", "browser_screenshot", "browser_close",
+    "browser_captcha_detect", "browser_captcha_wait", "browser_captcha_solve_image",
 }
 
 

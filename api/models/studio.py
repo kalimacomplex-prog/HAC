@@ -47,6 +47,9 @@ class StepType(str, Enum):
     browser_wait = "browser_wait"
     browser_screenshot = "browser_screenshot"
     browser_close = "browser_close"
+    browser_captcha_detect = "browser_captcha_detect"
+    browser_captcha_wait = "browser_captcha_wait"
+    browser_captcha_solve_image = "browser_captcha_solve_image"
     # Arquivos (Fase 1)
     copy_file = "copy_file"
     move_file = "move_file"

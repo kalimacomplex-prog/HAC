@@ -315,6 +315,9 @@ const ACTION_CATEGORIES = [
     { type: 'browser_extract',    icon: 'clipboard', label: 'Extrair texto',      color: '#7c3aed', bg: '#f5f3ff' },
     { type: 'browser_wait',       icon: 'clock', label: 'Aguardar elemento',  color: '#7c3aed', bg: '#f5f3ff' },
     { type: 'browser_screenshot', icon: 'camera', label: 'Screenshot',         color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'browser_captcha_detect',      icon: 'eye', label: 'Detectar captcha', color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'browser_captcha_wait',        icon: 'clock', label: 'Aguardar resolução manual de captcha', color: '#7c3aed', bg: '#f5f3ff' },
+    { type: 'browser_captcha_solve_image', icon: 'font', label: 'Resolver captcha de imagem (OCR)', color: '#7c3aed', bg: '#f5f3ff' },
     { type: 'browser_close',      icon: 'stop', label: 'Fechar sessão',      color: '#7c3aed', bg: '#f5f3ff' },
   ]},
 ];
@@ -383,6 +386,7 @@ const AGENT_EXCLUDED_TYPES = new Set([
   'call_ai_agent', 'call_pipeline', 'call_automation',
   'browser', 'browser_open', 'browser_click', 'browser_type',
   'browser_extract', 'browser_wait', 'browser_screenshot', 'browser_close',
+  'browser_captcha_detect', 'browser_captcha_wait', 'browser_captcha_solve_image',
   'break_loop',
 ]);
 
@@ -1184,6 +1188,9 @@ function _stepBriefText(step) {
     case 'browser_extract':    return `Extrair "${(c.target || '...').substring(0, 25)}" → ${c.variable_name || 'output'} — "${c.session_name || '...'}"`;
     case 'browser_wait':       return c.target ? `Aguardar "${c.target.substring(0, 30)}" — "${c.session_name || '...'}"` : `Aguardar ${c.value || 1}s — "${c.session_name || '...'}"`;
     case 'browser_screenshot': return `Screenshot → ${c.target || 'caminho não definido'} — "${c.session_name || '...'}"`;
+    case 'browser_captcha_detect':      return `Detectar captcha — sessão "${c.session_name || '...'}"`;
+    case 'browser_captcha_wait':        return `Aguardar até ${c.value || 120}s — sessão "${c.session_name || '...'}"`;
+    case 'browser_captcha_solve_image': return `OCR em "${(c.target || '...').substring(0, 25)}" — sessão "${c.session_name || '...'}"`;
     case 'browser_close':      return `Fechar sessão "${c.session_name || '...'}"`;
     default: return '';
   }
@@ -2569,6 +2576,33 @@ function _renderPropsPanel(step) {
       html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
       html += _sessionEngineNotice(c.session_name);
       html += _field('CAMINHO DO ARQUIVO', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="ex: screenshot.png" onchange="_upCfg('${step.id}','target',this.value)" ${_inp()} />`);
+      break;
+    }
+
+    case 'browser_captcha_detect': {
+      html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
+      html += _sessionEngineNotice(c.session_name);
+      html += _field('SELETOR DE IMAGEM CUSTOMIZADO (opcional)', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="#captcha-img (só usado se não achar reCAPTCHA/hCaptcha)" onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _hint('Verifica a página por um iframe de reCAPTCHA ou hCaptcha; se não achar nenhum e um seletor customizado for informado, verifica se ele existe. Resultado (salve numa variável ou use {output} logo em seguida): "recaptcha", "hcaptcha", "imagem" ou "nenhum" — útil pra decidir o que fazer numa Condição depois.');
+      break;
+    }
+
+    case 'browser_captcha_wait': {
+      html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
+      html += _sessionEngineNotice(c.session_name);
+      html += _field('SELETOR DE SUCESSO (opcional)', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="vazio = espera o token do reCAPTCHA/hCaptcha ser preenchido" onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _field('TIMEOUT (segundos)', `<input type="number" value="${c.value||120}" min="1" onchange="_upCfg('${step.id}','value',this.value)" ${_inp()} />`);
+      html += _hint('Pausa a automação até alguém resolver o captcha NA TELA — a sessão precisa estar sem "headless" (navegador visível) pra dar pra clicar. Sem seletor, detecta automaticamente o token de resposta do reCAPTCHA/hCaptcha preenchido; com seletor, espera esse elemento aparecer (ex: uma mensagem de sucesso sua). Dá erro se estourar o timeout.');
+      break;
+    }
+
+    case 'browser_captcha_solve_image': {
+      html += _field('NOME DA SESSÃO', `<input type="text" value="${escapeHtml(c.session_name||'')}" placeholder="ex: login" onchange="_upCfg('${step.id}','session_name',this.value)" ${_inp()} />`);
+      html += _sessionEngineNotice(c.session_name);
+      html += _field('SELETOR DA IMAGEM DO CAPTCHA', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="#captcha-img" onchange="_upCfg('${step.id}','target',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _SELECTOR_HINT;
+      html += _field('SELETOR DO CAMPO PRA DIGITAR O RESULTADO (opcional)', `<input type="text" value="${escapeHtml(c.value||'')}" placeholder="#captcha-input (vazio = só lê, não digita)" onchange="_upCfg('${step.id}','value',this.value)" ${_inp('font-family:monospace')} />`);
+      html += _hint('Tira um print só da imagem do captcha e lê o texto via OCR (Tesseract, instalado automaticamente se faltar). Funciona bem só em captcha de texto distorcido "clássico" — reCAPTCHA e hCaptcha não são feitos de imagem de texto, então não dá pra ler assim; use "Aguardar resolução manual" pra esses.');
       break;
     }
 
