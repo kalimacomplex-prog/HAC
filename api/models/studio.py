@@ -262,6 +262,7 @@ class StepConfig(BaseModel):
     # browser (sessão persistente)
     session_name: str = ""
     target: str = ""
+    browser_profile: str = ""
     # arquivos / compactação (Fase 1)
     source_path: str = ""
     dest_path: str = ""
