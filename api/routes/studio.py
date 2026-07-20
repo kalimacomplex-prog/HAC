@@ -802,7 +802,7 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
 
     if engine == "selenium":
         lines = [
-            "import sys, os, time, re, subprocess, tempfile",
+            "import sys, os, time, re, subprocess, tempfile, shutil",
             "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
             _HAC_ENSURE_PKG.strip("\n"),
             "_hac_ensure_pkg('selenium')",
@@ -949,7 +949,7 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
         return "\n".join(lines)
 
     lines = [
-        "import sys, os, re, time, tempfile, subprocess",
+        "import sys, os, re, time, tempfile, subprocess, shutil",
         "sys.stdout.reconfigure(encoding='utf-8', errors='replace')",
         _HAC_ENSURE_PKG.strip("\n"),
         "_hac_ensure_pkg('playwright')",
