@@ -593,7 +593,7 @@ _SESSION_LIFETIME_SECONDS = 30 * 60  # watchdog mata o navegador sozinho após e
 _HAC_ENSURE_PKG = """
 import importlib as _hac_importlib
 
-def _hac_ensure_pkg(pkg, import_name=None, timeout=180):
+def _hac_ensure_pkg(pkg, import_name=None, timeout=180, no_deps=False):
     import_name = import_name or pkg
     try:
         _hac_importlib.import_module(import_name)
@@ -601,8 +601,11 @@ def _hac_ensure_pkg(pkg, import_name=None, timeout=180):
     except ModuleNotFoundError:
         pass
     print("Pacote '" + pkg + "' ausente no agente — instalando automaticamente (pode demorar alguns minutos em pacotes grandes)...")
-    _r = subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", pkg],
-                         capture_output=True, text=True, timeout=timeout)
+    _cmd = [sys.executable, "-m", "pip", "install", "--quiet", "--disable-pip-version-check"]
+    if no_deps:
+        _cmd.append("--no-deps")
+    _cmd.append(pkg)
+    _r = subprocess.run(_cmd, capture_output=True, text=True, timeout=timeout)
     if _r.returncode != 0:
         raise ModuleNotFoundError(
             "Pacote '" + pkg + "' ausente no agente (interpretador " + sys.executable +
@@ -751,6 +754,41 @@ def _hac_read_captcha_text(img_path):
         return ""
     return _results[0][0].strip()
 """
+
+
+# python-doctr declara opencv-python (a versão "cheia", com GUI) como dependência
+# obrigatória — mas o agente já tem opencv-python-headless instalado (mesma API,
+# usada pelos outros dois motores). Deixar o pip resolver as dependências do
+# doctr normalmente faz ele tentar REINSTALAR opencv por cima do headless já em
+# uso, e no Windows isso falha com "Acesso negado" se o .pyd estiver em uso por
+# qualquer processo Python vivo (confirmado na prática: um teste de reinstalação
+# chegou a apagar o cv2 inteiro). A solução: instalar com --no-deps e garantir
+# cada dependência real do doctr manualmente, PULANDO opencv-python de propósito
+# (o headless já satisfaz o import 'cv2' que o doctr usa internamente).
+_DOCTR_ENSURE_LINES = [
+    "_hac_ensure_pkg('opencv-python-headless<5.0.0', 'cv2')",
+    "_hac_ensure_pkg('numpy')",
+    "_hac_ensure_pkg('python-doctr', 'doctr', timeout=600, no_deps=True)",
+    "_hac_ensure_pkg('anyascii')",
+    "_hac_ensure_pkg('defusedxml')",
+    "_hac_ensure_pkg('h5py', timeout=300)",
+    "_hac_ensure_pkg('huggingface-hub', 'huggingface_hub')",
+    "_hac_ensure_pkg('langdetect')",
+    "_hac_ensure_pkg('onnx', timeout=300)",
+    "_hac_ensure_pkg('Pillow', 'PIL')",
+    "_hac_ensure_pkg('pyclipper')",
+    "_hac_ensure_pkg('pypdfium2')",
+    "_hac_ensure_pkg('rapidfuzz')",
+    "_hac_ensure_pkg('scipy', timeout=300)",
+    "_hac_ensure_pkg('shapely')",
+    "_hac_ensure_pkg('torch', timeout=600)",
+    "_hac_ensure_pkg('torchvision', timeout=600)",
+    "_hac_ensure_pkg('tqdm')",
+    "_hac_ensure_pkg('validators')",
+    "import cv2, numpy as np",
+    "from doctr.models import recognition_predictor as doctr_recognition_predictor",
+    "",
+]
 
 
 _SELENIUM_CHROME_FINDER = """
@@ -1056,13 +1094,7 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
                     _CAPTCHA_EASYOCR_PREP.strip("\n"),
                 ]
             elif ocr_engine == "doctr":
-                lines += [
-                    "_hac_ensure_pkg('opencv-python-headless<5.0.0', 'cv2')",
-                    "_hac_ensure_pkg('numpy')",
-                    "_hac_ensure_pkg('python-doctr', 'doctr', timeout=600)",
-                    "import cv2, numpy as np",
-                    "from doctr.models import recognition_predictor as doctr_recognition_predictor",
-                    "",
+                lines += _DOCTR_ENSURE_LINES + [
                     _CAPTCHA_CLEAN_PREP.strip("\n"),
                     _CAPTCHA_DOCTR_PREP.strip("\n"),
                 ]
@@ -1224,13 +1256,7 @@ def _gen_session_action_script(action_type: str, port: int, target: str, value: 
                 _CAPTCHA_EASYOCR_PREP.strip("\n"),
             ]
         elif ocr_engine == "doctr":
-            lines += [
-                "_hac_ensure_pkg('opencv-python-headless<5.0.0', 'cv2')",
-                "_hac_ensure_pkg('numpy')",
-                "_hac_ensure_pkg('python-doctr', 'doctr', timeout=600)",
-                "import cv2, numpy as np",
-                "from doctr.models import recognition_predictor as doctr_recognition_predictor",
-                "",
+            lines += _DOCTR_ENSURE_LINES + [
                 _CAPTCHA_CLEAN_PREP.strip("\n"),
                 _CAPTCHA_DOCTR_PREP.strip("\n"),
             ]
