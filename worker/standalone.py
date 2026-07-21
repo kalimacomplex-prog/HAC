@@ -13,6 +13,13 @@ import tempfile
 
 import httpx
 
+# Suprime a janela de console que o Windows abre por padrão pra QUALQUER
+# subprocess.run que lance um .exe de console (python.exe, pip) — sem isso, toda
+# execução de script/instalação de pacote pisca um terminal preto na tela. Em
+# ações rápidas passa despercebido; em ações de navegador (que demoram segundos)
+# fica visível o tempo todo.
+_NO_WINDOW_KW = {"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}
+
 # ── LOGGING ──
 logging.basicConfig(
     level=logging.INFO,
@@ -42,7 +49,7 @@ def _find_system_python():
         path = shutil.which(cmd)
         if path:
             try:
-                r = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=5)
+                r = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=5, **_NO_WINDOW_KW)
                 if r.returncode == 0:
                     return path
             except Exception:
@@ -76,7 +83,7 @@ def _ensure_venv():
 
     result = subprocess.run(
         [python, "-m", "venv", VENV_DIR],
-        capture_output=True, text=True,
+        capture_output=True, text=True, **_NO_WINDOW_KW,
     )
     if result.returncode != 0:
         print(f"Erro ao criar ambiente: {result.stderr}")
@@ -188,7 +195,7 @@ def _run_script(script: str, params: dict, timeout: int):
         result = subprocess.run(
             [VENV_PYTHON, tmp],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=timeout, env=env,
+            timeout=timeout, env=env, **_NO_WINDOW_KW,
         )
         return result.stdout, result.stderr, result.returncode
     except subprocess.TimeoutExpired:
@@ -241,7 +248,7 @@ def _check_installs(api_url: str, token: str, agent_id: str):
         log.info(f"Instalando biblioteca: {pkg}")
         result = subprocess.run(
             [VENV_PYTHON, "-m", "pip", "install", pkg],
-            capture_output=True, text=True,
+            capture_output=True, text=True, **_NO_WINDOW_KW,
         )
         if result.returncode == 0:
             log.info(f"{pkg} instalado com sucesso")

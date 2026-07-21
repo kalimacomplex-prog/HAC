@@ -4,6 +4,11 @@ import sys
 import tempfile
 from typing import Dict, Any, Tuple
 
+# Suprime a janela de console que o Windows abre por padrão pra qualquer
+# subprocess.run que lance um .exe de console (python.exe) — sem isso, toda
+# execução de script pisca um terminal preto na tela.
+_NO_WINDOW_KW = {"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}
+
 
 def run_script(script: str, params: Dict[str, Any], timeout: int) -> Tuple[str, str, int]:
     """
@@ -33,6 +38,7 @@ def run_script(script: str, params: Dict[str, Any], timeout: int) -> Tuple[str, 
             errors="replace",
             timeout=timeout,
             env=env,
+            **_NO_WINDOW_KW,
         )
         return result.stdout, result.stderr, result.returncode
     except subprocess.TimeoutExpired:

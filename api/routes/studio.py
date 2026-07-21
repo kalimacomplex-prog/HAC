@@ -257,6 +257,7 @@ def _ensure_native_binary(name: str, check, winget_id: str, apt_pkg: str, brew_p
                 ["winget", "install", "--id", winget_id, "-e", "--silent",
                  "--accept-package-agreements", "--accept-source-agreements"],
                 capture_output=True, text=True, timeout=300, stdin=subprocess.DEVNULL,
+                creationflags=subprocess.CREATE_NO_WINDOW,
             )
         elif sys.platform == "darwin" and shutil.which("brew"):
             subprocess.run(["brew", "install", brew_pkg], capture_output=True, text=True,
@@ -322,6 +323,7 @@ async def _try_pip_install(package: str) -> tuple:
         proc = await asyncio.create_subprocess_exec(
             sys.executable, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", package,
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
         )
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
         if proc.returncode == 0:
@@ -605,7 +607,8 @@ def _hac_ensure_pkg(pkg, import_name=None, timeout=180, no_deps=False):
     if no_deps:
         _cmd.append("--no-deps")
     _cmd.append(pkg)
-    _r = subprocess.run(_cmd, capture_output=True, text=True, timeout=timeout)
+    _r = subprocess.run(_cmd, capture_output=True, text=True, timeout=timeout,
+                         creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
     if _r.returncode != 0:
         raise ModuleNotFoundError(
             "Pacote '" + pkg + "' ausente no agente (interpretador " + sys.executable +
@@ -622,7 +625,8 @@ def _hac_ensure_playwright_chromium():
         return
     print("Chromium do Playwright ausente no agente — instalando automaticamente (pode demorar)...")
     _r = subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"],
-                         capture_output=True, text=True, timeout=300)
+                         capture_output=True, text=True, timeout=300,
+                         creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
     if _r.returncode != 0:
         raise RuntimeError(
             "Nao foi possivel instalar o Chromium do Playwright automaticamente: " + (_r.stderr or _r.stdout)[-500:]
@@ -978,7 +982,7 @@ def _gen_session_open_script(session_name: str, target: str, headless: bool, ctx
         "    \"import time,sys,subprocess,shutil\\n\"",
         "    \"time.sleep(%d)\\n\"",
         "    \"if sys.platform == 'win32':\\n\"",
-        "    \"    subprocess.run(['taskkill','/F','/T','/PID','%d'])\\n\"",
+        "    \"    subprocess.run(['taskkill','/F','/T','/PID','%d'], creationflags=subprocess.CREATE_NO_WINDOW)\\n\"",
         "    \"else:\\n\"",
         "    \"    subprocess.run(['kill','-9','%d'])\\n\"",
         "    \"if not %s: shutil.rmtree(r'%s', ignore_errors=True)\\n\"",
@@ -1410,7 +1414,7 @@ def _gen_session_close_script(pid: int, port: int, user_data_dir: str, engine: s
 
     lines += [
         "if sys.platform == 'win32':",
-        f"    subprocess.run(['taskkill', '/F', '/T', '/PID', '{pid}'])",
+        f"    subprocess.run(['taskkill', '/F', '/T', '/PID', '{pid}'], creationflags=subprocess.CREATE_NO_WINDOW)",
         "else:",
         f"    subprocess.run(['kill', '-9', '{pid}'])",
     ]
@@ -3300,7 +3304,8 @@ async def _exec_step(step: dict, ctx: dict) -> str:
             # antes de rodar o comando de verdade.
             command = f"chcp 65001>nul & {command}"
         proc = subprocess.run(command, shell=True, capture_output=True, text=True,
-                               encoding="utf-8", errors="replace", timeout=30, env=run_env)
+                               encoding="utf-8", errors="replace", timeout=30, env=run_env,
+                               creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
         result = proc.stdout + proc.stderr
         _store(result, var, ctx)
         return result
