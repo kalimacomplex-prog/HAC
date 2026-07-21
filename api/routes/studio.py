@@ -765,10 +765,18 @@ def _hac_read_captcha_text(img_path):
 # chegou a apagar o cv2 inteiro). A solução: instalar com --no-deps e garantir
 # cada dependência real do doctr manualmente, PULANDO opencv-python de propósito
 # (o headless já satisfaz o import 'cv2' que o doctr usa internamente).
+#
+# IMPORTANTE: todas as outras dependências precisam vir ANTES do próprio
+# 'python-doctr' na lista. _hac_ensure_pkg faz um "import doctr" pra checar se
+# precisa instalar — se qualquer sub-dependência do doctr ainda não existir,
+# esse import falha com ModuleNotFoundError (ex: "No module named 'defusedxml'"),
+# e como _hac_ensure_pkg captura ModuleNotFoundError genericamente, ele interpreta
+# isso como "doctr está ausente" — mas o pacote já está instalado (dist-info
+# presente), então o pip não faz nada (--no-deps), e a importação final falha de
+# novo com o MESMO erro, agora sem tratamento (bug real visto em produção).
 _DOCTR_ENSURE_LINES = [
     "_hac_ensure_pkg('opencv-python-headless<5.0.0', 'cv2')",
     "_hac_ensure_pkg('numpy')",
-    "_hac_ensure_pkg('python-doctr', 'doctr', timeout=600, no_deps=True)",
     "_hac_ensure_pkg('anyascii')",
     "_hac_ensure_pkg('defusedxml')",
     "_hac_ensure_pkg('h5py', timeout=300)",
@@ -785,6 +793,7 @@ _DOCTR_ENSURE_LINES = [
     "_hac_ensure_pkg('torchvision', timeout=600)",
     "_hac_ensure_pkg('tqdm')",
     "_hac_ensure_pkg('validators')",
+    "_hac_ensure_pkg('python-doctr', 'doctr', timeout=600, no_deps=True)",
     "import cv2, numpy as np",
     "from doctr.models import recognition_predictor as doctr_recognition_predictor",
     "",
