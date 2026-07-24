@@ -447,8 +447,9 @@ async function initBuilderPage() {
 
   const agentSel = document.getElementById('builder-agent-id');
   if (agentSel) {
-    agentSel.innerHTML = '<option value="">Qualquer agente</option>' +
+    agentSel.innerHTML = '<option value="" style="color:#475569">Qualquer agente</option>' +
       (_buildAgents || []).map(a => `<option value="${a.id}" style="color:${a.connected ? '#16a34a' : '#94a3b8'}">${a.connected ? '●' : '○'} ${escapeHtml(a.name)}</option>`).join(''); // <option> nativo não renderiza SVG, mas aceita cor
+    _syncSelectColor(agentSel);
   }
 
   if (_buildEditId) {
@@ -461,7 +462,7 @@ async function initBuilderPage() {
       _buildTrigger = auto.trigger ? { ...auto.trigger } : _buildTrigger;
       if (auto.webhook_url) document.getElementById('builder-webhook-url').textContent = auto.webhook_url;
       const agentSel = document.getElementById('builder-agent-id');
-      if (agentSel && auto.agent_id) agentSel.value = auto.agent_id;
+      if (agentSel && auto.agent_id) { agentSel.value = auto.agent_id; _syncSelectColor(agentSel); }
     } catch (e) {
       showToast('Erro ao carregar automação: ' + e.message, 'error');
     }

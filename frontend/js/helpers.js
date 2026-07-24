@@ -126,6 +126,13 @@ function _icon(key, size, color) {
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0">${inner}</svg>`;
 }
 
+// Navegadores (Chrome/Edge no Windows) não aplicam a cor do <option> selecionado
+// ao campo fechado do <select> — só dentro da lista aberta. Copia manualmente.
+function _syncSelectColor(selectEl) {
+  const opt = selectEl.options[selectEl.selectedIndex];
+  if (opt) selectEl.style.color = opt.style.color || '';
+}
+
 function showConfirm(title, message, onConfirm) {
   document.getElementById('confirm-title').textContent = title;
   document.getElementById('confirm-message').textContent = message;

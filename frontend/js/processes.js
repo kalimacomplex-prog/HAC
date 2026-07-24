@@ -113,7 +113,7 @@ function _fieldsToSchedule() {
 
 async function _fillAgentDropdown(selectedId = '') {
   const sel = document.getElementById('process-agent-id');
-  sel.innerHTML = '<option value="">Qualquer agente</option>';
+  sel.innerHTML = '<option value="" style="color:var(--gray-800)">Qualquer agente</option>';
   const agents = await api('GET', '/agents');
   if (agents) agents.forEach(a => {
     const opt = document.createElement('option');
@@ -123,6 +123,7 @@ async function _fillAgentDropdown(selectedId = '') {
     opt.selected = a.id === selectedId;
     sel.appendChild(opt);
   });
+  _syncSelectColor(sel);
 }
 
 async function openProcessModal() {
