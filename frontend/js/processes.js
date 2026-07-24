@@ -118,7 +118,8 @@ async function _fillAgentDropdown(selectedId = '') {
   if (agents) agents.forEach(a => {
     const opt = document.createElement('option');
     opt.value = a.id;
-    opt.textContent = a.name + (a.connected ? ' ●' : ' ○'); // <option> nativo não renderiza SVG
+    opt.textContent = a.name + (a.connected ? ' ●' : ' ○'); // <option> nativo não renderiza SVG, mas aceita cor
+    opt.style.color = a.connected ? '#16a34a' : '#94a3b8';
     opt.selected = a.id === selectedId;
     sel.appendChild(opt);
   });
