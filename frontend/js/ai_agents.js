@@ -14,13 +14,13 @@ async function loadAIAgents() {
         <td><strong>${escapeHtml(a.name)}</strong><br><span style="font-size:.78rem;color:var(--gray-500)">${escapeHtml(a.description || '')}</span></td>
         <td>${providerBadge(a.provider)}</td>
         <td><code style="font-size:.78rem;background:var(--gray-100);padding:.1rem .35rem;border-radius:4px">${escapeHtml(a.model)}</code></td>
-        <td>${a.api_key_set ? '<span style="color:#16a34a;font-size:.8rem">✓ Configurada</span>' : '<span style="color:var(--red);font-size:.8rem">✕ Sem chave</span>'}</td>
+        <td>${a.api_key_set ? `<span style="color:#16a34a;font-size:.8rem">${_icon('check', 12)} Configurada</span>` : `<span style="color:var(--red);font-size:.8rem">${_icon('x', 12)} Sem chave</span>`}</td>
         <td style="font-size:.82rem">${tokenInfo(a)}</td>
         <td>
           <div style="display:flex;gap:.3rem;flex-wrap:wrap">
-            <button class="btn btn-outline btn-xs" onclick="openAIAgentTest('${a.id}')">⚡ Testar</button>
-            <button class="btn btn-outline btn-xs" onclick="openAIAgentModal(aiAgentsList.find(x=>x.id==='${a.id}'))">✏</button>
-            <button class="btn btn-danger btn-xs" onclick="deleteAIAgent('${a.id}','${escapeHtml(a.name)}')">🗑</button>
+            <button class="btn btn-outline btn-xs" onclick="openAIAgentTest('${a.id}')">${_icon('zap', 12)} Testar</button>
+            <button class="btn btn-outline btn-xs" onclick="openAIAgentModal(aiAgentsList.find(x=>x.id==='${a.id}'))">${_icon('pencil', 12)}</button>
+            <button class="btn btn-danger btn-xs" onclick="deleteAIAgent('${a.id}','${escapeHtml(a.name)}')">${_icon('trash', 12)}</button>
           </div>
         </td>
       </tr>
@@ -215,6 +215,6 @@ async function runAIAgentTest() {
     toast(e.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = '⚡ Executar';
+    btn.innerHTML = `${_icon('zap', 12)} Executar`;
   }
 }

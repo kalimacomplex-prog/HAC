@@ -1,122 +1,3 @@
-// ─── Ícones vetoriais (substituem os antigos emojis, mesma ideia) ─
-const ICONS = {
-  branch: '<circle cx="6" cy="6" r="2.2"/><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M6 8.2V16"/><path d="M8.2 6H14a4 4 0 0 1 4 4v3.8"/>',
-  repeat: '<path d="M17 2 21 6 17 10"/><path d="M3 12V10a4 4 0 0 1 4-4h14"/><path d="M7 22 3 18 7 14"/><path d="M21 12v2a4 4 0 0 1-4 4H3"/>',
-  list: '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
-  'clock-repeat': '<path d="M12 4a8 8 0 1 1-6.9 4"/><path d="M5 4v4h4"/><path d="M12 8v5l3 2"/>',
-  'shield-alert': '<path d="M12 2 4 5v6c0 5 3.5 8.5 8 9 4.5-.5 8-4 8-9V5z"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
-  layers: '<path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>',
-  link: '<path d="M9 15 15 9"/><path d="M11 6l1.5-1.5a4 4 0 0 1 5.7 5.7L16.5 12"/><path d="M13 18l-1.5 1.5a4 4 0 0 1-5.7-5.7L7.5 12"/>',
-  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>',
-  dice: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="8.5" cy="8.5" r="1"/><circle cx="15.5" cy="8.5" r="1"/><circle cx="8.5" cy="15.5" r="1"/><circle cx="15.5" cy="15.5" r="1"/><circle cx="12" cy="12" r="1"/>',
-  message: '<path d="M4 5h16v11H8l-4 4V5z"/>',
-  box: '<path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/>',
-  calculator: '<rect x="5" y="2" width="14" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8.01" y2="11"/><line x1="12" y1="11" x2="12.01" y2="11"/><line x1="16" y1="11" x2="16.01" y2="11"/><line x1="8" y1="15" x2="8.01" y2="15"/><line x1="12" y1="15" x2="12.01" y2="15"/><line x1="16" y1="15" x2="16.01" y2="15"/><line x1="8" y1="19" x2="16" y2="19"/>',
-  'book-open': '<path d="M12 5C10 3.5 6 3 3 4v14c3-1 7-.5 9 1 2-1.5 6-2 9-1V4c-3-1-7-.5-9 1z"/><line x1="12" y1="5" x2="12" y2="19"/>',
-  pencil: '<path d="M4 20l1-4 11-11 3 3-11 11-4 1z"/><line x1="14" y1="6" x2="18" y2="10"/>',
-  folder: '<path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6z"/>',
-  trash: '<line x1="4" y1="7" x2="20" y2="7"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/>',
-  copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
-  send: '<path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9z"/>',
-  key: '<circle cx="8" cy="15" r="4"/><path d="M10.5 12.5 20 3"/><path d="M17 6l2 2"/><path d="M14 9l2 2"/>',
-  info: '<circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
-  search: '<circle cx="10.5" cy="10.5" r="6.5"/><line x1="21" y1="21" x2="15.5" y2="15.5"/>',
-  font: '<path d="M6 18 10 6h1l4 12"/><line x1="7.2" y1="14" x2="13.8" y2="14"/><path d="M16 18l2.5-6h.5L21 18"/>',
-  archive: '<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><line x1="10" y1="12" x2="14" y2="12"/>',
-  save: '<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3"/><rect x="8" y="14" width="8" height="6"/>',
-  table: '<rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="4" x2="9" y2="20"/>',
-  'file-text': '<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><line x1="9" y1="13" x2="16" y2="13"/><line x1="9" y1="17" x2="16" y2="17"/>',
-  filter: '<path d="M4 4h16l-6 8v6l-4 2v-8z"/>',
-  broom: '<path d="M19 4 9 14"/><path d="M9 14l-5 5 2 2 5-5"/><path d="M13 10l4-6 3 3-6 4z"/>',
-  sort: '<path d="M8 3v14"/><path d="M4 13l4 4 4-4"/><path d="M16 21V7"/><path d="M20 11l-4-4-4 4"/>',
-  clipboard: '<rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/>',
-  paperclip: '<path d="M8 12V6a4 4 0 0 1 8 0v10a2.5 2.5 0 0 1-5 0V8"/>',
-  scissors: '<circle cx="6" cy="6" r="2.2"/><circle cx="6" cy="18" r="2.2"/><line x1="7.5" y1="7.5" x2="20" y2="20"/><line x1="7.5" y1="16.5" x2="20" y2="4"/>',
-  printer: '<path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1"/><path d="M6 17v4h12v-4"/>',
-  edit: '<path d="M4 21h16"/><path d="M6 17l1-4 9-9 3 3-9 9-4 1z"/>',
-  'check-circle': '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>',
-  network: '<circle cx="12" cy="5" r="2.2"/><circle cx="5" cy="19" r="2.2"/><circle cx="19" cy="19" r="2.2"/><path d="M12 7.2V12"/><path d="M12 12 6.5 17"/><path d="M12 12 17.5 17"/>',
-  database: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
-  sparkles: '<path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
-  'id-card': '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="12" r="2"/><line x1="13" y1="10" x2="18" y2="10"/><line x1="13" y1="14" x2="18" y2="14"/>',
-  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 6l9 7 9-7"/>',
-  phone: '<path d="M6 3h4l1.5 5-2.5 1.5a12 12 0 0 0 5.5 5.5L16 12.5l5 1.5v4a2 2 0 0 1-2 2C10.5 20.5 3.5 13.5 4 5a2 2 0 0 1 2-2z"/>',
-  'map-pin': '<path d="M12 22s7-7.2 7-12a7 7 0 0 0-14 0c0 4.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.4"/>',
-  dollar: '<circle cx="12" cy="12" r="9"/><path d="M12 6v12"/><path d="M15.5 9c0-1.5-1.5-2.5-3.5-2.5S8.5 7.5 8.5 9s1.5 2 3.5 2.5 3.5 1 3.5 2.5-1.5 2.5-3.5 2.5-3.5-1-3.5-2.5"/>',
-  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
-  unlock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/>',
-  coin: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 8v8"/>',
-  receipt: '<path d="M6 2h12v20l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5-2 1.5z"/><line x1="8.5" y1="7" x2="15.5" y2="7"/><line x1="8.5" y1="11" x2="15.5" y2="11"/>',
-  hash: '<line x1="9" y1="3" x2="7" y2="21"/><line x1="17" y1="3" x2="15" y2="21"/><line x1="4" y1="9" x2="20" y2="9"/><line x1="3" y1="15" x2="19" y2="15"/>',
-  check: '<path d="M4 12l6 6L20 6"/>',
-  grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
-  scroll: '<path d="M6 3h12v15a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3z"/><path d="M6 3a3 3 0 0 0-3 3v0a3 3 0 0 0 3 3"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/>',
-  signature: '<path d="M3 17c3-1 5-4 5-7 0-2-1-3-2-3s-2 2 0 5 6 5 9 3c1.5-1 1-3 0-3s-2 1-1 3 4 3 5 1"/>',
-  ruler: '<rect x="3" y="8" width="18" height="8" rx="1"/><line x1="7" y1="8" x2="7" y2="11"/><line x1="11" y1="8" x2="11" y2="11"/><line x1="15" y1="8" x2="15" y2="11"/><line x1="19" y1="8" x2="19" y2="11"/>',
-  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
-  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/>',
-  globe: '<circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3a15 15 0 0 1 0 18"/><path d="M12 3a15 15 0 0 0 0 18"/>',
-  briefcase: '<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="3" y1="13" x2="21" y2="13"/>',
-  'arrow-down': '<line x1="12" y1="4" x2="12" y2="17"/><path d="M6 12l6 6 6-6"/>',
-  'arrow-up': '<line x1="12" y1="20" x2="12" y2="7"/><path d="M6 12l6-6 6 6"/>',
-  'arrow-right': '<line x1="4" y1="12" x2="19" y2="12"/><path d="M13 6l6 6-6 6"/>',
-  'arrow-left': '<line x1="20" y1="12" x2="5" y2="12"/><path d="M11 6l-6 6 6 6"/>',
-  newspaper: '<rect x="3" y="5" width="13" height="15" rx="1"/><path d="M16 8h5v10a2 2 0 0 1-2 2H5"/><line x1="6.5" y1="9" x2="12.5" y2="9"/><line x1="6.5" y1="12" x2="12.5" y2="12"/><line x1="6.5" y1="15" x2="10" y2="15"/>',
-  rss: '<circle cx="6" cy="18" r="1.6"/><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 5a15 15 0 0 1 15 15"/>',
-  sun: '<circle cx="12" cy="12" r="4.5"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="4.5" y1="4.5" x2="6.5" y2="6.5"/><line x1="17.5" y1="17.5" x2="19.5" y2="19.5"/><line x1="4.5" y1="19.5" x2="6.5" y2="17.5"/><line x1="17.5" y1="6.5" x2="19.5" y2="4.5"/>',
-  building: '<rect x="4" y="3" width="10" height="18"/><rect x="14" y="9" width="6" height="12"/><line x1="7" y1="7" x2="7" y2="7.01"/><line x1="11" y1="7" x2="11" y2="7.01"/><line x1="7" y1="11" x2="7" y2="11.01"/><line x1="11" y1="11" x2="11" y2="11.01"/><line x1="7" y1="15" x2="7" y2="15.01"/><line x1="11" y1="15" x2="11" y2="15.01"/>',
-  inbox: '<path d="M3 12h5l2 3h4l2-3h5"/><path d="M5 4h14l2 8v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6z"/>',
-  'paper-plane': '<path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9z"/>',
-  gamepad: '<rect x="2" y="8" width="20" height="10" rx="5"/><line x1="7" y1="11" x2="7" y2="15"/><line x1="5" y1="13" x2="9" y2="13"/><circle cx="16" cy="12" r="1"/><circle cx="18.5" cy="14.5" r="1"/>',
-  bell: '<path d="M6 10a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
-  'alert-triangle': '<path d="M12 3 22 20H2z"/><line x1="12" y1="9" x2="12" y2="14"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
-  'credit-card': '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/>',
-  'currency-exchange': '<path d="M4 7h13"/><path d="M13 3l4 4-4 4"/><path d="M20 17H7"/><path d="M11 21l-4-4 4-4"/>',
-  bitcoin: '<circle cx="12" cy="12" r="9"/><path d="M10 7v10"/><path d="M14 7v10"/><path d="M8 8h6a2.5 2.5 0 0 1 0 5H8"/><path d="M8 13h7a2.5 2.5 0 0 1 0 5H8"/>',
-  qrcode: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="14" y1="14" x2="14" y2="14.01"/><line x1="18" y1="14" x2="18" y2="14.01"/><line x1="14" y1="18" x2="14" y2="18.01"/><line x1="18" y1="18" x2="21" y2="18"/><line x1="21" y1="21" x2="21" y2="21.01"/>',
-  terminal: '<polyline points="4 6 10 12 4 18"/><line x1="12" y1="18" x2="20" y2="18"/>',
-  code: '<polyline points="9 6 3 12 9 18"/><polyline points="15 6 21 12 15 18"/>',
-  braces: '<path d="M8 3c-2 0-3 1-3 3v4c0 1-1 2-2 2 1 0 2 1 2 2v4c0 2 1 3 3 3"/><path d="M16 3c2 0 3 1 3 3v4c0 1 1 2 2 2-1 0-2 1-2 2v4c0 2-1 3-3 3"/>',
-  'bar-chart': '<line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="15"/>',
-  plug: '<path d="M9 2v6"/><path d="M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/>',
-  monitor: '<rect x="2" y="4" width="20" height="13" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
-  wrench: '<path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-3 3-2-2z"/>',
-  'heart-pulse': '<path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-1 1.8-2.6 3.5-4.5 5.2"/><polyline points="5 12 8 12 9.5 9 11.5 15 13 12 16 12"/>',
-  brain: '<path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5h1a3 3 0 0 0 2-1"/><path d="M15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5h-1a3 3 0 0 1-2-1"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/>',
-  dna: '<path d="M6 3c0 6 12 12 12 18"/><path d="M18 3c0 6-12 12-12 18"/><line x1="7.5" y1="7" x2="16.5" y2="7"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7.5" y1="17" x2="16.5" y2="17"/>',
-  shield: '<path d="M12 2 4 5v6c0 5 3.5 8.5 8 9 4.5-.5 8-4 8-9V5z"/>',
-  versus: '<path d="M4 12h6"/><path d="M8 8l-4 4 4 4"/><path d="M20 12h-6"/><path d="M16 8l4 4-4 4"/>',
-  'doc-word': '<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><path d="M8 13l1.3 6L11 14l1.7 5L14 13"/>',
-  'doc-slides': '<path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><rect x="8.5" y="12" width="7" height="5" rx="1"/>',
-  resize: '<path d="M15 3h6v6"/><path d="M9 21H3v-6"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>',
-  droplet: '<path d="M12 3c4 5 7 8.5 7 12a7 7 0 0 1-14 0c0-3.5 3-7 7-12z"/>',
-  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5.5-5.5L9 17"/>',
-  camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13.5" r="3.2"/>',
-  palette: '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2a4.5 4.5 0 0 0 4.5-4.5C21 6.4 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="9.5" cy="7.5" r="1"/><circle cx="14.5" cy="7" r="1"/><circle cx="17" cy="10.5" r="1"/>',
-  film: '<rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="8" y1="4" x2="8" y2="9"/><line x1="15" y1="4" x2="15" y2="9"/><line x1="8" y1="15" x2="8" y2="20"/><line x1="15" y1="15" x2="15" y2="20"/>',
-  music: '<circle cx="6" cy="18" r="2.5"/><circle cx="17" cy="16" r="2.5"/><path d="M8.5 18V5.5L19.5 3v12.5"/>',
-  speaker: '<polygon points="4 9 8 9 12 5 12 19 8 15 4 15"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M18.5 6.5a9 9 0 0 1 0 11"/>',
-  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.5 3.5-7 8-7s8 2.5 8 7"/>',
-  'mouse-pointer': '<path d="M4 3l7 17 2-7 7-2z"/>',
-  keyboard: '<rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6" y2="10.01"/><line x1="10" y1="10" x2="10" y2="10.01"/><line x1="14" y1="10" x2="14" y2="10.01"/><line x1="18" y1="10" x2="18" y2="10.01"/><line x1="7" y1="14" x2="17" y2="14"/>',
-  stop: '<circle cx="12" cy="12" r="9"/><rect x="9" y="9" width="6" height="6"/>',
-  eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
-  wallet: '<rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="17" cy="14" r="1.3"/>',
-  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9c.2.6.7 1 1.6 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1z"/>',
-  robot: '<rect x="5" y="9" width="14" height="10" rx="2"/><circle cx="9" cy="14" r="1.3"/><circle cx="15" cy="14" r="1.3"/><line x1="12" y1="5" x2="12" y2="9"/><circle cx="12" cy="3.3" r="1.3"/><line x1="3" y1="13" x2="5" y2="13"/><line x1="19" y1="13" x2="21" y2="13"/>',
-  ban: '<circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/>',
-  play: '<polygon points="6 3 20 12 6 21"/>',
-  'play-forward': '<polygon points="4 4 14 12 4 20"/><line x1="18" y1="4" x2="18" y2="20"/>',
-  paste: '<rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 12h6"/><path d="M9 16h6"/>',
-};
-
-function _icon(key, size, color) {
-  size = size || 16;
-  const inner = ICONS[key] || ICONS.gear;
-  const stroke = color || 'currentColor';
-  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0">${inner}</svg>`;
-}
-
 // ─── Categorias e ações (estilo Automate Fortra) ──────────────────
 const ACTION_CATEGORIES = [
   { key: 'flow', label: 'Controle de Fluxo', icon: 'repeat', actions: [
@@ -295,7 +176,7 @@ const ACTION_CATEGORIES = [
     { type: 'compare_images',  icon: 'versus', label: 'Comparar imagens', color: '#ea580c', bg: '#fff7ed' },
     { type: 'generate_ai_image', icon: 'palette', label: 'Gerar imagem via IA', color: '#ea580c', bg: '#fff7ed' },
   ]},
-  { key: 'media', label: 'Áudio & Vídeo ⚠️ requer ffmpeg', icon: 'film', actions: [
+  { key: 'media', label: 'Áudio & Vídeo (requer ffmpeg)', icon: 'film', actions: [
     { type: 'transcode_media', icon: 'repeat', label: 'Converter áudio/vídeo', color: '#9333ea', bg: '#faf5ff' },
     { type: 'extract_audio',   icon: 'music', label: 'Extrair áudio de vídeo', color: '#9333ea', bg: '#faf5ff' },
     { type: 'trim_media',      icon: 'scissors', label: 'Cortar trecho de mídia', color: '#9333ea', bg: '#faf5ff' },
@@ -303,7 +184,7 @@ const ACTION_CATEGORIES = [
     { type: 'transcribe_audio',icon: 'edit', label: 'Transcrever áudio (Whisper)', color: '#9333ea', bg: '#faf5ff' },
     { type: 'text_to_speech',  icon: 'speaker', label: 'Texto para voz (TTS)', color: '#9333ea', bg: '#faf5ff' },
   ]},
-  { key: 'ocr', label: 'OCR & Visão ⚠️ requer tesseract', icon: 'eye', actions: [
+  { key: 'ocr', label: 'OCR & Visão (requer tesseract)', icon: 'eye', actions: [
     { type: 'ocr_image',       icon: 'font', label: 'OCR de imagem', color: '#9333ea', bg: '#faf5ff' },
     { type: 'ocr_pdf_scanned', icon: 'file-text', label: 'OCR de PDF escaneado', color: '#9333ea', bg: '#faf5ff' },
     { type: 'detect_face_object', icon: 'user', label: 'Detectar rosto', color: '#ea580c', bg: '#fff7ed' },
@@ -431,9 +312,9 @@ function _sessionEngineNotice(sessionName) {
   const name = (sessionName || '').trim();
   const eng = _findSessionEngine(name, _buildSteps);
   if (!eng) {
-    return _hint(`⚠ Nenhum passo "Abrir sessão" chamado "${escapeHtml(name || '...')}" foi encontrado neste fluxo ainda. Assim que você adicionar um (antes deste passo), esta ação passará a usar automaticamente a mesma engine escolhida nele.`);
+    return _hint(`${_icon('alert-triangle', 12)} Nenhum passo "Abrir sessão" chamado "${escapeHtml(name || '...')}" foi encontrado neste fluxo ainda. Assim que você adicionar um (antes deste passo), esta ação passará a usar automaticamente a mesma engine escolhida nele.`);
   }
-  const label = eng === 'selenium' ? '🔬 Selenium' : '🎭 Playwright';
+  const label = eng === 'selenium' ? `${_icon('flask', 12)} Selenium` : `${_icon('mask', 12)} Playwright`;
   return _hint(`Esta ação roda na sessão "<strong>${escapeHtml(name)}</strong>" e usa automaticamente a mesma biblioteca configurada no passo "Abrir sessão": <strong>${label}</strong>.`);
 }
 
@@ -515,7 +396,7 @@ function _renderStudioTable() {
     </td></tr>`;
     return;
   }
-  const triggerLabel = { manual: '▶ Manual', cron: '⏱ Cron', webhook: '🔗 Webhook' };
+  const triggerLabel = { manual: `${_icon('play', 12)} Manual`, cron: `${_icon('clock', 12)} Cron`, webhook: `${_icon('link', 12)} Webhook` };
   tbody.innerHTML = _studioList.map(a => `<tr>
     <td>
       <strong style="cursor:pointer;color:var(--blue-600)" onclick="openBuilderPage('${a.id}')">${escapeHtml(a.name)}</strong>
@@ -533,9 +414,9 @@ function _renderStudioTable() {
       </label>
     </td>
     <td style="display:flex;gap:.35rem;flex-wrap:wrap">
-      <button class="btn btn-outline btn-sm" onclick="openStudioRun('${a.id}')">⚡ Executar</button>
-      <button class="btn btn-outline btn-sm" onclick="openBuilderPage('${a.id}')">✏ Editar</button>
-      <button class="btn btn-outline btn-sm" style="color:#ef4444;border-color:#fca5a5" onclick="deleteStudioAutomation('${a.id}','${escapeHtml(a.name)}')">🗑</button>
+      <button class="btn btn-outline btn-sm" onclick="openStudioRun('${a.id}')">${_icon('zap', 12)} Executar</button>
+      <button class="btn btn-outline btn-sm" onclick="openBuilderPage('${a.id}')">${_icon('pencil', 12)} Editar</button>
+      <button class="btn btn-outline btn-sm" style="color:#ef4444;border-color:#fca5a5" onclick="deleteStudioAutomation('${a.id}','${escapeHtml(a.name)}')">${_icon('trash', 12)}</button>
     </td>
   </tr>`).join('');
 }
@@ -566,8 +447,8 @@ async function initBuilderPage() {
 
   const agentSel = document.getElementById('builder-agent-id');
   if (agentSel) {
-    agentSel.innerHTML = '<option value="">⚙ Qualquer agente</option>' +
-      (_buildAgents || []).map(a => `<option value="${a.id}">${a.connected ? '🟢' : '⚫'} ${escapeHtml(a.name)}</option>`).join('');
+    agentSel.innerHTML = '<option value="">Qualquer agente</option>' +
+      (_buildAgents || []).map(a => `<option value="${a.id}">${a.connected ? '●' : '○'} ${escapeHtml(a.name)}</option>`).join(''); // <option> nativo não renderiza SVG
   }
 
   if (_buildEditId) {
@@ -666,12 +547,12 @@ function _setBuilderRunningUI(running) {
 function stopBuilderRun() {
   if (!_builderRunId) return;
   api('POST', `/studio/test-run/${_builderRunId}/cancel`).catch(() => {});
-  _appendBuilderLog(`<span style="color:#f59e0b">⏹ Parando execução...</span>\n`);
+  _appendBuilderLog(`<span style="color:#f59e0b">${_icon('stop', 12)} Parando execução...</span>\n`);
 }
 
 function _appendNewRunSteps(run) {
   const sc = { success: '#22c55e', failed: '#ef4444', skipped: '#f59e0b', cancelled: '#f59e0b' };
-  const si = { success: '✓', failed: '✗', skipped: '⚠', cancelled: '⏹' };
+  const si = { success: _icon('check', 12), failed: _icon('x', 12), skipped: _icon('alert-triangle', 12), cancelled: _icon('stop', 12) };
   const meta_icon = t => { const m = ACTION_MAP[t] || { icon: 'gear', color: '#64748b' }; return _icon(m.icon, 13, m.color); };
   const steps = run.steps_result || [];
 
@@ -693,7 +574,7 @@ function _appendNewRunSteps(run) {
       // (o que interessa) sempre fica nas últimas linhas; cortar o final é a pior
       // forma de truncar isso.
       const errText = s.error.length > 1200 ? '…(início cortado)…\n' + s.error.slice(-1200) : s.error;
-      _appendBuilderLog(`<span style="color:#ef4444">  ✗ ${escapeHtml(errText)}</span>\n`);
+      _appendBuilderLog(`<span style="color:#ef4444">  ${_icon('x', 12)} ${escapeHtml(errText)}</span>\n`);
     }
   }
   _builderRenderedStepCount = steps.length;
@@ -742,12 +623,12 @@ async function _runBuilderInline(extra) {
     }
 
     const finalColor = run.status === 'success' ? '#22c55e' : (run.status === 'cancelled' ? '#f59e0b' : '#ef4444');
-    _appendBuilderLog(`\n<span style="color:${finalColor};font-weight:bold">● Finalizado: ${run.status.toUpperCase()} — ${run.duration_ms}ms</span>\n`);
+    _appendBuilderLog(`\n<span style="color:${finalColor};font-weight:bold"><span class="dot" style="color:${finalColor}"></span> Finalizado: ${run.status.toUpperCase()} — ${run.duration_ms}ms</span>\n`);
     if (run.output) _appendBuilderLog(
       `<span style="color:#7dd3fc">Output final: ${escapeHtml(run.output.substring(0, 400))}${run.output.length > 400 ? '…' : ''}</span>\n`
     );
   } catch (e) {
-    _appendBuilderLog(`<span style="color:#ef4444">✗ Erro: ${escapeHtml(e.message)}</span>\n`);
+    _appendBuilderLog(`<span style="color:#ef4444">${_icon('x', 12)} Erro: ${escapeHtml(e.message)}</span>\n`);
   } finally {
     _builderRunId = null;
     _setBuilderRunningUI(false);
@@ -766,8 +647,8 @@ function onBuilderTriggerTypeChange() {
   _buildTrigger.type = type;
   document.getElementById('builder-cron-opts').style.display  = type === 'cron'    ? 'flex'  : 'none';
   document.getElementById('builder-webhook-info').style.display = type === 'webhook' ? 'flex' : 'none';
-  const lbl = { manual:'▶ Manual', cron:'⏱ Cron', webhook:'🔗 Webhook' };
-  document.getElementById('btn-builder-trigger').textContent = `⚡ Trigger: ${lbl[type] || 'Manual'}`;
+  const lbl = { manual: `${_icon('play', 12)} Manual`, cron: `${_icon('clock', 12)} Cron`, webhook: `${_icon('link', 12)} Webhook` };
+  document.getElementById('btn-builder-trigger').innerHTML = `${_icon('zap', 12)} Trigger: ${lbl[type] || 'Manual'}`;
 }
 
 function onBuilderSchedTypeChange() {
@@ -859,7 +740,7 @@ function _renderPalette() {
       <div onclick="togglePaletteCat('${cat.key}')"
         style="padding:.5rem .75rem;font-size:.7rem;font-weight:700;color:#475569;letter-spacing:.04em;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;background:${collapsed ? 'transparent' : '#e8edf2'};border-bottom:1px solid #e2e8f0">
         <span style="display:inline-flex;align-items:center;gap:.4rem">${_icon(cat.icon, 14, '#475569')}${cat.label}</span>
-        <span style="font-size:.7rem;color:#94a3b8">${collapsed ? '▶' : '▼'}</span>
+        <span style="display:inline-flex;color:#94a3b8">${collapsed ? _icon('arrow-right', 12) : _icon('arrow-down', 12)}</span>
       </div>
       ${collapsed ? '' : cat.actions.map(_renderPaletteAction).join('')}
     </div>`;
@@ -920,7 +801,7 @@ function _renderStepHtml(step, arr, idx, containerId, branch, depth) {
 }
 
 function _renderLeaf(step, arr, idx, containerId, branch, depth) {
-  const meta = ACTION_MAP[step.type] || { icon: '⚙', color: '#64748b', bg: '#f8fafc' };
+  const meta = ACTION_MAP[step.type] || { icon: 'gear', color: '#64748b', bg: '#f8fafc' };
   const sel = step.id === _buildSelectedId;
   const isFirst = idx === 0;
   const isLast  = idx === arr.length - 1;
@@ -941,17 +822,17 @@ function _renderLeaf(step, arr, idx, containerId, branch, depth) {
     </div>
     <div style="display:flex;gap:.18rem;flex-shrink:0">
       <button onclick="event.stopPropagation();moveBuilderStep('${step.id}',-1)" ${isFirst?'disabled':''} title="Mover para cima"
-        style="width:20px;height:20px;border:1px solid #e2e8f0;border-radius:4px;background:white;font-size:.65rem;display:flex;align-items:center;justify-content:center;color:#64748b;cursor:${isFirst?'default':'pointer'};opacity:${isFirst?.3:1}">↑</button>
+        style="width:20px;height:20px;border:1px solid #e2e8f0;border-radius:4px;background:white;display:flex;align-items:center;justify-content:center;color:#64748b;cursor:${isFirst?'default':'pointer'};opacity:${isFirst?.3:1}">${_icon('arrow-up', 12)}</button>
       <button onclick="event.stopPropagation();moveBuilderStep('${step.id}',1)" ${isLast?'disabled':''} title="Mover para baixo"
-        style="width:20px;height:20px;border:1px solid #e2e8f0;border-radius:4px;background:white;font-size:.65rem;display:flex;align-items:center;justify-content:center;color:#64748b;cursor:${isLast?'default':'pointer'};opacity:${isLast?.3:1}">↓</button>
+        style="width:20px;height:20px;border:1px solid #e2e8f0;border-radius:4px;background:white;display:flex;align-items:center;justify-content:center;color:#64748b;cursor:${isLast?'default':'pointer'};opacity:${isLast?.3:1}">${_icon('arrow-down', 12)}</button>
       <button onclick="event.stopPropagation();removeBuilderStep('${step.id}')" title="Remover"
-        style="width:20px;height:20px;border:1px solid #fca5a5;border-radius:4px;background:white;cursor:pointer;font-size:.65rem;display:flex;align-items:center;justify-content:center;color:#ef4444">✕</button>
+        style="width:20px;height:20px;border:1px solid #fca5a5;border-radius:4px;background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#ef4444">${_icon('x', 12)}</button>
     </div>
   </div>`;
 }
 
 function _renderContainer(step, arr, idx, containerId, branch, depth) {
-  const meta = ACTION_MAP[step.type] || { icon: '⚙', color: '#64748b', bg: '#f8fafc' };
+  const meta = ACTION_MAP[step.type] || { icon: 'gear', color: '#64748b', bg: '#f8fafc' };
   const sel = step.id === _buildSelectedId;
   const isFirst = idx === 0;
   const isLast  = idx === arr.length - 1;
@@ -973,11 +854,11 @@ function _renderContainer(step, arr, idx, containerId, branch, depth) {
     </div>
     <div style="display:flex;gap:.18rem;flex-shrink:0">
       <button onclick="event.stopPropagation();moveBuilderStep('${step.id}',-1)" ${isFirst?'disabled':''} title="Mover para cima"
-        style="width:20px;height:20px;border:1px solid #e2e8f0;border-radius:4px;background:white;font-size:.65rem;display:flex;align-items:center;justify-content:center;color:#64748b;cursor:${isFirst?'default':'pointer'};opacity:${isFirst?.3:1}">↑</button>
+        style="width:20px;height:20px;border:1px solid #e2e8f0;border-radius:4px;background:white;display:flex;align-items:center;justify-content:center;color:#64748b;cursor:${isFirst?'default':'pointer'};opacity:${isFirst?.3:1}">${_icon('arrow-up', 12)}</button>
       <button onclick="event.stopPropagation();moveBuilderStep('${step.id}',1)" ${isLast?'disabled':''} title="Mover para baixo"
-        style="width:20px;height:20px;border:1px solid #e2e8f0;border-radius:4px;background:white;font-size:.65rem;display:flex;align-items:center;justify-content:center;color:#64748b;cursor:${isLast?'default':'pointer'};opacity:${isLast?.3:1}">↓</button>
+        style="width:20px;height:20px;border:1px solid #e2e8f0;border-radius:4px;background:white;display:flex;align-items:center;justify-content:center;color:#64748b;cursor:${isLast?'default':'pointer'};opacity:${isLast?.3:1}">${_icon('arrow-down', 12)}</button>
       <button onclick="event.stopPropagation();removeBuilderStep('${step.id}')" title="Remover"
-        style="width:20px;height:20px;border:1px solid #fca5a5;border-radius:4px;background:white;cursor:pointer;font-size:.65rem;display:flex;align-items:center;justify-content:center;color:#ef4444">✕</button>
+        style="width:20px;height:20px;border:1px solid #fca5a5;border-radius:4px;background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#ef4444">${_icon('x', 12)}</button>
     </div>
   </div>`;
 
@@ -1000,11 +881,11 @@ function _renderContainer(step, arr, idx, containerId, branch, depth) {
     const cf = step.children_false || [];
     body = `<div style="border-top:1.5px solid ${meta.color}44;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);background:${meta.bg}55">
       <div style="padding:.4rem .5rem;border-right:1px solid ${meta.color}22;min-width:0">
-        <div style="font-size:.65rem;font-weight:700;color:#16a34a;margin-bottom:.25rem;letter-spacing:.03em">${isTry ? '▶ TENTAR' : '✓ VERDADEIRO'}</div>
+        <div style="font-size:.65rem;font-weight:700;color:#16a34a;margin-bottom:.25rem;letter-spacing:.03em">${isTry ? `${_icon('play', 11)} TENTAR` : `${_icon('check', 11)} VERDADEIRO`}</div>
         ${_renderStepList(ct, step.id, 'children_true', depth + 1)}
       </div>
       <div style="padding:.4rem .5rem;min-width:0">
-        <div style="font-size:.65rem;font-weight:700;color:#ef4444;margin-bottom:.25rem;letter-spacing:.03em">${isTry ? '⚠ SE FALHAR (catch)' : '✗ FALSO'}</div>
+        <div style="font-size:.65rem;font-weight:700;color:#ef4444;margin-bottom:.25rem;letter-spacing:.03em">${isTry ? `${_icon('alert-triangle', 11)} SE FALHAR (catch)` : `${_icon('x', 11)} FALSO`}</div>
         ${_renderStepList(cf, step.id, 'children_false', depth + 1)}
       </div>
     </div>`;
@@ -1035,7 +916,7 @@ function _flowBubble(label, color, bg) {
 function _stepBrief(step) {
   const text = _stepBriefText(step);
   const runsOnAgent = !AGENT_EXCLUDED_TYPES.has(step.type) && (step.config || {}).run_on === 'agent';
-  return runsOnAgent ? `💻 ${text}` : text;
+  return runsOnAgent ? `${_icon('monitor', 12)} ${text}` : text;
 }
 
 function _stepBriefText(step) {
@@ -1043,7 +924,7 @@ function _stepBriefText(step) {
   switch (step.type) {
     case 'condition': {
       const ct = (step.children_true||[]).length, cf = (step.children_false||[]).length;
-      return `${c.operator||'contains'} "${(c.condition_value||'').substring(0,15)}" — ✓${ct} ✗${cf}`;
+      return `${c.operator||'contains'} "${(c.condition_value||'').substring(0,15)}" — ${_icon('check', 11)}${ct} ${_icon('x', 11)}${cf}`;
     }
     case 'loop_count': {
       const nc = (step.children||[]).length;
@@ -1510,14 +1391,14 @@ function _renderPropsPanel(step) {
     </div>`;
     return;
   }
-  const meta = ACTION_MAP[step.type] || { icon:'⚙', color:'#64748b', label: step.type };
+  const meta = ACTION_MAP[step.type] || { icon:'gear', color:'#64748b', label: step.type };
   const c = step.config || {};
 
   let html = `<div style="display:flex;flex-direction:column;gap:.75rem">
     <div style="display:flex;align-items:center;gap:.5rem;padding-bottom:.65rem;border-bottom:1px solid #f1f5f9">
       <span style="display:inline-flex">${_icon(meta.icon, 20, meta.color)}</span>
       <span style="font-weight:700;font-size:.85rem;color:${meta.color};flex:1">${meta.label}</span>
-      <button onclick="closeBuilderProps()" title="Fechar propriedades" style="width:24px;height:24px;border:1px solid #e2e8f0;border-radius:6px;background:white;cursor:pointer;color:#64748b;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
+      <button onclick="closeBuilderProps()" title="Fechar propriedades" style="width:24px;height:24px;border:1px solid #e2e8f0;border-radius:6px;background:white;cursor:pointer;color:#64748b;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_icon('x', 14)}</button>
     </div>
     ${_field('NOME DA AÇÃO', `<input type="text" value="${escapeHtml(step.name)}" onchange="_upField('${step.id}','name',this.value)" ${_inp()} />`)}`;
 
@@ -1525,10 +1406,10 @@ function _renderPropsPanel(step) {
     const runOn = c.run_on === 'agent' ? 'agent' : 'server';
     html += _field('ONDE EXECUTAR', `<div style="display:flex;gap:.5rem">
       <label style="display:flex;align-items:center;gap:.35rem;padding:.38rem .75rem;border:1.5px solid ${runOn==='server'?'#2563eb':'#e2e8f0'};border-radius:7px;cursor:pointer;font-size:.8rem;background:${runOn==='server'?'#eff6ff':'white'};flex:1;justify-content:center" onclick="_upCfg('${step.id}','run_on','server')">
-        <span style="font-size:.95rem">☁️</span> <span style="color:${runOn==='server'?'#2563eb':'#64748b'};font-weight:${runOn==='server'?'700':'400'}">Servidor</span>
+        <span style="display:inline-flex">${_icon('cloud', 15)}</span> <span style="color:${runOn==='server'?'#2563eb':'#64748b'};font-weight:${runOn==='server'?'700':'400'}">Servidor</span>
       </label>
       <label style="display:flex;align-items:center;gap:.35rem;padding:.38rem .75rem;border:1.5px solid ${runOn==='agent'?'#2563eb':'#e2e8f0'};border-radius:7px;cursor:pointer;font-size:.8rem;background:${runOn==='agent'?'#eff6ff':'white'};flex:1;justify-content:center" onclick="_upCfg('${step.id}','run_on','agent')">
-        <span style="font-size:.95rem">💻</span> <span style="color:${runOn==='agent'?'#2563eb':'#64748b'};font-weight:${runOn==='agent'?'700':'400'}">Agente</span>
+        <span style="display:inline-flex">${_icon('monitor', 15)}</span> <span style="color:${runOn==='agent'?'#2563eb':'#64748b'};font-weight:${runOn==='agent'?'700':'400'}">Agente</span>
       </label>
     </div>`);
     if (runOn === 'agent') {
@@ -1546,7 +1427,7 @@ function _renderPropsPanel(step) {
           .map(([v,l])=>`<option value="${v}" ${v===c.operator?'selected':''}>${l}</option>`).join('')}
       </select>`);
       html += _field('VALOR A COMPARAR', `<input type="text" value="${escapeHtml(c.condition_value||'')}" placeholder="texto esperado no output" onchange="_upCfg('${step.id}','condition_value',this.value)" ${_inp()} />`);
-      html += `<div style="background:#fffbeb;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#92400e">✓ VERDADEIRO → ações no bloco verde. ✗ FALSO → ações no bloco vermelho. Ambos continuam para a próxima ação após o bloco.</div>`;
+      html += `<div style="background:#fffbeb;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#92400e">${_icon('check', 11)} VERDADEIRO → ações no bloco verde. ${_icon('x', 11)} FALSO → ações no bloco vermelho. Ambos continuam para a próxima ação após o bloco.</div>`;
       break;
 
     case 'loop_count':
@@ -1605,14 +1486,14 @@ function _renderPropsPanel(step) {
 
     case 'delete_file':
       html += _field('CAMINHO DO ARQUIVO', `<input type="text" value="${escapeHtml(c.file_path||'')}" placeholder="/tmp/arquivo.txt" onchange="_upCfg('${step.id}','file_path',this.value)" ${_inp('font-family:monospace')} />`);
-      html += `<div style="background:#fef2f2;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#dc2626">⚠️ Esta ação é irreversível.</div>`;
+      html += `<div style="background:#fef2f2;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#dc2626">${_icon('alert-triangle', 11)} Esta ação é irreversível.</div>`;
       break;
 
     case 'copy_file':
     case 'move_file':
       html += _field('ORIGEM', `<input type="text" value="${escapeHtml(c.source_path||'')}" placeholder="/tmp/origem.txt" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
       html += _field('DESTINO', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/destino.txt" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
-      if (step.type === 'move_file') html += `<div style="background:#fef2f2;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#dc2626">⚠️ O arquivo de origem deixa de existir.</div>`;
+      if (step.type === 'move_file') html += `<div style="background:#fef2f2;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#dc2626">${_icon('alert-triangle', 11)} O arquivo de origem deixa de existir.</div>`;
       break;
 
     case 'file_hash':
@@ -1651,7 +1532,7 @@ function _renderPropsPanel(step) {
 
     case 'delete_folder':
       html += _field('DIRETÓRIO', `<input type="text" value="${escapeHtml(c.directory||'')}" placeholder="/tmp/pasta_antiga" onchange="_upCfg('${step.id}','directory',this.value)" ${_inp('font-family:monospace')} />`);
-      html += `<div style="background:#fef2f2;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#dc2626">⚠️ Remove a pasta e TODO o conteúdo dela. Irreversível.</div>`;
+      html += `<div style="background:#fef2f2;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#dc2626">${_icon('alert-triangle', 11)} Remove a pasta e TODO o conteúdo dela. Irreversível.</div>`;
       break;
 
     case 'zip_files':
@@ -2355,7 +2236,7 @@ function _renderPropsPanel(step) {
     case 'extract_audio':
       html += _field('ARQUIVO DE ORIGEM', `<input type="text" value="${escapeHtml(c.source_path||'')}" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
       html += _field('SAÍDA (extensão define o formato)', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="${step.type==='extract_audio'?'/tmp/audio.mp3':'/tmp/saida.mp4'}" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
-      html += `<div style="background:#faf5ff;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#7e22ce">⚠️ Requer <code>ffmpeg</code> instalado no agente que executar este passo.</div>`;
+      html += `<div style="background:#faf5ff;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#7e22ce">${_icon('alert-triangle', 11)} Requer <code>ffmpeg</code> instalado no agente que executar este passo.</div>`;
       break;
 
     case 'trim_media':
@@ -2363,14 +2244,14 @@ function _renderPropsPanel(step) {
       html += _field('SAÍDA', `<input type="text" value="${escapeHtml(c.dest_path||'')}" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
       html += _field('INÍCIO (segundos)', `<input type="number" value="${c.seconds||0}" min="0" step="0.1" onchange="_upCfg('${step.id}','seconds',+this.value)" ${_inp()} />`);
       html += _field('DURAÇÃO (segundos, 0 = até o fim)', `<input type="number" value="${c.seconds_max||0}" min="0" step="0.1" onchange="_upCfg('${step.id}','seconds_max',+this.value)" ${_inp()} />`);
-      html += `<div style="background:#faf5ff;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#7e22ce">⚠️ Requer <code>ffmpeg</code> instalado no agente que executar este passo.</div>`;
+      html += `<div style="background:#faf5ff;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#7e22ce">${_icon('alert-triangle', 11)} Requer <code>ffmpeg</code> instalado no agente que executar este passo.</div>`;
       break;
 
     case 'extract_video_frame':
       html += _field('VÍDEO DE ORIGEM', `<input type="text" value="${escapeHtml(c.source_path||'')}" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
       html += _field('SAÍDA (imagem)', `<input type="text" value="${escapeHtml(c.dest_path||'')}" placeholder="/tmp/frame.png" onchange="_upCfg('${step.id}','dest_path',this.value)" ${_inp('font-family:monospace')} />`);
       html += _field('TIMESTAMP (segundos)', `<input type="number" value="${c.seconds||0}" min="0" step="0.1" onchange="_upCfg('${step.id}','seconds',+this.value)" ${_inp()} />`);
-      html += `<div style="background:#faf5ff;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#7e22ce">⚠️ Requer <code>ffmpeg</code> instalado no agente que executar este passo.</div>`;
+      html += `<div style="background:#faf5ff;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#7e22ce">${_icon('alert-triangle', 11)} Requer <code>ffmpeg</code> instalado no agente que executar este passo.</div>`;
       break;
 
     case 'transcribe_audio':
@@ -2390,13 +2271,13 @@ function _renderPropsPanel(step) {
     case 'ocr_image':
       html += _field('IMAGEM', `<input type="text" value="${escapeHtml(c.source_path||'')}" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
       html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
-      html += `<div style="background:#faf5ff;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#7e22ce">⚠️ Requer <code>tesseract-ocr</code> instalado no agente (idiomas português + inglês).</div>`;
+      html += `<div style="background:#faf5ff;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#7e22ce">${_icon('alert-triangle', 11)} Requer <code>tesseract-ocr</code> instalado no agente (idiomas português + inglês).</div>`;
       break;
 
     case 'ocr_pdf_scanned':
       html += _field('ARQUIVO PDF (escaneado)', `<input type="text" value="${escapeHtml(c.source_path||'')}" onchange="_upCfg('${step.id}','source_path',this.value)" ${_inp('font-family:monospace')} />`);
       html += _field('SALVAR EM VARIÁVEL', `<input type="text" value="${escapeHtml(c.variable_name||'')}" onchange="_upCfg('${step.id}','variable_name',this.value)" ${_inp()} />`);
-      html += `<div style="background:#faf5ff;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#7e22ce">⚠️ Requer <code>tesseract-ocr</code> E <code>poppler</code> instalados no agente.</div>`;
+      html += `<div style="background:#faf5ff;border-radius:7px;padding:.5rem .65rem;font-size:.72rem;color:#7e22ce">${_icon('alert-triangle', 11)} Requer <code>tesseract-ocr</code> E <code>poppler</code> instalados no agente.</div>`;
       break;
 
     case 'detect_face_object':
@@ -2483,21 +2364,21 @@ function _renderPropsPanel(step) {
       const engine = c.browser_engine || 'playwright';
       const actTypes = ['open','click','type','extract','wait','screenshot','close'];
       html += _field('ENGINE DE AUTOMAÇÃO', `<select onchange="_upCfg('${step.id}','browser_engine',this.value)" ${_sel()}>
-        <option value="playwright" ${engine==='playwright'?'selected':''}>🎭 Playwright</option>
-        <option value="selenium"   ${engine==='selenium'  ?'selected':''}>🔬 Selenium</option>
+        <option value="playwright" ${engine==='playwright'?'selected':''}>Playwright</option>
+        <option value="selenium"   ${engine==='selenium'  ?'selected':''}>Selenium</option>
       </select>`);
       const engineHints = {
         playwright: 'Playwright — async, moderno, suporta Chromium/Firefox/WebKit. Recomendado.',
         selenium: 'Selenium — compatível com qualquer browser via WebDriver. Requer geckodriver/chromedriver.',
       };
-      html += `<p style="font-size:.7rem;color:#7c3aed;margin:-.35rem 0 .1rem;line-height:1.5">ℹ️ ${engineHints[engine]}</p>`;
+      html += `<p style="font-size:.7rem;color:#7c3aed;margin:-.35rem 0 .1rem;line-height:1.5">${_icon('info', 11)} ${engineHints[engine]}</p>`;
       const headless = c.browser_headless !== false;
       html += _field('MODO HEADLESS', `<div style="display:flex;gap:.5rem">
         <label style="display:flex;align-items:center;gap:.35rem;padding:.38rem .75rem;border:1.5px solid ${headless?'#2563eb':'#e2e8f0'};border-radius:7px;cursor:pointer;font-size:.8rem;background:${headless?'#eff6ff':'white'};flex:1;justify-content:center" onclick="_upCfg('${step.id}','browser_headless',true)">
-          <span style="font-size:.95rem">🖥️</span> <span style="color:${headless?'#2563eb':'#64748b'};font-weight:${headless?'700':'400'}">Headless (true)</span>
+          <span style="display:inline-flex">${_icon('monitor', 15)}</span> <span style="color:${headless?'#2563eb':'#64748b'};font-weight:${headless?'700':'400'}">Headless (true)</span>
         </label>
         <label style="display:flex;align-items:center;gap:.35rem;padding:.38rem .75rem;border:1.5px solid ${!headless?'#2563eb':'#e2e8f0'};border-radius:7px;cursor:pointer;font-size:.8rem;background:${!headless?'#eff6ff':'white'};flex:1;justify-content:center" onclick="_upCfg('${step.id}','browser_headless',false)">
-          <span style="font-size:.95rem">👁️</span> <span style="color:${!headless?'#2563eb':'#64748b'};font-weight:${!headless?'700':'400'}">Visível (false)</span>
+          <span style="display:inline-flex">${_icon('eye', 15)}</span> <span style="color:${!headless?'#2563eb':'#64748b'};font-weight:${!headless?'700':'400'}">Visível (false)</span>
         </label>
       </div>`);
       html += _field('AÇÕES DO NAVEGADOR',
@@ -2508,7 +2389,7 @@ function _renderPropsPanel(step) {
                 <select onchange="_upBA('${step.id}',${i},'type',this.value)" ${_sel('flex:1')}>
                   ${actTypes.map(t=>`<option value="${t}" ${t===a.type?'selected':''}>${t}</option>`).join('')}
                 </select>
-                <button onclick="_removeBA('${step.id}',${i})" style="width:22px;height:22px;border:1px solid #fca5a5;border-radius:4px;background:white;cursor:pointer;color:#ef4444;font-size:.7rem;flex-shrink:0;display:flex;align-items:center;justify-content:center">✕</button>
+                <button onclick="_removeBA('${step.id}',${i})" style="width:22px;height:22px;border:1px solid #fca5a5;border-radius:4px;background:white;cursor:pointer;color:#ef4444;flex-shrink:0;display:flex;align-items:center;justify-content:center">${_icon('x', 13)}</button>
               </div>
               ${a.type !== 'close' ? `<input type="text" value="${escapeHtml(a.target||'')}" placeholder="${a.type==='open'?'https://url.com':'seletor CSS ou #id'}" onchange="_upBA('${step.id}',${i},'target',this.value)" ${_inp('font-size:.75rem')} />` : ''}
               ${['type','extract','wait'].includes(a.type) ? `<input type="text" value="${escapeHtml(a.value||'')}" placeholder="${a.type==='type'?'Texto a digitar':a.type==='wait'?'Segundos':'Atributo (vazio=texto)'}" onchange="_upBA('${step.id}',${i},'value',this.value)" ${_inp('font-size:.75rem')} />` : ''}
@@ -2525,14 +2406,14 @@ function _renderPropsPanel(step) {
       html += _hint('Escolha um nome único para esta sessão — use o mesmo nome nos próximos passos do navegador para reaproveitar o mesmo navegador.');
       const sessEngine = c.browser_engine || 'playwright';
       html += _field('ENGINE PARA AS AÇÕES DESTA SESSÃO', `<select onchange="_upCfg('${step.id}','browser_engine',this.value)" ${_sel()}>
-        <option value="playwright" ${sessEngine==='playwright'?'selected':''}>🎭 Playwright</option>
-        <option value="selenium"   ${sessEngine==='selenium'  ?'selected':''}>🔬 Selenium</option>
+        <option value="playwright" ${sessEngine==='playwright'?'selected':''}>Playwright</option>
+        <option value="selenium"   ${sessEngine==='selenium'  ?'selected':''}>Selenium</option>
       </select>`);
       const sessEngineHints = {
         playwright: 'Usa o Chromium instalado pelo Playwright no agente (playwright install chromium) e reconecta via CDP em cada ação. Padrão recomendado.',
         selenium: 'Usa o Google Chrome instalado no sistema do agente e reconecta via debuggerAddress do Chrome em cada ação. Totalmente independente do Playwright — requer apenas Chrome + biblioteca selenium no agente.',
       };
-      html += `<p style="font-size:.7rem;color:#7c3aed;margin:-.35rem 0 .1rem;line-height:1.5">ℹ️ ${sessEngineHints[sessEngine]}</p>`;
+      html += `<p style="font-size:.7rem;color:#7c3aed;margin:-.35rem 0 .1rem;line-height:1.5">${_icon('info', 11)} ${sessEngineHints[sessEngine]}</p>`;
       html += _field('URL INICIAL (opcional)', `<input type="text" value="${escapeHtml(c.target||'')}" placeholder="https://exemplo.com" onchange="_upCfg('${step.id}','target',this.value)" ${_inp()} />`);
       html += _field('PERFIL DO NAVEGADOR (opcional)', `<input type="text" value="${escapeHtml(c.browser_profile||'')}" placeholder="ex: perfil_captcha" onchange="_upCfg('${step.id}','browser_profile',this.value)" ${_inp()} />`);
       html += _hint('Se preenchido, essa sessão reaproveita uma pasta de profile FIXA no agente entre execuções (em vez de uma vazia e descartável) — instale extensões licenciadas (ex: resolvedor de captcha) uma única vez, manualmente, e elas continuam disponíveis nas próximas aberturas. Sessões com perfil rodam sempre em modo visível (headless desativado), pois extensões não funcionam em modo headless.');
@@ -2540,10 +2421,10 @@ function _renderPropsPanel(step) {
       const headlessOpen = c.browser_headless !== false && !hasProfile;
       html += _field('MODO HEADLESS', `<div style="display:flex;gap:.5rem;${hasProfile?'opacity:.5;pointer-events:none':''}">
         <label style="display:flex;align-items:center;gap:.35rem;padding:.38rem .75rem;border:1.5px solid ${headlessOpen?'#2563eb':'#e2e8f0'};border-radius:7px;cursor:pointer;font-size:.8rem;background:${headlessOpen?'#eff6ff':'white'};flex:1;justify-content:center" onclick="_upCfg('${step.id}','browser_headless',true)">
-          <span style="font-size:.95rem">🖥️</span> <span style="color:${headlessOpen?'#2563eb':'#64748b'};font-weight:${headlessOpen?'700':'400'}">Headless (true)</span>
+          <span style="display:inline-flex">${_icon('monitor', 15)}</span> <span style="color:${headlessOpen?'#2563eb':'#64748b'};font-weight:${headlessOpen?'700':'400'}">Headless (true)</span>
         </label>
         <label style="display:flex;align-items:center;gap:.35rem;padding:.38rem .75rem;border:1.5px solid ${!headlessOpen?'#2563eb':'#e2e8f0'};border-radius:7px;cursor:pointer;font-size:.8rem;background:${!headlessOpen?'#eff6ff':'white'};flex:1;justify-content:center" onclick="_upCfg('${step.id}','browser_headless',false)">
-          <span style="font-size:.95rem">👁️</span> <span style="color:${!headlessOpen?'#2563eb':'#64748b'};font-weight:${!headlessOpen?'700':'400'}">Visível (false)</span>
+          <span style="display:inline-flex">${_icon('eye', 15)}</span> <span style="color:${!headlessOpen?'#2563eb':'#64748b'};font-weight:${!headlessOpen?'700':'400'}">Visível (false)</span>
         </label>
       </div>`);
       if (hasProfile) html += _hint('Desativado porque um perfil persistente foi definido acima.');
@@ -2644,7 +2525,7 @@ function _renderPropsPanel(step) {
         easyocr: 'Modelo de deep learning (PyTorch) — geralmente bem mais tolerante a texto distorcido/riscado que OCR clássico, sem precisar de tanto pré-processamento manual. Trade-off real: primeira execução nesse agente instala o PyTorch e baixa os pesos do modelo (pode levar alguns minutos, só uma vez); toda chamada depois disso recarrega o modelo do zero (cada ação roda num processo novo), então é sempre mais lento por chamada que o Tesseract — poucos segundos, não frações de segundo.',
         doctr: 'Modelo de deep learning (PyTorch, biblioteca docTR) — nos nossos testes com captchas reais foi o que deu o resultado mais preciso e com maior confiança entre os três motores. Reaproveita o mesmo pré-processamento do Tesseract (remoção de linha de ruído) antes de ler. Mesmo trade-off de instalação/velocidade do EasyOCR — primeira execução no agente demora mais (baixa PyTorch + pesos do modelo), chamadas seguintes levam alguns segundos cada.',
       };
-      html += `<p style="font-size:.7rem;color:#7c3aed;margin:-.35rem 0 .1rem;line-height:1.5">ℹ️ ${ocrHints[ocrEngine]}</p>`;
+      html += `<p style="font-size:.7rem;color:#7c3aed;margin:-.35rem 0 .1rem;line-height:1.5">${_icon('info', 11)} ${ocrHints[ocrEngine]}</p>`;
       html += _hint('Tira um print só da imagem do captcha e lê o texto via OCR. Funciona bem só em captcha de texto distorcido "clássico" — reCAPTCHA e hCaptcha não são feitos de imagem de texto, então não dá pra ler assim; use "Aguardar resolução manual" pra esses.');
       break;
     }
@@ -2809,7 +2690,7 @@ function openStudioRun(automationId) {
   const ow = document.getElementById('studio-run-output-wrap');
   if (ow) ow.style.display = 'none';
   const btn = document.getElementById('btn-studio-exec');
-  btn.disabled = false; btn.textContent = '⚡ Executar';
+  btn.disabled = false; btn.innerHTML = `${_icon('zap', 12)} Executar`;
   openModal('modal-studio-run');
 }
 
@@ -2821,7 +2702,7 @@ async function executeStudioRun() {
   const id = document.getElementById('studio-run-id').value;
   const input = document.getElementById('studio-run-input').value;
   const btn = document.getElementById('btn-studio-exec');
-  btn.disabled = true; btn.textContent = '⏳ Executando...';
+  btn.disabled = true; btn.textContent = 'Executando...';
 
   const stepsDiv = document.getElementById('studio-run-steps');
   stepsDiv.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;color:#64748b;font-size:.85rem"><div class="spinner" style="width:16px;height:16px"></div> Executando...</div>`;
@@ -2839,19 +2720,19 @@ async function executeStudioRun() {
     }
     _renderStudioRunResult(run);
   } catch (e) {
-    stepsDiv.innerHTML = `<div style="color:#ef4444;font-size:.85rem">❌ ${escapeHtml(e.message)}</div>`;
+    stepsDiv.innerHTML = `<div style="color:#ef4444;font-size:.85rem">${_icon('x', 13)} ${escapeHtml(e.message)}</div>`;
   } finally {
-    btn.disabled = false; btn.textContent = '⚡ Executar';
+    btn.disabled = false; btn.innerHTML = `${_icon('zap', 12)} Executar`;
   }
 }
 
 function _renderStudioRunResult(run) {
   const stepsDiv = document.getElementById('studio-run-steps');
   const sc = { success: '#16a34a', failed: '#ef4444', skipped: '#f59e0b', cancelled: '#f59e0b' };
-  const si = { success: '✓', failed: '✕', skipped: '⚠', cancelled: '⏹' };
+  const si = { success: _icon('check', 12), failed: _icon('x', 12), skipped: _icon('alert-triangle', 12), cancelled: _icon('stop', 12) };
 
   stepsDiv.innerHTML = run.steps_result.map(s => {
-    const meta = ACTION_MAP[s.step_type] || { icon: '⚙', color: '#64748b' };
+    const meta = ACTION_MAP[s.step_type] || { icon: 'gear', color: '#64748b' };
     const color = sc[s.status] || '#64748b';
     const isCondition = s.condition_result != null;
     return `<div style="background:white;border:1.5px solid ${s.status==='failed'?'#fca5a5':'#e2e8f0'};border-radius:10px;padding:.6rem .875rem;display:flex;flex-direction:column;gap:.35rem">
@@ -2862,7 +2743,7 @@ function _renderStudioRunResult(run) {
         <span style="font-size:.7rem;color:#94a3b8">${s.duration_ms}ms</span>
       </div>
       ${s.output ? `<pre style="font-size:.75rem;background:${isCondition?'#fffbeb':'#f8fafc'};border-radius:6px;padding:.35rem .55rem;margin:0;white-space:pre-wrap;word-break:break-word;max-height:120px;overflow-y:auto;color:${isCondition?'#92400e':'#334155'};font-family:inherit">${escapeHtml(s.output.substring(0, 600))}${s.output.length>600?'…':''}</pre>` : ''}
-      ${s.error ? `<div style="font-size:.75rem;color:#ef4444;background:#fef2f2;border-radius:5px;padding:.2rem .5rem">❌ ${escapeHtml(s.error)}</div>` : ''}
+      ${s.error ? `<div style="font-size:.75rem;color:#ef4444;background:#fef2f2;border-radius:5px;padding:.2rem .5rem">${_icon('x', 12)} ${escapeHtml(s.error)}</div>` : ''}
     </div>`;
   }).join('') || `<div style="color:#94a3b8;font-size:.85rem;text-align:center;padding:.5rem">Nenhuma ação executada</div>`;
 

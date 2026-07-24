@@ -33,7 +33,7 @@ async function loadProcesses() {
   ]);
   if (!processes) return;
   if (!processes.length) {
-    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">📋</div><h3>Nenhum processo ainda</h3><p>Crie seu primeiro processo Python</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">${_icon('clipboard', 32)}</div><h3>Nenhum processo ainda</h3><p>Crie seu primeiro processo Python</p></div></td></tr>`;
     return;
   }
   const agentMap = {};
@@ -41,18 +41,18 @@ async function loadProcesses() {
   tbody.innerHTML = processes.map(p => {
     const agent = p.agent_id ? agentMap[p.agent_id] : null;
     const agentCell = agent
-      ? `<span style="display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem">${agent.connected ? '🟢' : '⚫'} ${agent.name}</span>`
+      ? `<span style="display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem"><span class="dot" style="color:${agent.connected ? '#16a34a' : '#94a3b8'}"></span> ${agent.name}</span>`
       : `<span style="color:var(--gray-400);font-size:.82rem">Qualquer</span>`;
     const isStudio = !!p.studio_automation_id;
     const nameCell = isStudio
-      ? `${p.name} <span style="font-size:.68rem;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:4px;padding:.05rem .35rem;font-weight:600;vertical-align:middle">⚡ Studio</span>`
+      ? `${p.name} <span style="font-size:.68rem;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:4px;padding:.05rem .35rem;font-weight:600;vertical-align:middle">${_icon('zap', 10)} Studio</span>`
       : p.name;
     const editBtn = isStudio
-      ? `<button class="btn btn-outline btn-xs" onclick="navigate('studio_builder');window._builderAutoId='${p.studio_automation_id}';initBuilderPage()">✏ Editar</button>`
-      : `<button class="btn btn-outline btn-xs" onclick="editProcess('${p.id}')">✏ Editar</button>`;
+      ? `<button class="btn btn-outline btn-xs" onclick="navigate('studio_builder');window._builderAutoId='${p.studio_automation_id}';initBuilderPage()">${_icon('pencil', 12)} Editar</button>`
+      : `<button class="btn btn-outline btn-xs" onclick="editProcess('${p.id}')">${_icon('pencil', 12)} Editar</button>`;
     const runBtn = isStudio
-      ? `<button class="btn btn-outline btn-xs" onclick="runStudioProcess('${p.studio_automation_id}','${p.name.replace(/'/g,"\\'")}')">⚡ Executar</button>`
-      : `<button class="btn btn-outline btn-xs" onclick="runNow('${p.id}','${p.name.replace(/'/g,"\\'")}')">⚡ Executar</button>`;
+      ? `<button class="btn btn-outline btn-xs" onclick="runStudioProcess('${p.studio_automation_id}','${p.name.replace(/'/g,"\\'")}')">${_icon('zap', 12)} Executar</button>`
+      : `<button class="btn btn-outline btn-xs" onclick="runNow('${p.id}','${p.name.replace(/'/g,"\\'")}')">${_icon('zap', 12)} Executar</button>`;
     return `
     <tr style="cursor:pointer" onclick="openProcessLogs('${p.id}','${p.name.replace(/'/g,"\\'")}')">
       <td class="agent-name-cell">${nameCell}</td>
@@ -60,12 +60,12 @@ async function loadProcesses() {
       <td>${agentCell}</td>
       <td>${p.schedule ? `<span class="badge badge-blue" style="font-family:monospace;font-size:.72rem">${p.schedule}</span>` : '<span style="color:var(--gray-400);font-size:.82rem">–</span>'}</td>
       <td class="actions-cell" onclick="event.stopPropagation()">
-        <button class="btn btn-outline btn-xs" onclick="openProcessLogs('${p.id}','${p.name.replace(/'/g,"\\'")}')">📋 Logs</button>
+        <button class="btn btn-outline btn-xs" onclick="openProcessLogs('${p.id}','${p.name.replace(/'/g,"\\'")}')">${_icon('clipboard', 12)} Logs</button>
         ${runBtn}
-        ${!isStudio ? `<button class="btn btn-outline btn-xs" onclick="openJobModal('${p.id}','${p.name.replace(/'/g,"\\'")}')">▶ Parâmetros</button>` : ''}
+        ${!isStudio ? `<button class="btn btn-outline btn-xs" onclick="openJobModal('${p.id}','${p.name.replace(/'/g,"\\'")}')">${_icon('play', 12)} Parâmetros</button>` : ''}
         ${editBtn}
-        <button class="btn btn-danger btn-xs" onclick="stopProcess('${p.id}','${p.name.replace(/'/g,"\\'")}')">⏹ Parar</button>
-        <button class="btn btn-danger btn-xs" onclick="deleteProcess('${p.id}')">🗑 Remover</button>
+        <button class="btn btn-danger btn-xs" onclick="stopProcess('${p.id}','${p.name.replace(/'/g,"\\'")}')">${_icon('stop', 12)} Parar</button>
+        <button class="btn btn-danger btn-xs" onclick="deleteProcess('${p.id}')">${_icon('trash', 12)} Remover</button>
       </td>
     </tr>`;
   }).join('');
@@ -118,7 +118,7 @@ async function _fillAgentDropdown(selectedId = '') {
   if (agents) agents.forEach(a => {
     const opt = document.createElement('option');
     opt.value = a.id;
-    opt.textContent = a.name + (a.connected ? ' 🟢' : ' ⚫');
+    opt.textContent = a.name + (a.connected ? ' ●' : ' ○'); // <option> nativo não renderiza SVG
     opt.selected = a.id === selectedId;
     sel.appendChild(opt);
   });
@@ -223,7 +223,7 @@ async function openProcessLogs(processId, processName) {
   if (!jobs) return;
   if (!jobs.length) {
     body.innerHTML = `<div style="padding:3rem;text-align:center;color:var(--gray-400)">
-      <div style="font-size:2rem;margin-bottom:.75rem">📭</div>
+      <div style="font-size:2rem;margin-bottom:.75rem">${_icon('inbox', 32)}</div>
       <p>Nenhuma execução ainda</p>
     </div>`;
     return;
@@ -260,6 +260,6 @@ function runStudioProcess(automationId, name) {
   const ow = document.getElementById('studio-run-output-wrap');
   if (ow) ow.style.display = 'none';
   const btn = document.getElementById('btn-studio-exec');
-  btn.disabled = false; btn.textContent = '⚡ Executar';
+  btn.disabled = false; btn.innerHTML = `${_icon('zap', 12)} Executar`;
   openModal('modal-studio-run');
 }

@@ -30,7 +30,7 @@ async function loadDashboard() {
 
   if (!jobList.length) {
     tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">
-      <div class="empty-icon">📭</div>
+      <div class="empty-icon">${_icon('inbox', 32)}</div>
       <h3>Nenhuma execução ainda</h3>
       <p>Crie um processo e dispare seu primeiro job</p>
     </div></td></tr>`;

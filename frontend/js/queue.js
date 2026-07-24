@@ -46,7 +46,7 @@ async function loadQueue() {
             <td>
               <button onclick="cancelQueueJob('${j.id}')"
                 style="padding:.25rem .6rem;font-size:.75rem;border:1px solid var(--red);border-radius:6px;background:white;color:var(--red);cursor:pointer">
-                ✕ Cancelar
+                ${_icon('x', 12)} Cancelar
               </button>
             </td>
           </tr>`;

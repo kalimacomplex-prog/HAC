@@ -27,7 +27,7 @@ function renderOraculoMessages() {
     const hasAgents = oraculoAgentsList.length > 0;
     container.innerHTML = `
       <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:.875rem;color:var(--gray-400);user-select:none">
-        <div style="font-size:2.75rem">🔮</div>
+        <div>${_icon('sparkles', 44)}</div>
         <div style="font-weight:700;font-size:1.05rem;color:var(--gray-600)">Oráculo</div>
         <div style="font-size:.875rem;text-align:center;max-width:320px;line-height:1.65;color:var(--gray-400)">
           ${hasAgents
@@ -43,7 +43,7 @@ function renderOraculoMessages() {
     if (msg.role === 'user') {
       const chips = (msg.attachments || []).map(a =>
         `<div style="display:inline-flex;align-items:center;gap:.25rem;background:rgba(255,255,255,.2);border-radius:5px;padding:.1rem .4rem;font-size:.7rem;margin-top:.35rem;margin-right:.25rem">
-          📄 ${escapeHtml(a.name)}
+          ${_icon('file-text', 12)} ${escapeHtml(a.name)}
         </div>`
       ).join('');
       return `
@@ -58,7 +58,7 @@ function renderOraculoMessages() {
     if (msg.role === 'typing') {
       return `
         <div style="display:flex;align-items:flex-end;gap:.5rem;margin-bottom:.875rem">
-          <div class="oraculo-avatar">🔮</div>
+          <div class="oraculo-avatar" style="color:white">${_icon('sparkles', 16)}</div>
           <div style="background:white;border:1px solid var(--gray-200);border-radius:18px 18px 18px 4px;padding:.75rem 1rem;box-shadow:0 1px 3px rgba(0,0,0,.06)">
             <div style="display:flex;gap:.35rem;align-items:center;height:18px">
               <div class="oraculo-dot" style="animation-delay:0s"></div>
@@ -71,7 +71,7 @@ function renderOraculoMessages() {
     }
     return `
       <div style="display:flex;align-items:flex-end;gap:.5rem;margin-bottom:.875rem">
-        <div class="oraculo-avatar">🔮</div>
+        <div class="oraculo-avatar" style="color:white">${_icon('sparkles', 16)}</div>
         <div style="max-width:72%">
           ${msg.agentName ? `<div style="font-size:.7rem;font-weight:600;color:var(--gray-400);margin-bottom:.25rem;padding-left:.2rem">${escapeHtml(msg.agentName)}</div>` : ''}
           <div style="background:white;border:1px solid var(--gray-200);border-radius:18px 18px 18px 4px;padding:.7rem 1rem;font-size:.9rem;line-height:1.65;white-space:pre-wrap;word-break:break-word;color:var(--gray-800);box-shadow:0 1px 3px rgba(0,0,0,.06)">${escapeHtml(msg.content)}</div>
@@ -132,7 +132,7 @@ async function sendOraculoMessage() {
     oraculoHistory.push({ role: 'assistant', content: result.output, agentName: agent?.name });
   } catch(e) {
     oraculoHistory = oraculoHistory.filter(m => m.role !== 'typing');
-    oraculoHistory.push({ role: 'assistant', content: `⚠ Erro: ${e.message}`, agentName: agent?.name });
+    oraculoHistory.push({ role: 'assistant', content: `Erro: ${e.message}`, agentName: agent?.name });
   } finally {
     oraculoTyping = false;
     renderOraculoMessages();
@@ -197,9 +197,9 @@ function _renderOraculoAttachments() {
   container.style.display = 'flex';
   container.innerHTML = _oraculoAttachments.map((a, i) => `
     <div style="display:inline-flex;align-items:center;gap:.3rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:.2rem .5rem .2rem .45rem;font-size:.75rem;color:#1d4ed8;max-width:200px">
-      <span style="flex-shrink:0">📄</span>
+      <span style="flex-shrink:0;display:inline-flex">${_icon('file-text', 13)}</span>
       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1" title="${escapeHtml(a.name)}">${escapeHtml(a.name)}</span>
-      <button onclick="oraculoRemoveAttachment(${i})" title="Remover" style="background:none;border:none;cursor:pointer;color:#64748b;font-size:.72rem;padding:0;line-height:1;flex-shrink:0;margin-left:.1rem">✕</button>
+      <button onclick="oraculoRemoveAttachment(${i})" title="Remover" style="background:none;border:none;cursor:pointer;color:#64748b;padding:0;line-height:1;flex-shrink:0;margin-left:.1rem;display:flex">${_icon('x', 12)}</button>
     </div>
   `).join('');
 }

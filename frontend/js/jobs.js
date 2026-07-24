@@ -7,7 +7,7 @@ function _missingModule(error) {
 function _installBtn(agentId, pkg) {
   if (!agentId || !pkg) return '';
   return `<button class="btn btn-blue btn-sm" style="margin-top:.75rem" onclick="installPackage('${agentId}','${pkg}')">
-    📦 Instalar biblioteca "${pkg}"
+    ${_icon('package', 13)} Instalar biblioteca "${pkg}"
   </button>`;
 }
 
@@ -55,7 +55,7 @@ async function loadJobs() {
   const jobs = await api('GET', `/jobs${qs}`);
   if (!jobs) return;
   if (!jobs.length) {
-    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">⚙️</div><h3>Nenhum job encontrado</h3><p>Dispare um job a partir de um processo</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">${_icon('gear', 32)}</div><h3>Nenhum job encontrado</h3><p>Dispare um job a partir de um processo</p></div></td></tr>`;
     return;
   }
   tbody.innerHTML = jobs.map(j => `

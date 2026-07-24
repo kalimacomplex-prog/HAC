@@ -4,7 +4,7 @@ async function loadAgents() {
   const agents = await api('GET', '/agents');
   if (!agents) return;
   if (!agents.length) {
-    tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">🤖</div><h3>Nenhum agente ainda</h3><p>Cadastre o ambiente onde os processos vão executar</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">${_icon('robot', 32)}</div><h3>Nenhum agente ainda</h3><p>Cadastre o ambiente onde os processos vão executar</p></div></td></tr>`;
     return;
   }
   tbody.innerHTML = agents.map(a => `
@@ -16,7 +16,7 @@ async function loadAgents() {
         : `<span style="display:inline-flex;align-items:center;gap:.4rem;color:var(--gray-400);font-size:.82rem"><span style="width:8px;height:8px;border-radius:50%;background:var(--gray-400);display:inline-block"></span>Desconectado</span>`
       }</td>
       <td class="actions-cell">
-        <button class="btn btn-outline btn-sm" onclick="copyId('${a.id}')" title="${a.id}">📋 Copiar ID</button>
+        <button class="btn btn-outline btn-sm" onclick="copyId('${a.id}')" title="${a.id}">${_icon('clipboard', 13)} Copiar ID</button>
         <button class="btn btn-outline btn-sm" onclick="editAgent('${a.id}')">Editar</button>
         <button class="btn btn-danger btn-sm" onclick="deleteAgent('${a.id}')">Remover</button>
       </td>

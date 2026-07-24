@@ -25,9 +25,9 @@ async function loadPipelines() {
         </td>
         <td>
           <div style="display:flex;gap:.3rem;flex-wrap:wrap">
-            <button class="btn btn-outline btn-xs" onclick="openPipelineRun('${p.id}')">⚡ Executar</button>
-            <button class="btn btn-outline btn-xs" onclick="openPipelineModal(pipelinesList.find(x=>x.id==='${p.id}'))">✏ Editar</button>
-            <button class="btn btn-danger btn-xs" onclick="deletePipeline('${p.id}','${escapeHtml(p.name)}')">🗑</button>
+            <button class="btn btn-outline btn-xs" onclick="openPipelineRun('${p.id}')">${_icon('zap', 12)} Executar</button>
+            <button class="btn btn-outline btn-xs" onclick="openPipelineModal(pipelinesList.find(x=>x.id==='${p.id}'))">${_icon('pencil', 12)} Editar</button>
+            <button class="btn btn-danger btn-xs" onclick="deletePipeline('${p.id}','${escapeHtml(p.name)}')">${_icon('trash', 12)}</button>
           </div>
         </td>
       </tr>
@@ -109,7 +109,7 @@ function renderPipelineCanvas() {
   // Start node
   parts.push(`
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:72px;height:72px;background:#164e63;border:2px solid #06b6d4;border-radius:50%;flex-shrink:0">
-      <div style="font-size:1.1rem;color:#06b6d4">▶</div>
+      <div style="color:#06b6d4">${_icon('play', 18)}</div>
       <div style="font-size:.6rem;font-weight:800;color:#67e8f9;letter-spacing:.06em;margin-top:.1rem">START</div>
     </div>
   `);
@@ -127,7 +127,7 @@ function renderPipelineCanvas() {
       <div onclick="selectPipelineStep(${i})" style="width:168px;background:#1e293b;border:2px solid ${isSelected ? '#3b82f6' : '#334155'};border-radius:12px;cursor:pointer;flex-shrink:0;transition:border-color .15s;box-shadow:${isSelected ? '0 0 0 3px rgba(59,130,246,.25)' : 'none'}">
         <div style="background:${isSelected ? '#1d4ed8' : '#334155'};border-radius:9px 9px 0 0;padding:.3rem .65rem;display:flex;align-items:center;justify-content:space-between">
           <span style="color:white;font-size:.68rem;font-weight:800;letter-spacing:.05em">NÓ ${i + 1}</span>
-          <button onclick="event.stopPropagation();removePipelineStep(${i})" style="background:none;border:none;color:#93c5fd;cursor:pointer;font-size:.75rem;padding:0;line-height:1">✕</button>
+          <button onclick="event.stopPropagation();removePipelineStep(${i})" style="background:none;border:none;color:#93c5fd;cursor:pointer;padding:0;line-height:1;display:flex">${_icon('x', 12)}</button>
         </div>
         <div style="padding:.55rem .65rem">
           <div style="color:white;font-size:.82rem;font-weight:600;margin-bottom:.25rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(step.name || 'Sem nome')}</div>
@@ -136,7 +136,7 @@ function renderPipelineCanvas() {
                  <span style="background:${providerColor}20;color:${providerColor};border:1px solid ${providerColor}50;border-radius:999px;padding:.05rem .4rem;font-size:.65rem;font-weight:700">${agent.provider}</span>
                </div>
                <div style="font-size:.72rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(agent.name)}</div>`
-            : `<div style="font-size:.75rem;color:#f87171;margin-bottom:.25rem">⚠ Sem agente</div>`
+            : `<div style="font-size:.75rem;color:#f87171;margin-bottom:.25rem">${_icon('alert-triangle', 12)} Sem agente</div>`
           }
           <div style="margin-top:.35rem;background:#0f172a;border-radius:4px;padding:.15rem .4rem;font-size:.68rem;font-family:monospace;color:#38bdf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(step.input_template || '{output}')}</div>
         </div>
@@ -157,7 +157,7 @@ function renderPipelineCanvas() {
   parts.push(arrowHtml());
   parts.push(`
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:72px;height:72px;background:#1e293b;border:2px solid #334155;border-radius:50%;flex-shrink:0">
-      <div style="font-size:.95rem;color:#475569">⬛</div>
+      <div style="width:10px;height:10px;border-radius:2px;background:#475569"></div>
       <div style="font-size:.6rem;font-weight:800;color:#64748b;letter-spacing:.06em;margin-top:.1rem">END</div>
     </div>
   `);
@@ -169,7 +169,7 @@ function arrowHtml() {
   return `
     <div style="display:flex;align-items:center;flex-shrink:0;padding:0 2px">
       <div style="width:36px;height:2px;background:#334155;position:relative">
-        <div style="position:absolute;right:-7px;top:-5px;color:#475569;font-size:.8rem">▶</div>
+        <div style="position:absolute;right:-9px;top:-8px;color:#475569">${_icon('play', 14)}</div>
       </div>
     </div>
   `;
@@ -233,7 +233,7 @@ function renderConfigPanel() {
     <button onclick="applyStepConfig()" class="btn btn-blue" style="width:100%;margin-top:.25rem">Aplicar</button>
 
     <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #f1f5f9">
-      <button onclick="removePipelineStep(${selectedStepIndex})" class="btn btn-danger btn-sm" style="width:100%">🗑 Remover este nó</button>
+      <button onclick="removePipelineStep(${selectedStepIndex})" class="btn btn-danger btn-sm" style="width:100%">${_icon('trash', 12)} Remover este nó</button>
     </div>
   `;
 }
@@ -304,17 +304,17 @@ function renderRunNodes(steps, results) {
   const parts = [];
 
   // Start
-  parts.push(`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:56px;height:56px;background:#164e63;border:2px solid #06b6d4;border-radius:50%;flex-shrink:0"><div style="color:#06b6d4;font-size:.9rem">▶</div></div>`);
+  parts.push(`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:56px;height:56px;background:#164e63;border:2px solid #06b6d4;border-radius:50%;flex-shrink:0"><div style="color:#06b6d4">${_icon('play', 16)}</div></div>`);
 
   steps.forEach((step, i) => {
     const res = results[i];
     const status = res?.status;
     const colors = { done: '#16a34a', failed: '#ef4444', running: '#3b82f6' };
-    const icons  = { done: '✓', failed: '✕', running: '…' };
+    const icons  = { done: _icon('check', 12), failed: _icon('x', 12), running: '…' };
     const borderColor = status ? colors[status] : '#334155';
     const icon = status ? icons[status] : '';
 
-    parts.push(`<div style="width:28px;height:2px;background:#334155;flex-shrink:0;position:relative"><div style="position:absolute;right:-6px;top:-4px;color:#475569;font-size:.75rem">▶</div></div>`);
+    parts.push(`<div style="width:28px;height:2px;background:#334155;flex-shrink:0;position:relative"><div style="position:absolute;right:-8px;top:-7px;color:#475569">${_icon('play', 14)}</div></div>`);
     parts.push(`
       <div style="display:flex;flex-direction:column;align-items:center;gap:.3rem;flex-shrink:0">
         <div style="width:140px;background:#1e293b;border:2px solid ${borderColor};border-radius:10px;overflow:hidden">
@@ -338,8 +338,8 @@ function renderRunNodes(steps, results) {
   });
 
   // End
-  parts.push(`<div style="width:28px;height:2px;background:#334155;flex-shrink:0;position:relative"><div style="position:absolute;right:-6px;top:-4px;color:#475569;font-size:.75rem">▶</div></div>`);
-  parts.push(`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:56px;height:56px;background:#1e293b;border:2px solid #334155;border-radius:50%;flex-shrink:0"><div style="color:#475569;font-size:.75rem">⬛</div></div>`);
+  parts.push(`<div style="width:28px;height:2px;background:#334155;flex-shrink:0;position:relative"><div style="position:absolute;right:-8px;top:-7px;color:#475569">${_icon('play', 14)}</div></div>`);
+  parts.push(`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:56px;height:56px;background:#1e293b;border:2px solid #334155;border-radius:50%;flex-shrink:0"><div style="width:9px;height:9px;border-radius:2px;background:#475569"></div></div>`);
 
   container.innerHTML = parts.join('');
 }
@@ -367,6 +367,6 @@ async function executePipeline() {
     toast(e.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = '⚡ Executar';
+    btn.innerHTML = `${_icon('zap', 12)} Executar`;
   }
 }

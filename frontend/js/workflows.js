@@ -147,19 +147,19 @@ function _wfRenderList() {
         return `<tr>
           <td>
             <strong>${escapeHtml(w.name)}</strong>
-            ${agentName ? `<div style="font-size:.73rem;color:var(--gray-400);margin-top:.1rem">🤖 ${escapeHtml(agentName)}</div>` : ''}
+            ${agentName ? `<div style="font-size:.73rem;color:var(--gray-400);margin-top:.1rem">${_icon('robot', 11)} ${escapeHtml(agentName)}</div>` : ''}
           </td>
           <td style="color:var(--gray-500)">${w.node_count}</td>
           <td style="color:var(--gray-500);font-size:.82rem">${formatDate(w.created_at)}</td>
           <td style="display:flex;gap:.4rem">
-            <button class="btn btn-outline btn-sm" onclick="_wfOpenEditor('${w.id}')">✏ Editar</button>
-            <button class="btn btn-blue btn-sm" onclick="_wfRunById('${w.id}','${escapeHtml(w.name).replace(/'/g,"\\'")}')">▶ Executar</button>
-            <button class="btn btn-danger btn-sm" onclick="_wfDeleteWorkflow('${w.id}')">✕</button>
+            <button class="btn btn-outline btn-sm" onclick="_wfOpenEditor('${w.id}')">${_icon('pencil', 12)} Editar</button>
+            <button class="btn btn-blue btn-sm" onclick="_wfRunById('${w.id}','${escapeHtml(w.name).replace(/'/g,"\\'")}')">${_icon('play', 12)} Executar</button>
+            <button class="btn btn-danger btn-sm" onclick="_wfDeleteWorkflow('${w.id}')">${_icon('x', 12)}</button>
           </td></tr>`;
       }).join('');
   c.innerHTML = `<div class="card">
     <div class="card-header"><h3>Meus Workflows</h3>
-      <button class="btn btn-outline btn-sm" onclick="loadWorkflows()">↻ Atualizar</button></div>
+      <button class="btn btn-outline btn-sm" onclick="loadWorkflows()">${_icon('repeat', 12)} Atualizar</button></div>
     <div class="card-body">
       <table class="table">
         <thead><tr><th>Nome</th><th>Nós</th><th>Criado</th><th>Ações</th></tr></thead>
@@ -206,22 +206,22 @@ function _wfRenderEditor() {
     <div style="display:flex;flex-direction:column;height:100%;overflow:hidden">
       <!-- Toolbar -->
       <div style="display:flex;align-items:center;gap:.45rem;padding:.48rem .8rem;background:white;border-bottom:1px solid #e2e8f0;flex-shrink:0">
-        <button class="btn btn-outline btn-sm" onclick="_wfBackToList()">← Voltar</button>
+        <button class="btn btn-outline btn-sm" onclick="_wfBackToList()">${_icon('arrow-left', 12)} Voltar</button>
         <input id="wf-name-input" type="text" value="${escapeHtml(_wfCurrent.name)}"
           style="flex:1;font-size:.93rem;font-weight:600;border:1px solid #e2e8f0;border-radius:6px;padding:.26rem .5rem;outline:none;color:var(--gray-700)"
           oninput="_wfCurrent.name=this.value"/>
         <select id="wf-agent-select"
           style="font-size:.81rem;padding:.26rem .5rem;border:1px solid #e2e8f0;border-radius:6px;color:var(--gray-700);max-width:148px;flex-shrink:0"
           onchange="_wfCurrent.agent_id=this.value">
-          <option value="">🤖 Qualquer agente</option>
+          <option value="">Qualquer agente</option>
           ${agentOpts}
         </select>
         <button class="btn btn-outline btn-sm" onclick="_wfOpenVarsModal()">
-          📋 Variáveis <span id="wf-var-badge" style="background:#3b82f6;color:white;border-radius:10px;padding:.05rem .4rem;font-size:.68rem;margin-left:.2rem">${_wfVariables.length}</span>
+          ${_icon('clipboard', 12)} Variáveis <span id="wf-var-badge" style="background:#3b82f6;color:white;border-radius:10px;padding:.05rem .4rem;font-size:.68rem;margin-left:.2rem">${_wfVariables.length}</span>
         </button>
-        <button class="btn btn-outline btn-sm" onclick="_wfSave()">💾 Salvar</button>
-        <button class="btn btn-blue btn-sm" onclick="_wfRunCurrent()">▶ Executar</button>
-        <button class="btn btn-danger btn-sm" title="Del" onclick="_wfDeleteSelected()">🗑</button>
+        <button class="btn btn-outline btn-sm" onclick="_wfSave()">${_icon('save', 12)} Salvar</button>
+        <button class="btn btn-blue btn-sm" onclick="_wfRunCurrent()">${_icon('play', 12)} Executar</button>
+        <button class="btn btn-danger btn-sm" title="Del" onclick="_wfDeleteSelected()">${_icon('trash', 12)}</button>
       </div>
       <!-- Body -->
       <div style="display:flex;flex:1;min-height:0;overflow:hidden">
@@ -665,7 +665,7 @@ function _wfRenderProps() {
           oninput="_wfNodeProp('${node.id}','label',this.value)"/>
       </div>
       ${extra}
-      <button class="btn btn-danger btn-sm" style="width:100%;margin-top:1.1rem" onclick="_wfDeleteSelected()">🗑 Excluir</button>`;
+      <button class="btn btn-danger btn-sm" style="width:100%;margin-top:1.1rem" onclick="_wfDeleteSelected()">${_icon('trash', 12)} Excluir</button>`;
     return;
   }
 
@@ -681,7 +681,7 @@ function _wfRenderProps() {
           style="width:100%;margin-top:.1rem;padding:.3rem;border:1px solid #e2e8f0;border-radius:6px;font-size:.78rem;box-sizing:border-box"
           oninput="_wfEdgeProp('${edge.id}','label',this.value)"/>
       </div>
-      <button class="btn btn-danger btn-sm" style="width:100%;margin-top:1.1rem" onclick="_wfDeleteSelected()">🗑 Excluir</button>`;
+      <button class="btn btn-danger btn-sm" style="width:100%;margin-top:1.1rem" onclick="_wfDeleteSelected()">${_icon('trash', 12)} Excluir</button>`;
   }
 }
 
@@ -740,8 +740,8 @@ function _wfOpenVarsModal() {
   modal.innerHTML = `
     <div style="background:white;border-radius:12px;padding:1.4rem;max-width:540px;width:92%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.65rem">
-        <h3 style="margin:0;font-size:.95rem">📋 Variáveis de Fluxo</h3>
-        <button onclick="_wfCloseVarsModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--gray-400)">✕</button>
+        <h3 style="margin:0;font-size:.95rem;display:flex;align-items:center;gap:.4rem">${_icon('clipboard', 16)} Variáveis de Fluxo</h3>
+        <button onclick="_wfCloseVarsModal()" style="background:none;border:none;cursor:pointer;color:var(--gray-400);display:flex">${_icon('x', 16)}</button>
       </div>
       <p style="font-size:.8rem;color:var(--gray-500);margin-bottom:.9rem;line-height:1.5">
         Use <code style="background:#f1f5f9;padding:.1rem .3rem;border-radius:4px">{nome}</code> nos parâmetros das tarefas para referenciar estas variáveis.
@@ -749,7 +749,7 @@ function _wfOpenVarsModal() {
       <div id="wf-vars-list">${_wfRenderVarsList()}</div>
       <button class="btn btn-outline btn-sm" style="margin-top:.5rem" onclick="_wfAddVar()">+ Adicionar variável</button>
       <div style="display:flex;justify-content:flex-end;margin-top:1.1rem">
-        <button class="btn btn-blue" onclick="_wfCloseVarsModal()">✓ Fechar</button>
+        <button class="btn btn-blue" onclick="_wfCloseVarsModal()">${_icon('check', 12)} Fechar</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
@@ -780,7 +780,7 @@ function _wfRenderVarsList() {
         <input type="text" value="${escapeHtml(v.description)}" placeholder="descrição"
           style="padding:.25rem .4rem;border:1px solid #e2e8f0;border-radius:5px;font-size:.78rem;width:100%;box-sizing:border-box"
           oninput="_wfVarF(${i},'description',this.value)"/>
-        <button onclick="_wfRemoveVar(${i})" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:1rem;padding:.1rem .25rem">✕</button>
+        <button onclick="_wfRemoveVar(${i})" style="background:none;border:none;cursor:pointer;color:var(--red);padding:.1rem .25rem;display:flex">${_icon('x', 14)}</button>
       </div>`).join('')}`;
 }
 
@@ -844,8 +844,8 @@ function _wfShowRunDialog(wfId, wfName) {
   modal.innerHTML=`
     <div style="background:white;border-radius:12px;padding:1.4rem;max-width:460px;width:92%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.65rem">
-        <h3 style="margin:0;font-size:.95rem">▶ Executar: ${escapeHtml(wfName)}</h3>
-        <button onclick="document.getElementById('wf-run-modal').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--gray-400)">✕</button>
+        <h3 style="margin:0;font-size:.95rem;display:flex;align-items:center;gap:.4rem">${_icon('play', 15)} Executar: ${escapeHtml(wfName)}</h3>
+        <button onclick="document.getElementById('wf-run-modal').remove()" style="background:none;border:none;cursor:pointer;color:var(--gray-400);display:flex">${_icon('x', 16)}</button>
       </div>
       <p style="font-size:.8rem;color:var(--gray-500);margin-bottom:.85rem">Preencha as variáveis de fluxo:</p>
       ${allVars.map(v=>`
@@ -859,7 +859,7 @@ function _wfShowRunDialog(wfId, wfName) {
         </div>`).join('')}
       <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:1.1rem">
         <button class="btn btn-outline" onclick="document.getElementById('wf-run-modal').remove()">Cancelar</button>
-        <button class="btn btn-blue" onclick="_wfConfirmRun('${wfId}',${JSON.stringify(vNames)})">▶ Executar</button>
+        <button class="btn btn-blue" onclick="_wfConfirmRun('${wfId}',${JSON.stringify(vNames)})">${_icon('play', 12)} Executar</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
