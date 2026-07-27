@@ -39,6 +39,11 @@ async def startup():
     asyncio.create_task(scheduler_loop())
 
 
+@app.on_event("shutdown")
+async def shutdown():
+    await studio.close_shared_http_client()
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}

@@ -33,6 +33,27 @@ from .ai_agents import call_ai
 
 router = APIRouter(prefix="/studio", tags=["studio"])
 
+# Client HTTP compartilhado para o step genérico "http_request" (de longe o mais
+# usado) — reaproveita conexões (keep-alive) em vez de refazer handshake TCP/TLS
+# a cada chamada, o que ajuda muito quando um foreach/loop bate repetidamente na
+# mesma API. Timeout é passado por chamada (não no construtor) justamente pra
+# poder ser compartilhado por todos os steps sem overhead de criar um client novo.
+_shared_http_client: httpx.AsyncClient | None = None
+
+
+def _get_shared_http_client() -> httpx.AsyncClient:
+    global _shared_http_client
+    if _shared_http_client is None or _shared_http_client.is_closed:
+        _shared_http_client = httpx.AsyncClient()
+    return _shared_http_client
+
+
+async def close_shared_http_client():
+    """Chamado no shutdown da API pra fechar as conexões mantidas em keep-alive."""
+    global _shared_http_client
+    if _shared_http_client is not None and not _shared_http_client.is_closed:
+        await _shared_http_client.aclose()
+
 
 # ─── Helpers ──────────────────────────────────────────────────────
 
@@ -500,7 +521,7 @@ def _gen_browser_script(actions: list, engine: str, headless: bool, ctx: dict) -
 
 
 async def _run_agent_script(script: str, agent_id: str, user_id: str,
-                            timeout_seconds: int = 120, poll_seconds: int = 2,
+                            timeout_seconds: int = 120, poll_seconds: float = 0.5,
                             name_prefix: str = "__studio_job_",
                             process_label: str = "Studio Step") -> str:
     """Despacha um script Python como job temporário (__studio_*) para o agente,
@@ -2662,19 +2683,22 @@ async def _exec_step(step: dict, ctx: dict) -> str:
         body = _sub(cfg.get("body", ""), ctx)
         max_tries = int(cfg.get("max_iterations", 3) or 3)
         last_exc = None
-        for attempt in range(max_tries):
-            try:
-                async with httpx.AsyncClient(timeout=30) as client:
+        # Um único client pra todas as tentativas — como é sempre a mesma url/host,
+        # reabrir a conexão TCP/TLS a cada retry só adicionava atraso desnecessário
+        # (e justamente no cenário em que o servidor já está lento/instável).
+        async with httpx.AsyncClient(timeout=30) as client:
+            for attempt in range(max_tries):
+                try:
                     resp = await client.request(method, url, headers=headers, content=body or None)
-                if resp.status_code < 500:
-                    result = f"[{resp.status_code}] {resp.text[:3000]}"
-                    _store(resp.text[:5000], var, ctx)
-                    return result
-                last_exc = Exception(f"HTTP {resp.status_code}")
-            except Exception as e:
-                last_exc = e
-            if attempt < max_tries - 1:
-                await asyncio.sleep(min(2 ** attempt, 30))
+                    if resp.status_code < 500:
+                        result = f"[{resp.status_code}] {resp.text[:3000]}"
+                        _store(resp.text[:5000], var, ctx)
+                        return result
+                    last_exc = Exception(f"HTTP {resp.status_code}")
+                except Exception as e:
+                    last_exc = e
+                if attempt < max_tries - 1:
+                    await asyncio.sleep(min(2 ** attempt, 30))
         raise Exception(f"Falhou após {max_tries} tentativas: {last_exc}")
 
     # ── Texto & NLP ─────────────────────────────────────────
@@ -3214,22 +3238,22 @@ async def _exec_step(step: dict, ctx: dict) -> str:
         headers = cfg.get("headers") or {}
         body = _sub(cfg.get("body", ""), ctx)
 
-        async with httpx.AsyncClient(timeout=30) as client:
-            if method == "GET":
-                resp = await client.get(url, headers=headers)
-            elif method in ("POST", "PUT", "PATCH"):
-                ct = headers.get("Content-Type", "application/json")
-                if "json" in ct:
-                    try:
-                        resp = await client.request(method, url, json=json.loads(body) if body else {}, headers=headers)
-                    except json.JSONDecodeError:
-                        resp = await client.request(method, url, content=body, headers=headers)
-                else:
-                    resp = await client.request(method, url, content=body, headers=headers)
-            elif method == "DELETE":
-                resp = await client.delete(url, headers=headers)
+        client = _get_shared_http_client()
+        if method == "GET":
+            resp = await client.get(url, headers=headers, timeout=30)
+        elif method in ("POST", "PUT", "PATCH"):
+            ct = headers.get("Content-Type", "application/json")
+            if "json" in ct:
+                try:
+                    resp = await client.request(method, url, json=json.loads(body) if body else {}, headers=headers, timeout=30)
+                except json.JSONDecodeError:
+                    resp = await client.request(method, url, content=body, headers=headers, timeout=30)
             else:
-                resp = await client.request(method, url, content=body, headers=headers)
+                resp = await client.request(method, url, content=body, headers=headers, timeout=30)
+        elif method == "DELETE":
+            resp = await client.delete(url, headers=headers, timeout=30)
+        else:
+            resp = await client.request(method, url, content=body, headers=headers, timeout=30)
 
         result = resp.text
         _store(result[:5000], var, ctx)
@@ -3689,20 +3713,26 @@ def _spawn_background(coro):
 
 async def _push_live(ctx: dict, result: dict):
     """Registra um resultado de step tanto na lista local (via chamador) quanto,
-    se a execução tiver um run_id associado, grava no Mongo na hora — é isso que
-    permite o frontend acompanhar o progresso em tempo real via polling, em vez
-    de só ver tudo de uma vez quando a automação inteira termina."""
+    se a execução tiver um run_id associado, agenda a gravação no Mongo em
+    background (sem bloquear o próximo step) — é isso que permite o frontend
+    acompanhar o progresso em tempo real via polling, em vez de só ver tudo de
+    uma vez quando a automação inteira termina. As tasks ficam em
+    ctx["_push_tasks"] e são aguardadas antes do update final do run (perto do
+    fim de `_execute_automation`), pra nenhuma escrita atrasada sobrescrever o
+    resultado definitivo."""
     live = ctx.setdefault("_live_results", [])
     live.append(result)
     run_id = ctx.get("_run_id")
     if run_id:
-        try:
-            await studio_runs_col.update_one(
-                {"_id": run_id},
-                {"$set": {"steps_result": live, "output": ctx.get("output", "")}},
-            )
-        except Exception:
-            pass  # atualização de progresso nunca deve derrubar a execução
+        async def _write():
+            try:
+                await studio_runs_col.update_one(
+                    {"_id": run_id},
+                    {"$set": {"steps_result": live, "output": ctx.get("output", "")}},
+                )
+            except Exception:
+                pass  # atualização de progresso nunca deve derrubar a execução
+        ctx.setdefault("_push_tasks", []).append(asyncio.create_task(_write()))
 
 
 async def _is_cancelled(ctx: dict) -> bool:
@@ -4082,6 +4112,10 @@ async def _execute_automation(automation: dict, initial_input: str, trigger_type
         steps_results, failed = await _exec_step_list(steps, ctx)
     finally:
         await _close_remaining_sessions(ctx)
+    if ctx.get("_push_tasks"):
+        # drena as gravações de progresso em background antes do update final,
+        # senão uma escrita atrasada poderia sobrescrever o resultado definitivo
+        await asyncio.gather(*ctx["_push_tasks"], return_exceptions=True)
     final_status = "cancelled" if ctx.get("_cancelled") else ("failed" if failed else "success")
 
     finished_at = datetime.utcnow()

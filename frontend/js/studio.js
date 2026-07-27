@@ -618,7 +618,7 @@ async function _runBuilderInline(extra) {
 
     let run = initial;
     while (run.status === 'running') {
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 300));
       run = await api('GET', `/studio/test-run/${_builderRunId}`);
       _appendNewRunSteps(run);
     }
@@ -2716,7 +2716,7 @@ async function executeStudioRun() {
     let run = initial;
     while (run.status === 'running') {
       _renderStudioRunResult(run);
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 300));
       run = await api('GET', `/studio/${id}/runs/${initial.id}`);
     }
     _renderStudioRunResult(run);

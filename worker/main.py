@@ -21,7 +21,7 @@ API_URL = os.environ["HAC_API_URL"].rstrip("/")
 EMAIL = os.environ["HAC_EMAIL"]
 PASSWORD = os.environ["HAC_PASSWORD"]
 AGENT_ID = os.getenv("HAC_AGENT_ID", "")
-POLL_INTERVAL = int(os.getenv("WORKER_POLL_SECONDS", "5"))
+POLL_INTERVAL = float(os.getenv("WORKER_POLL_SECONDS", "1"))
 HEARTBEAT_INTERVAL = 30
 
 
