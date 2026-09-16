@@ -7,10 +7,12 @@ Pasta autocontida (não depende de api/ nem worker/) pra poder ser
 zipada e enviada ao Discloud isoladamente.
 
 Configuração via variáveis de ambiente (Discloud) ou .env local:
-  HAC_API_URL   -> URL da API do HAC no Render
-  HAC_EMAIL     -> login do usuário HAC
-  HAC_PASSWORD  -> senha do usuário HAC
-  HAC_AGENT_ID  -> id do agente (criado via POST /agents na API)
+  HAC_API_URL          -> URL da API do HAC no Render
+  HAC_EMAIL            -> login do usuário HAC
+  HAC_PASSWORD         -> senha do usuário HAC
+  HAC_AGENT_ID         -> id do agente (criado via POST /agents na API)
+  HAC_EXECUTOR_URL      -> URL do executor Playwright (Render conta B), opcional
+  HAC_EXECUTOR_API_KEY  -> chave usada pra autenticar no executor, opcional
 """
 import os
 import time
@@ -22,7 +24,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from executor import run_script
+from executor import run_script, run_script_remote, needs_playwright_fallback
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("hac.cloudagent")
@@ -99,7 +101,12 @@ def main():
             job = claim_job(token)
             if job:
                 log.info(f"Executando job {job['job_id']} | processo: {job['process_name']}")
-                output, error, returncode = run_script(job["script"], job.get("params", {}), job.get("timeout_seconds", 300))
+                params = job.get("params", {})
+                timeout = job.get("timeout_seconds", 300)
+                output, error, returncode = run_script(job["script"], params, timeout)
+                if returncode != 0 and needs_playwright_fallback(error) and os.getenv("HAC_EXECUTOR_URL"):
+                    log.info(f"Job {job['job_id']} precisa de Playwright — repassando pro executor")
+                    output, error, returncode = run_script_remote(job["script"], params, timeout)
                 status = "failed" if returncode != 0 else "done"
                 finish_job(token, job["job_id"], status, output, error if status == "failed" else None)
                 log.info(f"Job {job['job_id']} finalizado: {status}")

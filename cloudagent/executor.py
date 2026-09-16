@@ -4,6 +4,39 @@ import sys
 import tempfile
 from typing import Dict, Any, Tuple
 
+import httpx
+
+# Sinais de que o script precisa de um browser (Playwright) que não existe
+# neste agente — nesse caso ele é reenviado pro executor no Render.
+_PLAYWRIGHT_MISSING_MARKERS = (
+    "no module named 'playwright'",
+    "executable doesn't exist",
+    "playwright install",
+)
+
+
+def needs_playwright_fallback(stderr: str) -> bool:
+    lowered = stderr.lower()
+    return any(marker in lowered for marker in _PLAYWRIGHT_MISSING_MARKERS)
+
+
+def run_script_remote(script: str, params: Dict[str, Any], timeout: int) -> Tuple[str, str, int]:
+    """
+    Repassa o script pro executor Playwright (Render conta B) via HTTP,
+    quando a execução local falhou por falta de browser.
+    """
+    executor_url = os.environ["HAC_EXECUTOR_URL"].rstrip("/")
+    api_key = os.environ["HAC_EXECUTOR_API_KEY"]
+    resp = httpx.post(
+        f"{executor_url}/run-task",
+        json={"script": script, "params": params, "timeout_seconds": timeout},
+        headers={"Authorization": f"Bearer {api_key}"},
+        timeout=timeout + 30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    return data["stdout"], data["stderr"], data["returncode"]
+
 
 def run_script(script: str, params: Dict[str, Any], timeout: int) -> Tuple[str, str, int]:
     """
