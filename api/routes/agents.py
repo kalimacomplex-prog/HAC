@@ -20,6 +20,7 @@ async def create_agent(body: AgentCreate, user: dict = Depends(get_current_user)
         "user_id": user["_id"],
         "name": body.name,
         "description": body.description,
+        "type": body.type,
         "created_at": now,
         "updated_at": now,
     }

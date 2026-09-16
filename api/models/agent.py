@@ -9,6 +9,7 @@ HEARTBEAT_TIMEOUT_SECONDS = 60
 class AgentCreate(BaseModel):
     name: str
     description: str = ""
+    type: str = "local"  # "local" | "cloud"
 
 
 class AgentUpdate(BaseModel):
@@ -21,6 +22,7 @@ class AgentOut(BaseModel):
     user_id: str
     name: str
     description: str
+    type: str
     last_seen: Optional[datetime]
     connected: bool
     created_at: datetime
@@ -41,6 +43,7 @@ def agent_doc_to_out(doc: dict) -> AgentOut:
         user_id=str(doc["user_id"]),
         name=doc["name"],
         description=doc.get("description", ""),
+        type=doc.get("type", "local"),
         last_seen=last_seen,
         connected=connected,
         created_at=doc["created_at"],

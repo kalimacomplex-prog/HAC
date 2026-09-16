@@ -9,7 +9,7 @@ async function loadAgents() {
   }
   tbody.innerHTML = agents.map(a => `
     <tr>
-      <td class="agent-name-cell">${a.name}</td>
+      <td class="agent-name-cell">${a.name} ${a.type === 'cloud' ? '<span class="badge badge-blue">Cloud</span>' : ''}</td>
       <td>${a.description || '–'}</td>
       <td>${a.connected
         ? `<span style="display:inline-flex;align-items:center;gap:.4rem;color:#16a34a;font-size:.82rem;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:#16a34a;display:inline-block"></span>Conectado</span>`
@@ -24,11 +24,18 @@ async function loadAgents() {
   `).join('');
 }
 
+function onAgentTypeChange() {
+  const isCloud = document.getElementById('agent-type').value === 'cloud';
+  document.getElementById('agent-cloud-hint').style.display = isCloud ? 'block' : 'none';
+}
+
 function openAgentModal() {
   document.getElementById('agent-edit-id').value = '';
   document.getElementById('agent-name').value = '';
   document.getElementById('agent-description').value = '';
+  document.getElementById('agent-type').value = 'local';
   document.getElementById('modal-agent-title').textContent = 'Novo agente';
+  onAgentTypeChange();
   openModal('modal-agent');
 }
 
@@ -38,7 +45,9 @@ async function editAgent(id) {
   document.getElementById('agent-edit-id').value = agent.id;
   document.getElementById('agent-name').value = agent.name;
   document.getElementById('agent-description').value = agent.description || '';
+  document.getElementById('agent-type').value = agent.type || 'local';
   document.getElementById('modal-agent-title').textContent = 'Editar agente';
+  onAgentTypeChange();
   openModal('modal-agent');
 }
 
@@ -48,6 +57,7 @@ async function saveAgent() {
     name: document.getElementById('agent-name').value.trim(),
     description: document.getElementById('agent-description').value.trim(),
   };
+  if (!id) body.type = document.getElementById('agent-type').value;
   if (!body.name) return toast('Informe o nome do agente', 'error');
   try {
     if (id) {
