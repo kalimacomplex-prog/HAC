@@ -80,9 +80,14 @@ def _headers(token: str) -> dict:
 
 
 def claim_job(token: str) -> dict | None:
+    # Sem agent_id no corpo de propósito: essa conta agora é uma conta de
+    # serviço (role="admin" na API) que faz claim de jobs de QUALQUER
+    # tenant, não só os marcados pra um agent_id específico. AGENT_ID
+    # (env) continua existindo só pro heartbeat — pra aparecer "conectado"
+    # no painel — mas não filtra mais o que é reivindicado.
     resp = client.post(
         f"{API_URL}/worker/claim",
-        json={"agent_id": AGENT_ID},
+        json={},
         headers=_headers(token),
         timeout=30,
     )

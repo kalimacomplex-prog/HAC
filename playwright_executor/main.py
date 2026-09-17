@@ -7,6 +7,7 @@ Só existe porque o Chromium consome RAM demais pra ficar sempre de pé
 no agente 24h (Discloud, RAM curta) — aqui ele sobe sob demanda.
 """
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -27,6 +28,17 @@ class RunTaskRequest(BaseModel):
 
 
 def run_script(script: str, params: Dict[str, Any], timeout: int):
+    # Este executor é compartilhado entre TODOS os tenants — uma
+    # execução não pode deixar rastro pra próxima. Por isso cada chamada
+    # ganha seu próprio diretório temporário isolado (workdir): o script
+    # do tenant roda com esse diretório como cwd e como TMPDIR/TEMP/TMP,
+    # então tanto o profile temporário que o Chromium cria pra cada
+    # `launch()` quanto qualquer arquivo que o script escreva (download,
+    # screenshot, etc.) ficam confinados ali. No fim (sucesso, falha ou
+    # timeout), o workdir inteiro é apagado — não sobra nada em disco
+    # entre uma solicitação de execução e a próxima.
+    workdir = tempfile.mkdtemp(prefix="hac_job_")
+
     # Ambiente mínimo e explícito — NUNCA os.environ.copy(). Este é o
     # ponto onde o script arbitrário de qualquer tenant roda; copiar o
     # ambiente do processo vazaria EXECUTOR_API_KEY (e qualquer outra
@@ -41,23 +53,27 @@ def run_script(script: str, params: Dict[str, Any], timeout: int):
         "PLAYWRIGHT_BROWSERS_PATH": os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "/ms-playwright"),
         "HOME": os.environ.get("HOME", "/root"),
         "PYTHONIOENCODING": "utf-8",
+        "TMPDIR": workdir,
+        "TEMP": workdir,
+        "TMP": workdir,
     }
     for key, value in params.items():
         env[f"HAC_PARAM_{key.upper()}"] = str(value)
 
-    with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False, encoding="utf-8") as f:
+    script_path = os.path.join(workdir, "script.py")
+    with open(script_path, "w", encoding="utf-8") as f:
         f.write(script)
-        tmp_path = f.name
 
     try:
         result = subprocess.run(
-            [sys.executable, tmp_path],
+            [sys.executable, script_path],
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
             timeout=timeout,
             env=env,
+            cwd=workdir,
         )
         return result.stdout, result.stderr, result.returncode
     except subprocess.TimeoutExpired:
@@ -65,7 +81,7 @@ def run_script(script: str, params: Dict[str, Any], timeout: int):
     except Exception as e:
         return "", str(e), 1
     finally:
-        os.unlink(tmp_path)
+        shutil.rmtree(workdir, ignore_errors=True)
 
 
 def _check_auth(authorization: Optional[str]):

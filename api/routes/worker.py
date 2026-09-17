@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from pymongo import ReturnDocument
 
 from ..auth import get_current_user
-from ..database import processes_col, jobs_col, agents_col
+from ..database import processes_col, jobs_col, agents_col, users_col
 from ..notifier import send_job_notification
 
 router = APIRouter(prefix="/worker", tags=["worker"])
@@ -24,7 +24,14 @@ class JobFinish(BaseModel):
 
 @router.post("/claim")
 async def claim_job(body: ClaimRequest, user: dict = Depends(get_current_user)):
-    query = {"user_id": user["_id"], "status": "pending"}
+    # Conta de serviço (role="admin") faz claim de jobs de QUALQUER
+    # tenant — é o que permite um único agente central (cloudagent na
+    # Discloud) intermediar a fila de todo mundo. Uma conta normal
+    # (role="user") continua só vendo os próprios jobs, caso algum
+    # tenant rode um agente local autoatendendo.
+    query = {"status": "pending"}
+    if user.get("role") != "admin":
+        query["user_id"] = user["_id"]
     if body.agent_id:
         query["agent_id"] = body.agent_id
 
@@ -73,7 +80,10 @@ async def finish_job(job_id: str, body: JobFinish, user: dict = Depends(get_curr
     if body.status not in ("done", "failed"):
         raise HTTPException(status_code=400, detail="status deve ser 'done' ou 'failed'")
 
-    job = await jobs_col.find_one({"_id": job_id, "user_id": user["_id"], "status": "running"})
+    query = {"_id": job_id, "status": "running"}
+    if user.get("role") != "admin":
+        query["user_id"] = user["_id"]
+    job = await jobs_col.find_one(query)
     if not job:
         raise HTTPException(status_code=404, detail="Job não encontrado ou não está em execução")
 
@@ -88,4 +98,10 @@ async def finish_job(job_id: str, body: JobFinish, user: dict = Depends(get_curr
     )
 
     updated = await jobs_col.find_one({"_id": job_id})
-    send_job_notification(user["email"], user["name"], updated)
+    # Notifica sempre o DONO do job, nunca quem chamou finish — com a
+    # conta de serviço fazendo isso por qualquer tenant, `user` aqui é o
+    # admin, não o dono. Antes disso não fazia diferença (quem chamava
+    # era sempre o próprio dono).
+    owner = await users_col.find_one({"_id": updated["user_id"]})
+    if owner:
+        send_job_notification(owner["email"], owner["name"], updated)
