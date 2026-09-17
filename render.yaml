@@ -16,19 +16,13 @@ services:
       - key: BREVO_SENDER_NAME
         value: HAC Platform
 
-  - type: worker
-    name: hac-worker
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python -m worker.main
-    envVars:
-      - key: MONGO_URL
-        sync: false
-      - key: BREVO_API_KEY
-        sync: false
-      - key: BREVO_SENDER_EMAIL
-        sync: false
-      - key: BREVO_SENDER_NAME
-        value: HAC Platform
-      - key: WORKER_POLL_SECONDS
-        value: "5"
+# hac-worker (Render, type: worker) foi removido daqui de propósito: ele
+# reivindicava jobs em paralelo ao cloudagent (Discloud), sem nenhum
+# fallback pro playwright_executor — quando ele ganhava a corrida por um
+# job que precisava de browser, quebrava com
+# "ModuleNotFoundError: No module named 'playwright'" (requirements.txt
+# raiz não instala playwright; só playwright_executor/requirements.txt
+# instala). O cloudagent é agora o único claimant de /worker/claim e
+# único intermediário até o executor Playwright — ver src/cloudagent.
+# O código em worker/ continua no repo só de referência; não precisa
+# mais ser deployado.

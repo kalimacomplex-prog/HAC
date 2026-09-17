@@ -27,10 +27,23 @@ class RunTaskRequest(BaseModel):
 
 
 def run_script(script: str, params: Dict[str, Any], timeout: int):
-    env = os.environ.copy()
+    # Ambiente mínimo e explícito — NUNCA os.environ.copy(). Este é o
+    # ponto onde o script arbitrário de qualquer tenant roda; copiar o
+    # ambiente do processo vazaria EXECUTOR_API_KEY (e qualquer outra
+    # credencial deste serviço) pro script de quem quer que tenha
+    # mandado o job. As únicas variáveis herdadas do processo são as que
+    # a imagem oficial do Playwright cozinha (não são segredo, são só
+    # caminho de instalação): PATH e PLAYWRIGHT_BROWSERS_PATH (browsers
+    # em /ms-playwright, ver Dockerfile), e HOME (fontconfig/Chromium
+    # dependem de um HOME válido pra profile dir e cache).
+    env = {
+        "PATH": os.environ.get("PATH", ""),
+        "PLAYWRIGHT_BROWSERS_PATH": os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "/ms-playwright"),
+        "HOME": os.environ.get("HOME", "/root"),
+        "PYTHONIOENCODING": "utf-8",
+    }
     for key, value in params.items():
         env[f"HAC_PARAM_{key.upper()}"] = str(value)
-    env["PYTHONIOENCODING"] = "utf-8"
 
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False, encoding="utf-8") as f:
         f.write(script)
