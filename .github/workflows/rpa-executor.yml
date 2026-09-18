@@ -1,0 +1,35 @@
+name: RPA Executor
+
+# Disparado pela API do HAC (api/github_actions.py::dispatch_workflow_run)
+# quando um job é criado pra um agente `type=="cloud"` — um runner
+# efêmero por job, que busca o payload (script/params/timeout) na API
+# usando o job-token e reporta o resultado ao terminar (ver
+# rpa_executor/main.py). Só job_id/job_token viajam aqui: workflow_dispatch
+# tem limite de tamanho de input, então o script nunca é passado direto.
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "HAC job id"
+        required: true
+      job_token:
+        description: "Token de escopo único (payload + finish deste job)"
+        required: true
+
+jobs:
+  run-job:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/hac-rpa-executor:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Executar job
+        working-directory: /app
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+          JOB_TOKEN: ${{ inputs.job_token }}
+          HAC_API_URL: ${{ vars.HAC_API_URL }}
+        run: python main.py

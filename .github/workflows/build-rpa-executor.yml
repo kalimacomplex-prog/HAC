@@ -1,0 +1,36 @@
+name: Build RPA Executor image
+
+# Publica a imagem no GHCR sempre que rpa_executor/ mudar (ou manualmente).
+# Só builda/publica — não roda nenhum job de tenant. A execution
+# efêmera de cada job usa essa imagem já pronta (ver rpa-executor.yml),
+# pra não gastar minutos de Actions instalando dependências toda hora.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "rpa_executor/**"
+      - ".github/workflows/build-rpa-executor.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: rpa_executor
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/hac-rpa-executor:latest
