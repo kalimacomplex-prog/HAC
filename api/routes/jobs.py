@@ -27,51 +27,58 @@ async def create_job(body: JobCreate, user: dict = Depends(get_current_user)):
     if not process:
         raise HTTPException(status_code=404, detail="Processo não encontrado")
 
+    agent_id = process.get("agent_id")
+    agent = await agents_col.find_one({"_id": agent_id}) if agent_id else None
+    is_cloud = bool(agent and agent.get("type") == "cloud")
+
+    now = datetime.utcnow()
     doc = {
         "_id": str(ObjectId()),
         "user_id": user["_id"],
         "process_id": body.process_id,
         "process_name": process["name"],
-        "agent_id": process.get("agent_id"),
-        "status": "pending",
+        "agent_id": agent_id,
+        # Agente cloud: nasce direto como `running` (nunca passa por
+        # `pending`) — o cloudagent compartilhado (Discloud) reivindica
+        # QUALQUER job `pending` de QUALQUER tenant a cada ~1s; se esse
+        # job existisse como pending por qualquer instante, ele podia
+        # vencer a corrida e terminar o job antes do runner do GitHub
+        # Actions, que aí falharia ao chamar /finish (job já não estaria
+        # mais `running`). Nascer `running` fecha essa corrida de vez.
+        "status": "running" if is_cloud else "pending",
         "priority": 0,
         "params": body.params,
         "output": None,
         "error": None,
-        "created_at": datetime.utcnow(),
-        "started_at": None,
+        "created_at": now,
+        "started_at": now if is_cloud else None,
         "finished_at": None,
     }
     await jobs_col.insert_one(doc)
 
-    agent_id = process.get("agent_id")
-    if agent_id:
-        agent = await agents_col.find_one({"_id": agent_id})
-        if agent and agent.get("type") == "cloud":
-            # Agente cloud: dispara o workflow do GitHub Actions já
-            # sabendo qual job rodar (push — só job_id/job_token viajam
-            # no disparo, o runner busca o resto via /payload), em vez de
-            # deixar `pending` esperando um claim. Isolamento por tenant
-            # vem daqui — cada agent_id é de um `user_id`, então cada
-            # execution só carrega o job de UM tenant.
-            timeout_seconds = process.get("timeout_seconds", 300)
-            job_token = create_job_token(
-                doc["_id"], user["_id"], timeout_seconds + JOB_TOKEN_TTL_BUFFER_SECONDS
+    if is_cloud:
+        # Agente cloud: dispara o workflow do GitHub Actions já sabendo
+        # qual job rodar (push — só job_id/job_token viajam no disparo, o
+        # runner busca o resto via /payload). Isolamento por tenant vem
+        # daqui — cada agent_id é de um `user_id`, então cada execution
+        # só carrega o job de UM tenant.
+        timeout_seconds = process.get("timeout_seconds", 300)
+        job_token = create_job_token(
+            doc["_id"], user["_id"], timeout_seconds + JOB_TOKEN_TTL_BUFFER_SECONDS
+        )
+        try:
+            await dispatch_workflow_run(doc["_id"], job_token)
+        except GithubDispatchError as e:
+            # Não propaga erro pro usuário: reverte pra pending, e o
+            # cloudagent compartilhado ainda de pé como fallback durante a
+            # migração pode reivindicá-lo.
+            doc["status"] = "pending"
+            doc["started_at"] = None
+            await jobs_col.update_one(
+                {"_id": doc["_id"]},
+                {"$set": {"status": "pending", "started_at": None}},
             )
-            try:
-                await dispatch_workflow_run(doc["_id"], job_token)
-            except GithubDispatchError as e:
-                # Não propaga erro pro usuário: o job fica pending e o
-                # cloudagent compartilhado (Discloud) ainda de pé como
-                # fallback durante a migração pode reivindicá-lo.
-                log.warning(f"GitHub Actions dispatch falhou pro job {doc['_id']}, deixando pending: {e}")
-            else:
-                doc["status"] = "running"
-                doc["started_at"] = datetime.utcnow()
-                await jobs_col.update_one(
-                    {"_id": doc["_id"]},
-                    {"$set": {"status": "running", "started_at": doc["started_at"]}},
-                )
+            log.warning(f"GitHub Actions dispatch falhou pro job {doc['_id']}, revertendo pra pending: {e}")
 
     return job_doc_to_out(doc)
 
