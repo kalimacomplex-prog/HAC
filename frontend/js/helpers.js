@@ -151,6 +151,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 function statusBadge(status) {
   const map = {
     pending:   ['badge-pending', `${_icon('clock', 12)} Pendente`],
+    queued:    ['badge-pending', `${_icon('clock', 12)} Na fila`],
     running:   ['badge-running', '<span class="dot dot-running"></span> Executando'],
     done:      ['badge-done', `${_icon('check', 12)} Concluído`],
     failed:    ['badge-failed', `${_icon('x', 12)} Falhou`],

@@ -7,6 +7,7 @@ from pymongo import ReturnDocument
 
 from ..auth import get_current_user, oauth2_scheme, decode_job_token
 from ..database import processes_col, jobs_col, agents_col, users_col
+from ..job_dispatch import dispatch_next_queued_job
 from ..notifier import send_job_notification
 
 router = APIRouter(prefix="/worker", tags=["worker"])
@@ -133,6 +134,13 @@ async def finish_job(job_id: str, body: JobFinish, token: str = Depends(oauth2_s
     )
 
     updated = await jobs_col.find_one({"_id": job_id})
+
+    # Libera a vaga de concorrência desse tenant (limite de 1 execution
+    # cloud por vez, ver api/job_dispatch.py) e dispara o próximo da fila
+    # se houver um esperando. No-op barato se o tenant não tem agente
+    # cloud nenhum.
+    await dispatch_next_queued_job(updated["user_id"])
+
     # Notifica sempre o DONO do job, nunca quem chamou finish — com a
     # conta de serviço fazendo isso por qualquer tenant, `user` aqui é o
     # admin, não o dono. Antes disso não fazia diferença (quem chamava

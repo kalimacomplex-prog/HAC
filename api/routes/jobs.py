@@ -6,19 +6,14 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from ..auth import get_current_user, create_job_token
+from ..auth import get_current_user
 from ..database import processes_col, jobs_col, agents_col
-from ..github_actions import dispatch_workflow_run, GithubDispatchError
+from ..job_dispatch import dispatch_cloud_job, get_cloud_agent_ids, has_running_cloud_job
 from ..models.job import JobCreate, JobOut, job_doc_to_out
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 log = logging.getLogger("hac.jobs")
-
-# Margem sobre o timeout do processo pro job-token continuar válido até o
-# runner efêmero buscar o payload, rodar e reportar o resultado (deve
-# sobrar tempo de sobra pra ele subir e terminar depois do timeout estourar).
-JOB_TOKEN_TTL_BUFFER_SECONDS = 60
 
 
 @router.post("", response_model=JobOut, status_code=201)
@@ -31,44 +26,50 @@ async def create_job(body: JobCreate, user: dict = Depends(get_current_user)):
     agent = await agents_col.find_one({"_id": agent_id}) if agent_id else None
     is_cloud = bool(agent and agent.get("type") == "cloud")
 
+    # Concorrência limitada a 1 execution cloud por tenant (ver
+    # api/job_dispatch.py) — o GitHub Actions Free só dá 20 jobs
+    # simultâneos NA CONTA INTEIRA, compartilhados entre todos os
+    # tenants, então um único tenant disparando muitas execuções de uma
+    # vez não pode esgotar a cota de todo mundo sozinho. Se já tem uma
+    # rodando, esta nasce `queued` e espera a vez (ver
+    # dispatch_next_queued_job, chamado no /finish).
+    should_dispatch_now = False
+    if is_cloud:
+        cloud_agent_ids = await get_cloud_agent_ids(user["_id"])
+        should_dispatch_now = not await has_running_cloud_job(user["_id"], cloud_agent_ids)
+
     now = datetime.utcnow()
+    if is_cloud:
+        status = "running" if should_dispatch_now else "queued"
+    else:
+        status = "pending"
     doc = {
         "_id": str(ObjectId()),
         "user_id": user["_id"],
         "process_id": body.process_id,
         "process_name": process["name"],
         "agent_id": agent_id,
-        # Agente cloud: nasce direto como `running` (nunca passa por
-        # `pending`) — o cloudagent compartilhado (Discloud) reivindica
-        # QUALQUER job `pending` de QUALQUER tenant a cada ~1s; se esse
-        # job existisse como pending por qualquer instante, ele podia
-        # vencer a corrida e terminar o job antes do runner do GitHub
-        # Actions, que aí falharia ao chamar /finish (job já não estaria
-        # mais `running`). Nascer `running` fecha essa corrida de vez.
-        "status": "running" if is_cloud else "pending",
+        # Agente cloud que pode rodar já: nasce direto como `running`,
+        # nunca passa por `pending` — o cloudagent compartilhado (Discloud)
+        # reivindica QUALQUER job `pending` de QUALQUER tenant a cada
+        # ~1s; se esse job existisse como pending por qualquer instante,
+        # ele podia vencer a corrida e terminar o job antes do runner do
+        # GitHub Actions, que aí falharia ao chamar /finish. Nascer
+        # `running` fecha essa corrida de vez.
+        "status": status,
         "priority": 0,
         "params": body.params,
         "output": None,
         "error": None,
         "created_at": now,
-        "started_at": now if is_cloud else None,
+        "started_at": now if status == "running" else None,
         "finished_at": None,
     }
     await jobs_col.insert_one(doc)
 
-    if is_cloud:
-        # Agente cloud: dispara o workflow do GitHub Actions já sabendo
-        # qual job rodar (push — só job_id/job_token viajam no disparo, o
-        # runner busca o resto via /payload). Isolamento por tenant vem
-        # daqui — cada agent_id é de um `user_id`, então cada execution
-        # só carrega o job de UM tenant.
-        timeout_seconds = process.get("timeout_seconds", 300)
-        job_token = create_job_token(
-            doc["_id"], user["_id"], timeout_seconds + JOB_TOKEN_TTL_BUFFER_SECONDS
-        )
-        try:
-            await dispatch_workflow_run(doc["_id"], job_token)
-        except GithubDispatchError as e:
+    if is_cloud and should_dispatch_now:
+        ok = await dispatch_cloud_job(doc, process)
+        if not ok:
             # Não propaga erro pro usuário: reverte pra pending, e o
             # cloudagent compartilhado ainda de pé como fallback durante a
             # migração pode reivindicá-lo.
@@ -78,7 +79,6 @@ async def create_job(body: JobCreate, user: dict = Depends(get_current_user)):
                 {"_id": doc["_id"]},
                 {"$set": {"status": "pending", "started_at": None}},
             )
-            log.warning(f"GitHub Actions dispatch falhou pro job {doc['_id']}, revertendo pra pending: {e}")
 
     return job_doc_to_out(doc)
 
@@ -120,8 +120,8 @@ async def set_job_priority(job_id: str, body: PriorityUpdate, user: dict = Depen
     doc = await jobs_col.find_one({"_id": job_id, "user_id": user["_id"]})
     if not doc:
         raise HTTPException(status_code=404, detail="Job não encontrado")
-    if doc["status"] != "pending":
-        raise HTTPException(status_code=400, detail="Só é possível alterar prioridade de jobs pendentes")
+    if doc["status"] not in ("pending", "queued"):
+        raise HTTPException(status_code=400, detail="Só é possível alterar prioridade de jobs pendentes ou em fila")
     priority = max(-100, min(100, body.priority))
     await jobs_col.update_one({"_id": job_id}, {"$set": {"priority": priority}})
     return job_doc_to_out({**doc, "priority": priority})
@@ -132,6 +132,6 @@ async def cancel_job(job_id: str, user: dict = Depends(get_current_user)):
     doc = await jobs_col.find_one({"_id": job_id, "user_id": user["_id"]})
     if not doc:
         raise HTTPException(status_code=404, detail="Job não encontrado")
-    if doc["status"] not in ("pending",):
-        raise HTTPException(status_code=400, detail="Só é possível cancelar jobs com status 'pending'")
+    if doc["status"] not in ("pending", "queued"):
+        raise HTTPException(status_code=400, detail="Só é possível cancelar jobs com status 'pending' ou 'queued'")
     await jobs_col.update_one({"_id": job_id}, {"$set": {"status": "cancelled"}})

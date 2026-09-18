@@ -66,7 +66,7 @@ async function loadJobs() {
       <td>${formatDate(j.created_at)}</td>
       <td class="actions-cell">
         <button class="btn btn-outline btn-sm" onclick="viewJob('${j.id}')">Ver resultado</button>
-        ${j.status === 'pending' ? `<button class="btn btn-danger btn-sm" onclick="cancelJob('${j.id}')">Cancelar</button>` : ''}
+        ${(j.status === 'pending' || j.status === 'queued') ? `<button class="btn btn-danger btn-sm" onclick="cancelJob('${j.id}')">Cancelar</button>` : ''}
       </td>
     </tr>
   `).join('');
